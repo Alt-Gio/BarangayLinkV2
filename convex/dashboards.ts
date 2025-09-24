@@ -252,9 +252,9 @@ export const getBuilderDashboard = query({
     
     if (myProjectIds.length > 0) {
       try {
-        projectTasks = await ctx.db.query("tasks")
-          .filter((q: any) => q.in(q.field("projectId"), myProjectIds))
-          .collect();
+        // Get all tasks and filter by project IDs
+        const allTasks = await ctx.db.query("tasks").collect();
+        projectTasks = allTasks.filter(task => myProjectIds.includes(task.projectId));
       } catch (error) {
         console.error("Error querying project tasks:", error);
         projectTasks = [];

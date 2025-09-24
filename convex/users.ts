@@ -234,37 +234,6 @@ export const getUserPermissions = query({
   },
 });
 
-// Update user profile
-export const updateUserProfile = mutation({
-  args: {
-    department: v.optional(v.string()),
-    position: v.optional(v.string()),
-    phone: v.optional(v.string()),
-  },
-  handler: async (ctx, { department, position, phone }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .filter((q) => q.eq(q.field("clerkId"), identity.subject))
-      .first();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    await ctx.db.patch(user._id, {
-      department,
-      position,
-      phone,
-    });
-
-    return user._id;
-  },
-});
 
 // Assign user level (Admin/Manager only)
 export const assignUserLevel = mutation({
@@ -476,5 +445,118 @@ export const getAllUsersWithLevels = query({
 
     // Filter out users with null userLevels
     return usersWithLevels.filter(user => user.userLevel !== null);
+  },
+});
+
+// Update user profile (Enhanced for admin use)
+export const updateUserProfile = mutation({
+  args: {
+    userId: v.optional(v.id("users")),
+    department: v.optional(v.string()),
+    position: v.optional(v.string()),
+    phone: v.optional(v.string()),
+  },
+  handler: async (ctx, { userId, department, position, phone }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    let targetUserId = userId;
+
+    // If no userId provided, update current user
+    if (!targetUserId) {
+      const user = await ctx.db
+        .query("users")
+        .filter((q) => q.eq(q.field("clerkId"), identity.subject))
+        .first();
+
+      if (!user) {
+        throw new Error("User not found");
+      }
+      targetUserId = user._id;
+    } else {
+      // If updating another user, check permissions
+      const currentUser = await ctx.db
+        .query("users")
+        .filter((q) => q.eq(q.field("clerkId"), identity.subject))
+        .first();
+
+      if (!currentUser) {
+        throw new Error("Current user not found");
+      }
+
+      const currentUserLevel = await ctx.db.get(currentUser.userLevel);
+      if (!currentUserLevel || currentUserLevel.level < 3) {
+        throw new Error("Insufficient permissions. Manager level or higher required.");
+      }
+    }
+
+    const updateData: any = {};
+    if (department !== undefined) updateData.department = department;
+    if (position !== undefined) updateData.position = position;
+    if (phone !== undefined) updateData.phone = phone;
+
+    await ctx.db.patch(targetUserId, updateData);
+
+    return targetUserId;
+  },
+});
+
+// Update user status (Admin/Manager only)
+export const updateUserStatus = mutation({
+  args: {
+    userId: v.id("users"),
+    isActive: v.boolean(),
+  },
+  handler: async (ctx, { userId, isActive }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    // Check permissions
+    const currentUser = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkId"), identity.subject))
+      .first();
+
+    if (!currentUser) {
+      throw new Error("Current user not found");
+    }
+
+    const currentUserLevel = await ctx.db.get(currentUser.userLevel);
+    if (!currentUserLevel || currentUserLevel.level < 3) {
+      throw new Error("Insufficient permissions. Manager level or higher required.");
+    }
+
+    // Get target user
+    const targetUser = await ctx.db.get(userId);
+    if (!targetUser) {
+      throw new Error("User not found");
+    }
+
+    // Update user status
+    await ctx.db.patch(userId, {
+      isActive,
+    });
+
+    // Create audit trail
+    await ctx.db.insert("analytics", {
+      eventType: "user_status_changed",
+      userId: currentUser._id,
+      eventData: {
+        action: "user_status_changed",
+        metadata: {
+          targetUserId: userId,
+          previousStatus: targetUser.isActive,
+          newStatus: isActive,
+        },
+      },
+      sessionId: identity.subject,
+      timestamp: Date.now(),
+    });
+
+    return userId;
   },
 });

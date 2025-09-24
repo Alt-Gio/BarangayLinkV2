@@ -241,6 +241,7 @@ export const logActivity = mutation({
     page: v.optional(v.string()),
     action: v.optional(v.string()),
     details: v.optional(v.object({
+      action: v.optional(v.string()), // Added to support tab_visible/tab_hidden actions
       deviceInfo: v.optional(v.object({
         browser: v.optional(v.string()),
         device: v.optional(v.string()),
@@ -261,22 +262,25 @@ export const logActivity = mutation({
     duration: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
+    try {
+      const identity = await ctx.auth.getUserIdentity();
+      if (!identity) {
+        console.warn("logActivity called without authentication");
+        return; // Don't throw error, just return silently
+      }
 
-    const user = await ctx.db
-      .query("users")
-      .filter((q: any) => q.eq(q.field("clerkId"), identity.subject))
-      .first();
+      const user = await ctx.db
+        .query("users")
+        .filter((q: any) => q.eq(q.field("clerkId"), identity.subject))
+        .first();
 
-    if (!user) {
-      throw new Error("User not found");
-    }
+      if (!user) {
+        console.warn("logActivity called for non-existent user:", identity.subject);
+        return; // Don't throw error, just return silently
+      }
 
-    // Find current active session
-    const session = await ctx.db
+      // Find current active session or create one if none exists
+    let session = await ctx.db
       .query("userSessions")
       .filter((q: any) => q.and(
         q.eq(q.field("userId"), user._id),
@@ -284,21 +288,37 @@ export const logActivity = mutation({
       ))
       .first();
 
-    if (!session) {
-      throw new Error("No active session found");
-    }
+      if (!session) {
+        // Create a new session if none exists
+        const sessionId = await ctx.db.insert("userSessions", {
+          userId: user._id,
+          clerkSessionId: identity.subject || "unknown",
+          loginTime: Date.now(),
+          isActive: true,
+          deviceInfo: args.details?.deviceInfo || {},
+          location: args.details?.location || {},
+          userAgent: args.details?.userAgent || "",
+        });
+        session = await ctx.db.get(sessionId);
+      }
 
-    // Log the activity
-    await ctx.db.insert("userActivityLogs", {
-      userId: user._id,
-      sessionId: session._id,
-      activityType: args.activityType,
-      page: args.page,
-      action: args.action,
-      details: args.details,
-      timestamp: Date.now(),
-      duration: args.duration,
-    });
+      if (session) {
+        // Log the activity
+        await ctx.db.insert("userActivityLogs", {
+          userId: user._id,
+          sessionId: session._id,
+          activityType: args.activityType,
+          page: args.page,
+          action: args.action,
+          details: args.details,
+          timestamp: Date.now(),
+          duration: args.duration,
+        });
+      }
+    } catch (error) {
+      console.error("Error in logActivity:", error);
+      // Don't throw error to prevent system disruption
+    }
   },
 });
 

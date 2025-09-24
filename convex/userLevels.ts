@@ -12,6 +12,17 @@ export const getAll = query({
   },
 });
 
+// Get all user levels (alias for registration page)
+export const getAllUserLevels = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("userLevels")
+      .order("desc")
+      .collect();
+  },
+});
+
 // Get user level by ID
 export const getById = query({
   args: { id: v.id("userLevels") },
