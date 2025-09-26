@@ -5,6 +5,9 @@ import { RoomProvider } from '@liveblocks/react/suspense';
 import { useUser } from '@clerk/nextjs';
 import { useState } from 'react';
 
+// Force dynamic rendering for authenticated pages
+export const dynamic = 'force-dynamic';
+
 function LiveblocksTest() {
   const { user, isLoaded } = useUser();
   const [roomId] = useState('test-room-' + Date.now());

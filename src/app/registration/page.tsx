@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
+
+// Force dynamic rendering since this page is wrapped by ClerkProvider
+export const dynamic = 'force-dynamic';
 import { api } from '../../../convex/_generated/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

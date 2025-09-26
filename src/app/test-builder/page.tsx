@@ -3,6 +3,9 @@
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 
+// Force dynamic rendering since this page is wrapped by ClerkProvider
+export const dynamic = 'force-dynamic';
+
 export default function TestBuilderPage() {
   const dashboardData = useQuery(api.dashboards.getBuilderDashboard);
 
