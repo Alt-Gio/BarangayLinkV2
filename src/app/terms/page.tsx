@@ -3,6 +3,9 @@
 import Link from 'next/link';
 import { ArrowLeft, Shield, Users, Heart, CheckCircle } from 'lucide-react';
 
+// Force dynamic rendering since this page is wrapped by ClerkProvider
+export const dynamic = 'force-dynamic';
+
 export default function TermsOfService() {
   return (
     <div className="min-h-screen bg-gray-900 py-12">

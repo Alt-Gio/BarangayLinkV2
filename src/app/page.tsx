@@ -3,6 +3,9 @@
 import Link from 'next/link';
 import { Authenticated, Unauthenticated } from 'convex/react';
 import { SignInButton, UserButton } from '@clerk/nextjs';
+
+// Force dynamic rendering since this page uses Clerk components
+export const dynamic = 'force-dynamic';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Card, CardContent } from '@/components/ui/card';

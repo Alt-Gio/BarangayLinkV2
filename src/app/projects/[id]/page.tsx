@@ -12,6 +12,9 @@ import { ProjectTeam } from '@/components/projects/ProjectTeam';
 import { ProjectSettings } from '@/components/projects/ProjectSettings';
 import { useState } from 'react';
 
+// Force dynamic rendering for project pages
+export const dynamic = 'force-dynamic';
+
 interface ProjectPageProps {
   params: Promise<{ id: string }>;
 }

@@ -46,13 +46,15 @@ const BARANGAY_JOBS = [
   'Utility Worker',
   'Project Coordinator', 
   'Community Organizer', 
-  'Social Worker',
   'Disaster Risk Reduction Officer', 
   'Peace and Order Officer', 
   'Youth Development Officer',
   'Senior Citizen Affairs Officer', 
   'Women and Children Protection Officer'
 ];
+
+// Force dynamic rendering for authenticated pages
+export const dynamic = 'force-dynamic';
 
 export default function RegisterPage() {
   const { signUp, isLoaded } = useSignUp();

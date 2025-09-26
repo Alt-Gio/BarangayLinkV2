@@ -6,6 +6,9 @@ import { useSignIn, useAuth, useClerk } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { Building2, Mail, Lock, ArrowLeft, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 
+// Force dynamic rendering for authenticated pages
+export const dynamic = 'force-dynamic';
+
 export default function LoginPage() {
   const { signIn, isLoaded, setActive } = useSignIn();
   const { isSignedIn } = useAuth();
