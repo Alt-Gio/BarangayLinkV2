@@ -134,7 +134,7 @@ export function ProjectTeam({ project, teamMembers, currentUser, canEdit }: Proj
               {searchTerm && availableUsers && availableUsers.length > 0 && (
                 <div className="max-h-60 overflow-y-auto space-y-2">
                   {availableUsers
-                    .filter(user => !detailedTeamMembers?.some(member => member._id === user._id))
+                    .filter(user => !detailedTeamMembers?.some(member => member?._id === user._id))
                     .map((user) => (
                       <div 
                         key={user._id}
@@ -185,7 +185,7 @@ export function ProjectTeam({ project, teamMembers, currentUser, canEdit }: Proj
       {/* Team Members Grid */}
       {detailedTeamMembers && detailedTeamMembers.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {detailedTeamMembers.map((member) => (
+          {detailedTeamMembers.filter(member => member !== null).map((member) => (
             <Card key={member._id} className="bg-gray-800 border-gray-700">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between mb-4">
@@ -313,25 +313,25 @@ export function ProjectTeam({ project, teamMembers, currentUser, canEdit }: Proj
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-4 bg-gray-700/50 rounded-lg">
                 <div className="text-2xl font-bold text-blue-400">
-                  {detailedTeamMembers.filter(m => m.userLevel?.name === 'ADMIN').length}
+                  {detailedTeamMembers.filter(m => m && m.userLevel?.name === 'ADMIN').length}
                 </div>
                 <div className="text-sm text-gray-400">Admins</div>
               </div>
               <div className="text-center p-4 bg-gray-700/50 rounded-lg">
                 <div className="text-2xl font-bold text-green-400">
-                  {detailedTeamMembers.filter(m => m.userLevel?.name === 'MANAGER').length}
+                  {detailedTeamMembers.filter(m => m && m.userLevel?.name === 'MANAGER').length}
                 </div>
                 <div className="text-sm text-gray-400">Managers</div>
               </div>
               <div className="text-center p-4 bg-gray-700/50 rounded-lg">
                 <div className="text-2xl font-bold text-yellow-400">
-                  {detailedTeamMembers.filter(m => m.userLevel?.name === 'BUILDER').length}
+                  {detailedTeamMembers.filter(m => m && m.userLevel?.name === 'BUILDER').length}
                 </div>
                 <div className="text-sm text-gray-400">Builders</div>
               </div>
               <div className="text-center p-4 bg-gray-700/50 rounded-lg">
                 <div className="text-2xl font-bold text-gray-400">
-                  {detailedTeamMembers.filter(m => m.userLevel?.name === 'WORKER').length}
+                  {detailedTeamMembers.filter(m => m && m.userLevel?.name === 'WORKER').length}
                 </div>
                 <div className="text-sm text-gray-400">Workers</div>
               </div>

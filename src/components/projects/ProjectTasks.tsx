@@ -165,7 +165,7 @@ export function ProjectTasks({ project, tasks, currentUser, canManageTasks }: Pr
                         <div className="flex items-center gap-2">
                           <span>{user.name}</span>
                           <Badge variant="outline" className="text-xs">
-                            {user.userLevel.name}
+                            {user.userLevel?.name || 'USER'}
                           </Badge>
                         </div>
                       </SelectItem>

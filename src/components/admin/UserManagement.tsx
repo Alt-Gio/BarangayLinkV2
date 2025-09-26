@@ -11,7 +11,7 @@ export function UserManagement() {
   const [selectedUserLevel, setSelectedUserLevel] = useState<Id<"userLevels"> | ''>('')
   
   const users = useQuery(api.users.getAllUsers, {
-    barangay: selectedBarangay || undefined,
+    department: selectedBarangay || undefined,
     userLevelId: selectedUserLevel || undefined,
   })
   const userLevels = useQuery(api.userLevels.getAll)
@@ -21,7 +21,7 @@ export function UserManagement() {
     try {
       await assignUserLevel({
         userId,
-        userLevelId: newLevelId,
+        newUserLevelId: newLevelId,
         reason: "Level changed via admin interface"
       })
     } catch (error) {

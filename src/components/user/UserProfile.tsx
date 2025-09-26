@@ -11,7 +11,6 @@ export function UserProfile() {
   
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState({
-    barangay: user?.barangay || '',
     position: user?.position || '',
     phone: user?.phone || '',
   })
@@ -49,7 +48,7 @@ export function UserProfile() {
               Name
             </label>
             <div className="p-3 bg-neutral-50 rounded-lg">
-              {user.firstName} {user.lastName}
+              {user.name}
             </div>
           </div>
 
@@ -85,18 +84,6 @@ export function UserProfile() {
         <div className="space-y-4">
           {isEditing ? (
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Barangay
-                </label>
-                <input
-                  type="text"
-                  value={formData.barangay}
-                  onChange={(e) => setFormData({ ...formData, barangay: e.target.value })}
-                  className="w-full p-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  placeholder="Enter barangay"
-                />
-              </div>
 
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1">
@@ -138,7 +125,7 @@ export function UserProfile() {
                   Barangay
                 </label>
                 <div className="p-3 bg-neutral-50 rounded-lg">
-                  {user.barangay || 'Not specified'}
+                  {user.department || 'Not specified'}
                 </div>
               </div>
 

@@ -49,7 +49,7 @@ export function UserLevelManagement() {
       description: level.description,
       permissions: level.permissions,
     })
-    setEditingLevel(level._id)
+    setEditingLevel(level._id as any)
     setIsCreating(true)
   }
 

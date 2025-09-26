@@ -33,7 +33,6 @@ export function ProjectSettings({ project, currentUser, userRole }: ProjectSetti
     location: project.location || ''
   });
 
-  const updateProject = useMutation(api.projects.updateProject);
   const deleteProject = useMutation(api.projects.deleteProject);
   const archiveProject = useMutation(api.projects.archiveProject);
 
@@ -44,7 +43,8 @@ export function ProjectSettings({ project, currentUser, userRole }: ProjectSetti
 
   const handleSave = async () => {
     try {
-      await updateProject({
+      // TODO: Implement updateProject mutation
+      console.log("Project update data:", {
         projectId: project._id,
         title: formData.title,
         description: formData.description,
@@ -57,7 +57,7 @@ export function ProjectSettings({ project, currentUser, userRole }: ProjectSetti
         location: formData.location
       });
       setIsEditing(false);
-      alert("Project updated successfully!");
+      alert("Project update functionality not yet implemented!");
     } catch (error) {
       alert("Error updating project: " + error);
     }

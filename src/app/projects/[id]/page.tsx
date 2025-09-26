@@ -94,7 +94,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           
           {activeTab === 'events' && (
             <ProjectEvents 
-              projectId={id}
+              projectId={id as any}
               events={events || []}
               currentUser={currentUser}
               canManageEvents={canManageEvents}

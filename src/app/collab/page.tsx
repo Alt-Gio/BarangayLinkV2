@@ -16,10 +16,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { 
   Users, 
-  MessageSquare, 
   UserPlus,
   Bell,
-  Zap,
   Crown,
   Shield,
   Briefcase,

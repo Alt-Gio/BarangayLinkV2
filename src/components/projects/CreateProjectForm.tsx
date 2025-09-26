@@ -128,7 +128,6 @@ export function CreateProjectForm({ onClose, userRole, userDepartment }: CreateP
             <Select 
               value={formData.department} 
               onValueChange={(value) => setFormData({...formData, department: value})}
-              disabled={userRole === "BUILDER"}
             >
               <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                 <SelectValue placeholder="Select department" />

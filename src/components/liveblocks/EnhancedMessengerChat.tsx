@@ -116,7 +116,6 @@ export function EnhancedMessengerChat({
         message: event.message,
         timestamp: Date.now(),
         type: 'message',
-        replyTo: event.replyTo,
         reactions: []
       };
       
@@ -170,12 +169,10 @@ export function EnhancedMessengerChat({
     broadcast({
       type: "CHAT_MESSAGE",
       message: messageText,
-      replyTo: replyTo?.id,
       user: {
         name: user.fullName || user.firstName || user.emailAddresses?.[0]?.emailAddress || 'You',
         id: user.id,
         avatar: user.imageUrl,
-        role: currentUser?.userLevel?.name || 'WORKER'
       }
     });
     
@@ -204,12 +201,7 @@ export function EnhancedMessengerChat({
 
     broadcast({
       type: "NOTIFICATION",
-      messageId,
-      emoji,
-      user: {
-        id: user.id,
-        name: user.fullName || user.firstName || user.emailAddresses?.[0]?.emailAddress || 'You'
-      }
+      message: `${emoji} reaction`,
     });
   };
 

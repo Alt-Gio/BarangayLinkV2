@@ -12,5 +12,6 @@ export function useUserPermissions() {
 }
 
 export function useHasPermission(permission: string) {
-  return useQuery(api.users.hasPermission, { permission })
+  // TODO: Implement permission checking
+  return false
 }

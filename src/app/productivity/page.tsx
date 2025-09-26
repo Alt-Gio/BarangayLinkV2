@@ -233,11 +233,11 @@ export default function ProductivityPage() {
     
     try {
       await createTask({
-        projectId: taskForm.projectId || undefined,
+        projectId: taskForm.projectId ? taskForm.projectId as any : undefined,
         title: taskForm.title,
         description: taskForm.description,
         priority: taskForm.priority === 'critical' ? 'urgent' : taskForm.priority as 'low' | 'medium' | 'high' | 'urgent',
-        assignedTo: taskForm.assignedTo,
+        assignedTo: taskForm.assignedTo as any,
         dueDate: taskForm.dueDate ? new Date(taskForm.dueDate).getTime() : undefined,
         estimatedHours: parseFloat(taskForm.estimatedHours) || undefined,
       });

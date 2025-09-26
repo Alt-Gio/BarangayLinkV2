@@ -77,7 +77,7 @@ export function UserCreationModal({ isOpen, onClose, onUserCreated }: UserCreati
         department: formData.department,
         position: formData.position || 'Community Member',
         phone: formData.phone || undefined,
-        userLevelId: formData.userLevelId as string,
+        userLevelId: formData.userLevelId as any,
         assignInitialTasks: formData.assignTasks,
         sendWelcomeMessage: formData.welcomeMessage
       });

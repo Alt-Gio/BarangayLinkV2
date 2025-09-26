@@ -69,11 +69,11 @@ export function EnhancedTeamPanel({ className = "", onStartChat }: EnhancedTeamP
         ...other,
         isSelf: false,
         info: {
-          name: other.info?.name || convexUser?.name || `User ${other.connectionId?.slice(-4) || 'Unknown'}`,
+          name: other.info?.name || convexUser?.name || `User ${String(other.connectionId)?.slice(-4) || 'Unknown'}`,
           avatar: other.info?.avatar || convexUser?.imageUrl || '',
-          role: convexUser?.userLevel?.name || other.info?.role || 'WORKER',
-          level: convexUser?.level || other.info?.level || 1,
-          department: convexUser?.department || other.info?.department || '',
+          role: other.info?.role || 'WORKER',
+          level: other.info?.level || 1,
+          department: convexUser?.department || '',
           status: 'online',
           ...other.info
         }
@@ -146,10 +146,13 @@ export function EnhancedTeamPanel({ className = "", onStartChat }: EnhancedTeamP
     
     broadcast({
       type: "CHAT_REQUEST",
-      targetUserId: targetUser.id,
       fromUser: {
-        id: user?.id,
+        id: user?.id || 'unknown',
         name: user?.fullName || user?.firstName || user?.emailAddresses?.[0]?.emailAddress || 'Anonymous'
+      },
+      toUser: {
+        id: targetUser.id,
+        name: targetUser.info.name
       }
     });
     

@@ -98,7 +98,7 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
   );
 
   // Get project tasks
-  const tasks = useQuery(api.productivity.getProjectTasks, { projectId: id });
+  const tasks = useQuery(api.productivity.getProjectTasks, { projectId: id as any });
   
   // Get project details (we'll create this query)
   const project = useQuery(api.productivity.getProjects, { limit: 1 })?.find(p => p._id === id);
@@ -110,9 +110,8 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
     
     try {
       await updateTaskStatus({
-        taskId: taskId,
+        taskId: taskId as any,
         status: status as 'todo' | 'in_progress' | 'review' | 'completed' | 'cancelled',
-        userId: currentUser._id,
       });
     } catch (error) {
       console.error('Error updating task status:', error);

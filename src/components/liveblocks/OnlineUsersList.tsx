@@ -93,10 +93,13 @@ export function OnlineUsersList({ className = "", onStartChat }: OnlineUsersList
     
     broadcast({
       type: "CHAT_REQUEST",
-      targetUserId: targetUser.id,
       fromUser: {
-        id: user?.id,
+        id: user?.id || 'unknown',
         name: user?.fullName || user?.firstName || 'Anonymous'
+      },
+      toUser: {
+        id: targetUser.id,
+        name: targetUser.info?.name || 'Unknown User'
       }
     });
     

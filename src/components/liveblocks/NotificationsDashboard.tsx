@@ -182,14 +182,7 @@ export function NotificationsDashboard() {
   const broadcastNotification = (type: string, title: string, message: string, priority: string = 'medium') => {
     broadcast({
       type: "NOTIFICATION",
-      notificationType: type,
-      title,
-      message,
-      priority,
-      fromUser: {
-        id: user?.id || 'system',
-        name: user?.fullName || user?.firstName || 'System'
-      }
+      message: `${title}: ${message}`
     });
   };
 

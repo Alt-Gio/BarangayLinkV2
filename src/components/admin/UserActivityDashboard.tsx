@@ -23,7 +23,7 @@ export default function UserActivityDashboard() {
     endDate: filter.endDate?.getTime(),
   });
   const userActivityLogs = useQuery(api.userSessions.getUserActivityLogs, {
-    userId: selectedUserId as string,
+    userId: selectedUserId as any,
     activityType: filter.activityType,
     startDate: filter.startDate?.getTime(),
     endDate: filter.endDate?.getTime(),

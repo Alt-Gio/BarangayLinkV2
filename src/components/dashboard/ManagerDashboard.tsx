@@ -69,7 +69,7 @@ export function ManagerDashboard({ user, permissions }: ManagerDashboardProps) {
     );
   }
 
-  const { departmentOverview, teamPerformance, projectStatus, upcomingDeadlines, pendingApprovals } = dashboardData;
+  const { departmentOverview, teamPerformance, upcomingDeadlines, pendingApprovals } = dashboardData;
   
   // Get department projects from dashboardData
   const departmentProjects = dashboardData.departmentProjects || [];

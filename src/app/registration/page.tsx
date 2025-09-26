@@ -54,13 +54,13 @@ export default function RegistrationPage() {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDepartment = selectedDepartment === 'all' || user.department === selectedDepartment;
-    const matchesUserLevel = selectedUserLevel === 'all' || user.userLevel._id === selectedUserLevel;
+    const matchesUserLevel = selectedUserLevel === 'all' || user.userLevel?._id === selectedUserLevel;
     
     return matchesSearch && matchesDepartment && matchesUserLevel;
   }) || [];
 
   // Get unique departments
-  const departments = [...new Set(allUsers?.map(user => user.department) || [])];
+  const departments = [...new Set(allUsers?.map(user => user.department).filter(Boolean) || [])];
 
   const handleEditUser = (user: any) => {
     setEditingUser({
@@ -68,7 +68,7 @@ export default function RegistrationPage() {
       newDepartment: user.department,
       newPosition: user.position,
       newPhone: user.phone,
-      newUserLevel: user.userLevel._id
+      newUserLevel: user.userLevel?._id
     });
     setIsEditDialogOpen(true);
   };
@@ -105,7 +105,7 @@ export default function RegistrationPage() {
   const handleToggleUserStatus = async (userId: string, currentStatus: boolean) => {
     try {
       await updateUserStatus({
-        userId,
+        userId: userId as any,
         isActive: !currentStatus
       });
     } catch (error) {
@@ -205,7 +205,7 @@ export default function RegistrationPage() {
                   <SelectContent className="bg-gray-700 border-gray-600">
                     <SelectItem value="all">All Departments</SelectItem>
                     {departments.map(dept => (
-                      <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                      <SelectItem key={dept} value={dept!}>{dept}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -248,11 +248,11 @@ export default function RegistrationPage() {
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center">
-                        {getRoleIcon(user.userLevel.name)}
+                        {getRoleIcon(user.userLevel?.name || 'USER')}
                       </div>
                       <div>
                         <h3 className="text-white font-semibold">{user.name}</h3>
-                        <p className="text-gray-400 text-sm">{user.email}</p>
+                        <span className="text-sm text-gray-500">{user.userLevel?.description || 'No description'}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -265,8 +265,8 @@ export default function RegistrationPage() {
                   </div>
 
                   <div className="space-y-2 mb-4">
-                    <Badge className={getRoleBadgeColor(user.userLevel.name)}>
-                      {user.userLevel.name}
+                    <Badge className={getRoleBadgeColor(user.userLevel?.name || 'USER')}>
+                      <span className="font-medium">{user.userLevel?.name || 'USER'}</span>
                     </Badge>
                     <p className="text-sm text-gray-400">
                       <strong>Department:</strong> {user.department}

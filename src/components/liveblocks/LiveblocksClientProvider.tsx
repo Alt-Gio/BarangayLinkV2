@@ -39,9 +39,9 @@ export function LiveblocksClientProvider({ children }: LiveblocksClientProviderP
                   info: {
                     department: user.department,
                     position: user.position,
-                    level: user.userLevel?.name || 'WORKER',
-                    experience: user.experience,
-                    gold: user.gold
+                    level: 'WORKER',
+                    experience: 0,
+                    gold: 0
                   }
                 };
               }

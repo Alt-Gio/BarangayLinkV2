@@ -11,6 +11,22 @@ export default defineSchema({
     isActive: v.boolean(),
   }),
 
+  // Departments for organizational structure
+  departments: defineTable({
+    name: v.string(),
+    description: v.string(),
+    category: v.string(),
+    head: v.optional(v.string()),
+    contactEmail: v.optional(v.string()),
+    contactPhone: v.optional(v.string()),
+    location: v.optional(v.string()),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_category", ["category"])
+  .index("by_active", ["isActive"]),
+
   // Users with dynamic roles and gamification
   users: defineTable({
     clerkId: v.string(),
