@@ -4,7 +4,7 @@ import { useState, use } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../../convex/_generated/api';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -22,30 +22,17 @@ import {
   Users,
   CheckCircle,
   Clock,
-  AlertTriangle,
   User,
-  Target,
-  TrendingUp,
   Menu,
   X,
   Bell,
-  Search,
-  ChevronDown,
-  Home,
-  Globe,
-  Shield,
-  UserCheck,
-  Building2,
   LayoutDashboard,
-  FolderOpen,
   CheckSquare,
   FileText,
-  BarChart3,
-  Settings,
-  LogOut,
   Plus,
-  Filter,
-  MoreHorizontal
+  Search,
+  Target,
+  Filter
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -111,7 +98,7 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
   );
 
   // Get project tasks
-  const tasks = useQuery(api.productivity.getProjectTasks, { projectId: id as any });
+  const tasks = useQuery(api.productivity.getProjectTasks, { projectId: id });
   
   // Get project details (we'll create this query)
   const project = useQuery(api.productivity.getProjects, { limit: 1 })?.find(p => p._id === id);
@@ -123,8 +110,8 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
     
     try {
       await updateTaskStatus({
-        taskId: taskId as any,
-        status: status as any,
+        taskId: taskId,
+        status: status as 'todo' | 'in_progress' | 'review' | 'completed' | 'cancelled',
         userId: currentUser._id,
       });
     } catch (error) {
@@ -388,7 +375,7 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
                 <div className="ml-4">
                   <p className="text-sm text-gray-400">Days Left</p>
                   <p className="text-2xl font-bold text-white">
-                    {Math.max(0, Math.ceil((project?.endDate - Date.now()) / (1000 * 60 * 60 * 24)))}
+                    {project?.endDate ? Math.max(0, Math.ceil((project.endDate - Date.now()) / (1000 * 60 * 60 * 24))) : 'N/A'}
                   </p>
                 </div>
               </div>
@@ -411,7 +398,7 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
                     <span>Start Date</span>
                   </div>
                   <span className="text-white font-medium">
-                    {new Date(project?.startDate).toLocaleDateString()}
+                    {project?.startDate ? new Date(project.startDate).toLocaleDateString() : 'N/A'}
                   </span>
                 </div>
                 
@@ -421,7 +408,7 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
                     <span>End Date</span>
                   </div>
                   <span className="text-white font-medium">
-                    {new Date(project?.endDate).toLocaleDateString()}
+                    {project?.endDate ? new Date(project.endDate).toLocaleDateString() : 'N/A'}
                   </span>
                 </div>
               </div>
@@ -528,7 +515,7 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
             <CardContent className="p-12 text-center">
               <CheckCircle className="w-16 h-16 text-gray-600 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-gray-400 mb-2">No Tasks Yet</h3>
-              <p className="text-gray-500 mb-6">This project doesn't have any tasks assigned yet.</p>
+              <p className="text-gray-500 mb-6">This project doesn&apos;t have any tasks assigned yet.</p>
               <Button className="bg-green-600 hover:bg-green-700">
                 <Plus className="w-4 h-4 mr-2" />
                 Create First Task

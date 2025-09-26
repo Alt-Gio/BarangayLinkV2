@@ -9,15 +9,12 @@ export default function NotFound() {
       <div className="max-w-md w-full text-center">
         <div className="mb-8">
           <div className="w-20 h-20 bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <Building2 className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-6xl font-bold text-gray-400 mb-4">404</h1>
           <h2 className="text-2xl font-semibold text-white mb-2">
             Page Not Found
           </h2>
-          <p className="text-gray-400 mb-8">
-            The page you're looking for doesn't exist or may have been moved.
-          </p>
+          <p className="text-gray-600 mb-8">Sorry, we couldn't find the page you're looking for.</p>
         </div>
 
         <div className="space-y-4">

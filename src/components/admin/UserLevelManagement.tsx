@@ -42,7 +42,7 @@ export function UserLevelManagement() {
     }
   }
 
-  const handleEdit = (level: any) => {
+  const handleEdit = (level: { _id: string; name: string; level: number; description: string; permissions: string[] }) => {
     setFormData({
       name: level.name,
       level: level.level,

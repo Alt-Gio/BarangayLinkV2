@@ -10,8 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Plus, Calendar, MapPin, Users, Edit, Trash2, Bell, Megaphone, Send } from 'lucide-react';
 
+import { Id } from '../../../convex/_generated/dataModel';
+
 interface ProjectEventsProps {
-  projectId: string;
+  projectId: Id<"projects">;
   events: any[];
   currentUser: any;
   canManageEvents: boolean;

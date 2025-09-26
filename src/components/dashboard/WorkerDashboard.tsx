@@ -19,7 +19,8 @@ import {
   Zap,
   User,
   Menu,
-  Trophy
+  Trophy,
+  Play
 } from 'lucide-react';
 
 interface WorkerDashboardProps {

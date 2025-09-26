@@ -77,7 +77,7 @@ export function UserCreationModal({ isOpen, onClose, onUserCreated }: UserCreati
         department: formData.department,
         position: formData.position || 'Community Member',
         phone: formData.phone || undefined,
-        userLevelId: formData.userLevelId as any,
+        userLevelId: formData.userLevelId as string,
         assignInitialTasks: formData.assignTasks,
         sendWelcomeMessage: formData.welcomeMessage
       });
@@ -112,8 +112,8 @@ export function UserCreationModal({ isOpen, onClose, onUserCreated }: UserCreati
         setSuccess('');
       }, 2000);
 
-    } catch (err: any) {
-      setError(err.message || 'Failed to create user invitation');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to create user invitation');
     } finally {
       setIsSubmitting(false);
     }

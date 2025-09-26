@@ -9,8 +9,12 @@ export const createOrUpdateUser = mutation({
     firstName: v.string(),
     lastName: v.string(),
     imageUrl: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    department: v.optional(v.string()),
+    jobTitle: v.optional(v.string()),
+    role: v.optional(v.string()),
   },
-  handler: async (ctx, { clerkId, email, firstName, lastName, imageUrl }) => {
+  handler: async (ctx, { clerkId, email, firstName, lastName, imageUrl, phone, department, jobTitle, role }) => {
     // Check if user already exists
     const existingUser = await ctx.db
       .query("users")
@@ -22,14 +26,22 @@ export const createOrUpdateUser = mutation({
 
     if (existingUser) {
       // Update existing user
-      await ctx.db.patch(existingUser._id, {
+      const updateData: any = {
         email,
         name: fullName,
         metadata: {
+          ...existingUser.metadata,
           lastLogin: now,
-          preferences: {},
         },
-      });
+      };
+      
+      // Only update these fields if they're provided
+      if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+      if (phone !== undefined) updateData.phone = phone;
+      if (department !== undefined) updateData.department = department;
+      if (jobTitle !== undefined) updateData.position = jobTitle;
+      
+      await ctx.db.patch(existingUser._id, updateData);
       return existingUser._id;
     } else {
       // Get default WORKER user level
@@ -42,15 +54,27 @@ export const createOrUpdateUser = mutation({
         throw new Error("Default WORKER user level not found. Please seed user levels first.");
       }
 
-      // Create new user with WORKER level
+      // Determine user level based on role
+      let selectedUserLevel = workerLevel;
+      if (role) {
+        const roleLevel = await ctx.db
+          .query("userLevels")
+          .filter((q) => q.eq(q.field("name"), role.toUpperCase()))
+          .first();
+        if (roleLevel) {
+          selectedUserLevel = roleLevel;
+        }
+      }
+
+      // Create new user with appropriate level
       const userId = await ctx.db.insert("users", {
         clerkId,
         email,
         name: fullName,
-        userLevel: workerLevel._id,
-        department: "General",
-        position: "Community Member",
-        phone: undefined,
+        userLevel: selectedUserLevel._id,
+        department: department || "General",
+        position: jobTitle || "Community Member",
+        phone: phone || undefined,
         isActive: true,
         // Gamification stats
         level: 1,
@@ -67,6 +91,7 @@ export const createOrUpdateUser = mutation({
           lastLogin: now,
           preferences: {},
         },
+        imageUrl: imageUrl || undefined,
       });
 
       return userId;

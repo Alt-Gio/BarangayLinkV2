@@ -109,3 +109,29 @@ export const deleteEvent = mutation({
     return args.eventId;
   },
 });
+
+export const getUpcomingEvents = query({
+  args: {},
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    
+    return await ctx.db
+      .query("events")
+      .filter((q) => q.and(
+        q.gte(q.field("startDate"), now),
+        q.eq(q.field("status"), "published")
+      ))
+      .order("asc")
+      .take(20);
+  },
+});
+
+export const getAllEvents = query({
+  args: {},
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("events")
+      .order("desc")
+      .collect();
+  },
+});

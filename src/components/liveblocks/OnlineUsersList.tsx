@@ -48,7 +48,7 @@ export function OnlineUsersList({ className = "", onStartChat }: OnlineUsersList
       ...other,
       isSelf: false,
       info: {
-        name: other.info?.name || other.presence?.user?.name || `User ${other.connectionId?.slice(-4) || 'Unknown'}`,
+        name: other.info?.name || other.presence?.user?.name || `User ${String(other.connectionId || 'Unknown').slice(-4)}`,
         avatar: other.info?.avatar || other.presence?.user?.avatar || '',
         role: other.presence?.user?.role || other.info?.role || 'WORKER',
         level: other.presence?.user?.level || other.info?.level || 1,
@@ -100,7 +100,7 @@ export function OnlineUsersList({ className = "", onStartChat }: OnlineUsersList
       }
     });
     
-    onStartChat?.(targetUser.id, targetUser.info.name);
+    onStartChat?.(targetUser.id, targetUser.info?.name || 'Unknown User');
   };
 
   return (

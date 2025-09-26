@@ -1,10 +1,64 @@
-import { query } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { getCurrentUser } from "./roleBasedAccess";
+import { getCurrentUser, checkPermission } from "./roleBasedAccess";
 
-// Helper functions for dashboard calculations
+// Public stats for landing page (no authentication required)
+export const getPublicStats = query({
+  args: {},
+  handler: async (ctx, args) => {
+    try {
+      // Get public data only
+      const [publicProjects, publicEvents] = await Promise.all([
+        ctx.db.query("projects")
+          .filter((q) => q.eq(q.field("isPublic"), true))
+          .collect(),
+        ctx.db.query("events")
+          .filter((q) => q.eq(q.field("isPublic"), true))
+          .collect()
+      ]);
+
+      const activeProjects = publicProjects.filter(p => p.status === "active");
+      const upcomingEvents = publicEvents.filter(e => e.startDate > Date.now());
+
+      return {
+        systemOverview: {
+          totalUsers: 0, // Don't expose user count publicly
+          activeUsers: 0,
+          totalProjects: publicProjects.length,
+          activeProjects: activeProjects.length,
+          totalTasks: 0, // Don't expose task count publicly
+          completedTasks: 0,
+          totalBudget: publicProjects.reduce((sum, p) => sum + (p.budget || 0), 0),
+          totalSpent: 0
+        },
+        recentActivity: upcomingEvents.slice(0, 5).map(event => ({
+          type: 'event',
+          title: event.title,
+          description: event.description,
+          timestamp: event.startDate
+        }))
+      };
+    } catch (error) {
+      console.error("Error getting public stats:", error);
+      return {
+        systemOverview: {
+          totalUsers: 0,
+          activeUsers: 0,
+          totalProjects: 0,
+          activeProjects: 0,
+          totalTasks: 0,
+          completedTasks: 0,
+          totalBudget: 0,
+          totalSpent: 0
+        },
+        recentActivity: []
+      };
+    }
+  },
+});
+
 async function getDepartmentStats(ctx: any, users: any[], projects: any[]) {
-  const departments = ["Health Services", "Infrastructure", "Education", "Public Safety", "Social Services"];
+  const departments = [...new Set(users.map(u => u.department).filter(Boolean))];
   
   return departments.map(dept => {
     const deptUsers = users.filter(u => u.department === dept);
@@ -254,7 +308,7 @@ export const getBuilderDashboard = query({
       try {
         // Get all tasks and filter by project IDs
         const allTasks = await ctx.db.query("tasks").collect();
-        projectTasks = allTasks.filter(task => myProjectIds.includes(task.projectId));
+        projectTasks = allTasks.filter(task => task.projectId && myProjectIds.includes(task.projectId));
       } catch (error) {
         console.error("Error querying project tasks:", error);
         projectTasks = [];

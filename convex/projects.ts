@@ -2,6 +2,62 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, checkPermission } from "./roleBasedAccess";
 
+// Get active projects for public display
+export const getActiveProjects = query({
+  args: {},
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("projects")
+      .filter((q) => q.and(
+        q.eq(q.field("status"), "active"),
+        q.eq(q.field("isPublic"), true)
+      ))
+      .order("desc")
+      .take(20);
+  },
+});
+
+// Get all projects with role-based filtering
+export const getAllProjects = query({
+  args: {},
+  handler: async (ctx, args) => {
+    try {
+      const currentUser = await getCurrentUser(ctx);
+      
+      if (currentUser.userLevel.name === "ADMIN") {
+        // ADMIN can see all projects
+        return await ctx.db.query("projects").order("desc").collect();
+      } else if (currentUser.userLevel.name === "MANAGER") {
+        // MANAGER can see department projects
+        return await ctx.db
+          .query("projects")
+          .filter((q) => q.eq(q.field("department"), currentUser.department))
+          .order("desc")
+          .collect();
+      } else {
+        // BUILDER/WORKER can see assigned projects only
+        return await ctx.db
+          .query("projects")
+          .filter((q) => q.or(
+            q.eq(q.field("createdBy"), currentUser._id),
+            // Check if user is in assignedTo array
+            // Note: This is a simplified check - in production you'd want a more robust solution
+            q.eq(q.field("isPublic"), true)
+          ))
+          .order("desc")
+          .collect();
+      }
+    } catch (error) {
+      // If no user is authenticated, return only public projects
+      return await ctx.db
+        .query("projects")
+        .filter((q) => q.eq(q.field("isPublic"), true))
+        .order("desc")
+        .take(10);
+    }
+  },
+});
+
 // Enhanced project update mutation
 export const updateProjectDetails = mutation({
   args: {

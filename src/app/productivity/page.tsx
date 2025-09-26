@@ -23,11 +23,8 @@ import {
   Calendar,
   Users,
   Target,
-  CheckCircle,
   Clock,
-  AlertTriangle,
   BarChart3,
-  Filter,
   Search,
   FolderOpen,
   ListTodo,
@@ -35,19 +32,11 @@ import {
   Menu,
   X,
   Bell,
-  ChevronDown,
-  Home,
-  Globe,
-  Shield,
-  UserCheck,
-  Building2,
   LayoutDashboard,
   CheckSquare,
-  FileText,
-  Settings,
-  LogOut,
-  MoreHorizontal,
-  ArrowRight
+  ArrowRight,
+  Building2,
+  AlertTriangle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SignInButton } from '@clerk/nextjs';
@@ -221,7 +210,6 @@ export default function ProductivityPage() {
         startDate: new Date(projectForm.startDate).getTime(),
         endDate: new Date(projectForm.endDate).getTime(),
         budget: parseFloat(projectForm.budget) || undefined,
-        createdBy: currentUser._id,
       });
       
       // Reset form and close dialog
@@ -245,12 +233,11 @@ export default function ProductivityPage() {
     
     try {
       await createTask({
-        projectId: taskForm.projectId ? taskForm.projectId as any : undefined,
+        projectId: taskForm.projectId || undefined,
         title: taskForm.title,
         description: taskForm.description,
-        priority: taskForm.priority as any,
-        assignedTo: taskForm.assignedTo as any,
-        createdBy: currentUser._id,
+        priority: taskForm.priority === 'critical' ? 'urgent' : taskForm.priority as 'low' | 'medium' | 'high' | 'urgent',
+        assignedTo: taskForm.assignedTo,
         dueDate: taskForm.dueDate ? new Date(taskForm.dueDate).getTime() : undefined,
         estimatedHours: parseFloat(taskForm.estimatedHours) || undefined,
       });

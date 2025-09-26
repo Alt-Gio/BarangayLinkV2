@@ -66,7 +66,15 @@ export function AdminDashboard({ user, permissions }: AdminDashboardProps) {
     );
   }
 
-  const { systemOverview, departmentStats, userManagement, recentActivity } = dashboardData;
+  const { systemOverview, departmentStats, recentActivity } = dashboardData;
+  
+  // Mock userManagement data since it's not in the current dashboard structure
+  const userManagement = {
+    totalUsers: systemOverview?.totalUsers || 0,
+    activeUsers: systemOverview?.activeUsers || 0,
+    newUsers: 0,
+    pendingApprovals: 0
+  };
   
   // Mock critical alerts for now - should come from dashboardData
   const criticalAlerts = dashboardData.criticalAlerts || [];

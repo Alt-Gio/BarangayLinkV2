@@ -62,13 +62,12 @@ export default function AdminSyncPage() {
           )}
         </div>
 
-        {/* Sync Status */}
         <div className="bg-gray-800 rounded-lg p-6 mb-6">
           <h2 className="text-xl font-semibold text-white mb-4">Sync Status</h2>
           
           {syncStatus ? (
             <div>
-              <p className="text-gray-600">Click &quot;Sync All Users&quot; to synchronize all Clerk users with the Convex database.</p>
+              <p className="text-sm text-gray-600 mb-4">Sync &quot;real&quot; users from Clerk to Convex database for better data management.</p>
               <p><strong>Users in Convex:</strong> {syncStatus.convexUserCount}</p>
               <p><strong>User Levels:</strong> {syncStatus.userLevelsCount}</p>
               
@@ -112,7 +111,7 @@ export default function AdminSyncPage() {
             
             <p className="mt-4"><strong>2. Manual Sync:</strong></p>
             <ul className="list-disc list-inside ml-4 space-y-1">
-              <li>Use the "Sync Current User" button above</li>
+              <li>Use the &quot;Sync Current User&quot; button above</li>
               <li>Each user can sync themselves when they first log in</li>
               <li>Admin can sync users individually as needed</li>
             </ul>

@@ -27,7 +27,7 @@ export default function DashboardPage() {
         // Then ensure current user exists in database
         await ensureUserExists();
       } catch (error) {
-        console.log('App initialization completed or skipped:', error.message);
+        console.log('App initialization completed or skipped:', error instanceof Error ? error.message : 'Unknown error');
       }
     };
     

@@ -1,27 +1,22 @@
 "use client";
 
+import { Suspense } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { LiveblocksClientProvider } from '@/components/liveblocks/LiveblocksClientProvider';
 import { CollaborationHub } from '@/components/liveblocks/CollaborationHub';
 import { OnlinePresence } from '@/components/liveblocks/OnlinePresence';
-import { RealtimeChat } from '@/components/liveblocks/RealtimeChat';
-import { OnlineUsersList } from '@/components/liveblocks/OnlineUsersList';
 import { LiveblocksLoading } from '@/components/liveblocks/LiveblocksLoading';
 import { EnhancedMessengerChat } from '@/components/liveblocks/EnhancedMessengerChat';
 import { EnhancedTeamPanel } from '@/components/liveblocks/EnhancedTeamPanel';
 import { NotificationsDashboard } from '@/components/liveblocks/NotificationsDashboard';
 import { RoomProvider } from '@liveblocks/react/suspense';
-import { Suspense } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { 
   Users, 
   MessageSquare, 
-  Video, 
-  Settings,
   UserPlus,
   Bell,
   Zap,
@@ -29,108 +24,43 @@ import {
   Shield,
   Briefcase,
   User as UserIcon,
-  Activity,
-  Clock
 } from 'lucide-react';
 import { SignInButton, SignUpButton } from '@clerk/nextjs';
 
 export default function CollabPage() {
   const { user, isLoaded } = useUser();
   
-  // Get real user data from Convex
   const currentUser = useQuery(
-    api.liveblocks.getUserByClerkId, 
+    api.liveblocks.getUserByClerkId,
     user?.id ? { clerkId: user.id } : "skip"
   );
   
   const activeUsers = useQuery(api.liveblocks.getActiveUsers);
 
-  // Show loading state while Clerk loads
   if (!isLoaded) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-blue-900 to-purple-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-20 h-20 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
-          <h2 className="text-2xl font-bold text-white mb-3 font-inter">Loading BarangayLink</h2>
-          <p className="text-emerald-200 text-lg font-medium">Preparing your collaboration experience...</p>
-        </div>
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-white">Loading...</div>
       </div>
     );
   }
 
-  // Show sign-in screen if not authenticated
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-blue-900 to-purple-900 flex items-center justify-center p-4">
-        <div className="max-w-5xl w-full">
-          {/* Header */}
-          <div className="text-center mb-16">
-            <div className="flex items-center justify-center mb-8">
-              <div className="w-20 h-20 bg-emerald-600 rounded-3xl flex items-center justify-center mr-6 shadow-2xl">
-                <span className="text-white font-black text-3xl">BL</span>
-              </div>
-              <div>
-                <h1 className="text-5xl font-black text-white mb-2 tracking-tight">BarangayLink</h1>
-                <p className="text-emerald-200 text-xl font-semibold">Real-time Team Collaboration</p>
-              </div>
-            </div>
-            <p className="text-2xl text-gray-200 max-w-3xl mx-auto font-medium leading-relaxed">
-              Connect with your team, chat in real-time, and collaborate seamlessly. 
-              <span className="text-emerald-300 font-semibold">Join your community workspace now.</span>
-            </p>
-          </div>
-
-          {/* Features Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <Card className="bg-white/10 border-white/20 backdrop-blur-sm">
-              <CardHeader>
-                <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-3">
-                  <MessageSquare className="w-6 h-6 text-white" />
-                </div>
-                <CardTitle className="text-white">Real-time Chat</CardTitle>
-                <CardDescription className="text-gray-300">
-                  Instant messaging with typing indicators and message history
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="bg-white/10 border-white/20 backdrop-blur-sm">
-              <CardHeader>
-                <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center mb-3">
-                  <Users className="w-6 h-6 text-white" />
-                </div>
-                <CardTitle className="text-white">Online Presence</CardTitle>
-                <CardDescription className="text-gray-300">
-                  See who's online and their current activity status
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="bg-white/10 border-white/20 backdrop-blur-sm">
-              <CardHeader>
-                <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center mb-3">
-                  <Zap className="w-6 h-6 text-white" />
-                </div>
-                <CardTitle className="text-white">Role-based Access</CardTitle>
-                <CardDescription className="text-gray-300">
-                  Different features based on your community role
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          </div>
-
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center p-4">
+        <div className="max-w-md w-full space-y-8">
           {/* Sign In Section */}
           <Card className="bg-white/10 border-white/20 backdrop-blur-sm">
             <CardHeader className="text-center">
               <CardTitle className="text-2xl text-white mb-2">Join Your Community</CardTitle>
               <CardDescription className="text-gray-300">
-                Sign in to start collaborating with your team members
+                Let's collaborate and build something amazing together!
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col sm:flex-row gap-4 justify-center">
               <SignInButton mode="modal">
                 <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8">
-                  <UserIcon className="w-5 h-5 mr-2" />
+                  <Users className="w-5 h-5 mr-2" />
                   Sign In
                 </Button>
               </SignInButton>

@@ -43,7 +43,7 @@ function LiveblocksTest() {
 
 function LiveblocksTestRoom() {
   const [status, setStatus] = useState('Connecting...');
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
 
   // This will trigger the Liveblocks auth
   useState(() => {
@@ -65,7 +65,7 @@ function LiveblocksTestRoom() {
       )}
       
       <div className="mt-4 text-sm text-gray-600">
-        <p>If you see "Connected ✅" above, Liveblocks is working correctly.</p>
+        <p>If you see &quot;Connected ✅&quot; above, Liveblocks is working correctly.</p>
         <p>Check the browser console and server logs for detailed debugging info.</p>
       </div>
     </div>

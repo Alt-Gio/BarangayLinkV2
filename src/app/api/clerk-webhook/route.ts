@@ -22,10 +22,11 @@ export async function POST(req: Request) {
 
     try {
       // Create user in Convex database
-      await convex.mutation(api.databaseManager.syncUserFromClerk, {
+      await convex.mutation(api.users.createOrUpdateUser, {
         clerkId: id,
         email: email_addresses[0]?.email_address || '',
-        name: `${first_name || ''} ${last_name || ''}`.trim() || 'Unknown User',
+        firstName: first_name || '',
+        lastName: last_name || '',
         imageUrl: image_url || '',
       })
 
@@ -41,10 +42,11 @@ export async function POST(req: Request) {
 
     try {
       // Update user in Convex database
-      await convex.mutation(api.databaseManager.syncUserFromClerk, {
+      await convex.mutation(api.users.createOrUpdateUser, {
         clerkId: id,
         email: email_addresses[0]?.email_address || '',
-        name: `${first_name || ''} ${last_name || ''}`.trim() || 'Unknown User',
+        firstName: first_name || '',
+        lastName: last_name || '',
         imageUrl: image_url || '',
       })
 

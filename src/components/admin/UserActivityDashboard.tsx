@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -23,7 +23,7 @@ export default function UserActivityDashboard() {
     endDate: filter.endDate?.getTime(),
   });
   const userActivityLogs = useQuery(api.userSessions.getUserActivityLogs, {
-    userId: selectedUserId as any,
+    userId: selectedUserId as string,
     activityType: filter.activityType,
     startDate: filter.startDate?.getTime(),
     endDate: filter.endDate?.getTime(),
