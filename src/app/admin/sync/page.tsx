@@ -4,6 +4,9 @@ import React, { useState } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useUserSync, useSyncStatus } from '@/lib/clerkSync';
 
+// Force dynamic rendering for this admin page
+export const dynamic = 'force-dynamic';
+
 export default function AdminSyncPage() {
   const { user } = useUser();
   const { syncCurrentUser } = useUserSync();

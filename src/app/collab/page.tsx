@@ -2,6 +2,9 @@
 
 import { Suspense } from 'react';
 import { useUser } from '@clerk/nextjs';
+
+// Force dynamic rendering for authenticated pages
+export const dynamic = 'force-dynamic';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { LiveblocksClientProvider } from '@/components/liveblocks/LiveblocksClientProvider';

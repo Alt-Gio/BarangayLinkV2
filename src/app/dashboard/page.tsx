@@ -10,6 +10,9 @@ import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useEffect } from 'react';
 
+// Force dynamic rendering for authenticated pages
+export const dynamic = 'force-dynamic';
+
 export default function DashboardPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
