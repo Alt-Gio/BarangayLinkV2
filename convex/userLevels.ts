@@ -18,8 +18,80 @@ export const getAllUserLevels = query({
   handler: async (ctx) => {
     return await ctx.db
       .query("userLevels")
-      .order("desc")
+      .order("asc")
       .collect();
+  },
+});
+
+// Seed user levels for initial setup
+export const seedUserLevels = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // Check if user levels already exist
+    const existingLevels = await ctx.db.query("userLevels").collect();
+    if (existingLevels.length > 0) {
+      return { message: "User levels already exist", count: existingLevels.length };
+    }
+
+    const userLevels = [
+      {
+        name: "WORKER",
+        level: 1,
+        permissions: ["tasks.read", "tasks.update_own", "profile.read", "profile.update_own"],
+        description: "Community contributor with task execution access",
+        isActive: true,
+      },
+      {
+        name: "BUILDER", 
+        level: 2,
+        permissions: [
+          "tasks.read", "tasks.create", "tasks.update", "tasks.assign",
+          "projects.read", "projects.create", "projects.update_own",
+          "profile.read", "profile.update_own"
+        ],
+        description: "Project creator with team coordination capabilities",
+        isActive: true,
+      },
+      {
+        name: "MANAGER",
+        level: 3,
+        permissions: [
+          "tasks.read", "tasks.create", "tasks.update", "tasks.delete", "tasks.assign",
+          "projects.read", "projects.create", "projects.update", "projects.delete",
+          "users.read", "users.assign_levels",
+          "profile.read", "profile.update_own", "departments.read"
+        ],
+        description: "Strategic leader with full project oversight",
+        isActive: true,
+      },
+      {
+        name: "ADMIN",
+        level: 4,
+        permissions: [
+          "tasks.read", "tasks.create", "tasks.update", "tasks.delete", "tasks.assign",
+          "projects.read", "projects.create", "projects.update", "projects.delete", 
+          "users.read", "users.create", "users.update", "users.delete", "users.assign_levels",
+          "departments.read", "departments.create", "departments.update",
+          "analytics.read", "system.configure"
+        ],
+        description: "Full system administrator with all permissions",
+        isActive: true,
+      }
+    ];
+
+    const levelIds = [];
+    for (const level of userLevels) {
+      const id = await ctx.db.insert("userLevels", {
+        ...level,
+      });
+      levelIds.push(id);
+    }
+
+    return { 
+      message: "User levels seeded successfully", 
+      count: levelIds.length,
+      levelIds 
+    };
   },
 });
 

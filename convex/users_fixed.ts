@@ -134,15 +134,34 @@ export const ensureUserExists = mutation({
 
     const now = Date.now();
     
-    // Create new user
+    // Extract profile data from Clerk metadata if available
+    const clerkMetadata = (identity as any).unsafeMetadata || {};
+    const department = clerkMetadata.department || "General";
+    const position = clerkMetadata.jobTitle || "Community Member";
+    const phone = clerkMetadata.phone;
+    const role = clerkMetadata.role;
+    
+    // Determine user level based on role from metadata
+    let selectedUserLevel = workerLevel;
+    if (role) {
+      const roleLevel = await ctx.db
+        .query("userLevels")
+        .filter((q: any) => q.eq(q.field("name"), role.toUpperCase()))
+        .first();
+      if (roleLevel) {
+        selectedUserLevel = roleLevel;
+      }
+    }
+    
+    // Create new user with profile data
     const userId = await ctx.db.insert("users", {
       clerkId: identity.subject,
       email: identity.email || `user-${identity.subject}@temp.com`,
       name: identity.name || identity.nickname || "New User",
-      userLevel: workerLevel._id,
-      department: "General",
-      position: "Community Member",
-      phone: undefined,
+      userLevel: selectedUserLevel._id,
+      department: department,
+      position: position,
+      phone: phone,
       isActive: true,
       level: 1,
       experience: 0,

@@ -13,6 +13,7 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as clerk from "../clerk.js";
 import type * as clerkSync from "../clerkSync.js";
 import type * as collaboration from "../collaboration.js";
 import type * as dashboards from "../dashboards.js";
@@ -20,6 +21,7 @@ import type * as databaseManager from "../databaseManager.js";
 import type * as departments from "../departments.js";
 import type * as events from "../events.js";
 import type * as gamifiedTasks from "../gamifiedTasks.js";
+import type * as http from "../http.js";
 import type * as init from "../init.js";
 import type * as liveblocks from "../liveblocks.js";
 import type * as messages from "../messages.js";
@@ -47,6 +49,7 @@ import type * as users_fixed from "../users_fixed.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  clerk: typeof clerk;
   clerkSync: typeof clerkSync;
   collaboration: typeof collaboration;
   dashboards: typeof dashboards;
@@ -54,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   departments: typeof departments;
   events: typeof events;
   gamifiedTasks: typeof gamifiedTasks;
+  http: typeof http;
   init: typeof init;
   liveblocks: typeof liveblocks;
   messages: typeof messages;

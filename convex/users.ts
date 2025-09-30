@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
 // Sync user from Clerk to Convex
@@ -15,6 +15,8 @@ export const createOrUpdateUser = mutation({
     role: v.optional(v.string()),
   },
   handler: async (ctx, { clerkId, email, firstName, lastName, imageUrl, phone, department, jobTitle, role }) => {
+    console.log('createOrUpdateUser called:', { email, department, role });
+    
     // Check if user already exists
     const existingUser = await ctx.db
       .query("users")
@@ -41,28 +43,44 @@ export const createOrUpdateUser = mutation({
       if (department !== undefined) updateData.department = department;
       if (jobTitle !== undefined) updateData.position = jobTitle;
       
-      await ctx.db.patch(existingUser._id, updateData);
-      return existingUser._id;
-    } else {
-      // Get default WORKER user level
-      const workerLevel = await ctx.db
-        .query("userLevels")
-        .filter((q) => q.eq(q.field("name"), "WORKER"))
-        .first();
-
-      if (!workerLevel) {
-        throw new Error("Default WORKER user level not found. Please seed user levels first.");
-      }
-
-      // Determine user level based on role
-      let selectedUserLevel = workerLevel;
+      // Handle role update
       if (role) {
         const roleLevel = await ctx.db
           .query("userLevels")
           .filter((q) => q.eq(q.field("name"), role.toUpperCase()))
           .first();
         if (roleLevel) {
+          updateData.userLevel = roleLevel._id;
+          console.log('Updated user level to:', roleLevel.name);
+        }
+      }
+      
+      await ctx.db.patch(existingUser._id, updateData);
+      console.log('Updated existing user:', email);
+      return existingUser._id;
+    } else {
+      // Get default WORKER user level
+      let selectedUserLevel = await ctx.db
+        .query("userLevels")
+        .filter((q) => q.eq(q.field("name"), "WORKER"))
+        .first();
+
+      if (!selectedUserLevel) {
+        throw new Error("Default WORKER user level not found. Please seed user levels first.");
+      }
+
+      // Determine user level based on role
+      if (role) {
+        console.log('Looking for role level:', role.toUpperCase());
+        const roleLevel = await ctx.db
+          .query("userLevels")
+          .filter((q) => q.eq(q.field("name"), role.toUpperCase()))
+          .first();
+        if (roleLevel) {
           selectedUserLevel = roleLevel;
+          console.log('Found and assigned user level:', roleLevel.name);
+        } else {
+          console.log('Role level not found, using WORKER as default');
         }
       }
 
@@ -89,12 +107,279 @@ export const createOrUpdateUser = mutation({
         projectSuccessRate: 0,
         metadata: {
           lastLogin: now,
-          preferences: {},
+          preferences: {
+            notifications: true,
+            theme: "light",
+          },
         },
         imageUrl: imageUrl || undefined,
       });
 
+      console.log('Created new user:', { 
+        email, 
+        department: department || "General", 
+        role: selectedUserLevel.name 
+      });
       return userId;
+    }
+  },
+});
+
+// Internal mutation to handle Clerk webhook data
+export const createOrUpdateFromClerk = internalMutation({
+  args: {
+    data: v.any(),
+  },
+  handler: async (ctx, { data }) => {
+    const user = data;
+    console.log('Webhook data received for user:', user.email_addresses?.[0]?.email_address);
+    
+    // Check if user already exists
+    const existingUser = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkId"), user.id))
+      .first();
+
+    // Get role from user metadata
+    const userRole = user.unsafe_metadata?.role;
+    console.log('User role from webhook:', userRole);
+
+    // Get appropriate user level based on role
+    let selectedUserLevel = await ctx.db
+      .query("userLevels")
+      .filter((q) => q.eq(q.field("name"), "WORKER"))
+      .first();
+
+    if (userRole && typeof userRole === 'string') {
+      const roleLevel = await ctx.db
+        .query("userLevels")
+        .filter((q) => q.eq(q.field("name"), userRole.toUpperCase()))
+        .first();
+      if (roleLevel) {
+        selectedUserLevel = roleLevel;
+        console.log('Webhook: Using role level:', roleLevel.name);
+      }
+    }
+
+    if (!selectedUserLevel) {
+      throw new Error("WORKER user level not found. Please run database initialization.");
+    }
+
+    const now = Date.now();
+    const userData = {
+      clerkId: user.id,
+      email: user.email_addresses?.[0]?.email_address || "",
+      name: `${user.first_name || ""} ${user.last_name || ""}`.trim() || "New User",
+      userLevel: selectedUserLevel._id,
+      department: user.unsafe_metadata?.department || "General",
+      position: user.unsafe_metadata?.jobTitle || "Community Member",
+      phone: user.unsafe_metadata?.phone || user.phone_numbers?.[0]?.phone_number,
+      isActive: true,
+      level: 1,
+      experience: 0,
+      gold: 50,
+      health: 100,
+      mana: 50,
+      streakCount: 0,
+      lastActiveDate: now,
+      totalTasksCompleted: 0,
+      totalHoursLogged: 0,
+      projectSuccessRate: 0,
+      imageUrl: user.image_url,
+      metadata: {
+        lastLogin: now,
+        preferences: {
+          notifications: true,
+          theme: "light",
+        },
+      },
+    };
+
+    if (existingUser) {
+      // Update existing user
+      await ctx.db.patch(existingUser._id, {
+        ...userData,
+        metadata: {
+          ...existingUser.metadata,
+          lastLogin: now,
+        },
+      });
+      console.log('Webhook: Updated existing user');
+      return existingUser._id;
+    } else {
+      // Create new user
+      const userId = await ctx.db.insert("users", userData);
+      
+      // Create welcome notification if notifications table exists
+      try {
+        await ctx.db.insert("notifications", {
+          userId,
+          title: "Welcome to BarangayLink!",
+          message: `Welcome to our community management system. You are now a ${selectedUserLevel.name} in ${userData.department}.`,
+          type: "welcome",
+          category: "system",
+          isRead: false,
+          createdAt: now,
+        });
+        console.log('Webhook: Created welcome notification');
+      } catch (error) {
+        console.log("Webhook: Notifications table not available, skipping welcome notification");
+      }
+
+      console.log('Webhook: Created new user:', {
+        email: userData.email,
+        department: userData.department,
+        role: selectedUserLevel.name
+      });
+      return userId;
+    }
+  },
+});
+
+// Public mutation for manual user creation/sync (MAIN REGISTRATION FUNCTION)
+export const syncUserFromClerk = mutation({
+  args: {
+    clerkId: v.string(),
+    email: v.string(),
+    firstName: v.string(),
+    lastName: v.string(),
+    phone: v.optional(v.string()),
+    jobTitle: v.optional(v.string()),
+    department: v.optional(v.string()),
+    role: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    console.log('🔄 syncUserFromClerk called with:', {
+      email: args.email,
+      department: args.department,
+      role: args.role,
+      jobTitle: args.jobTitle
+    });
+
+    // Get appropriate user level based on exact role match
+    let userLevel = await ctx.db
+      .query("userLevels")
+      .filter((q) => q.eq(q.field("name"), "WORKER"))
+      .first();
+
+    if (args.role && typeof args.role === 'string') {
+      const roleUpperCase = args.role.toUpperCase();
+      console.log('🔍 Looking for user level:', roleUpperCase);
+      
+      const roleLevel = await ctx.db
+        .query("userLevels")
+        .filter((q) => q.eq(q.field("name"), roleUpperCase))
+        .first();
+      
+      if (roleLevel) {
+        userLevel = roleLevel;
+        console.log('✅ Found user level:', roleLevel.name, 'Level:', roleLevel.level);
+      } else {
+        console.log('❌ User level not found for role:', roleUpperCase);
+        // List available user levels for debugging
+        const allLevels = await ctx.db.query("userLevels").collect();
+        console.log('Available user levels:', allLevels.map(l => l.name));
+      }
+    }
+
+    if (!userLevel) {
+      throw new Error("User level not found. Please run database initialization.");
+    }
+
+    // Check if user exists
+    const existingUser = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkId"), args.clerkId))
+      .first();
+
+    const now = Date.now();
+    const userData = {
+      clerkId: args.clerkId,
+      email: args.email,
+      name: `${args.firstName} ${args.lastName}`.trim(),
+      userLevel: userLevel._id,
+      department: args.department || "General", // Exact department match
+      position: args.jobTitle || "Community Member",
+      phone: args.phone,
+      isActive: true,
+      level: 1,
+      experience: 0,
+      gold: 50,
+      health: 100,
+      mana: 50,
+      streakCount: 0,
+      lastActiveDate: now,
+      totalTasksCompleted: 0,
+      totalHoursLogged: 0,
+      projectSuccessRate: 0,
+      imageUrl: args.imageUrl,
+      metadata: {
+        lastLogin: now,
+        preferences: {
+          notifications: true,
+          theme: "light",
+        },
+      },
+    };
+
+    console.log('📝 Final user data to be saved:', {
+      email: userData.email,
+      department: userData.department,
+      userLevelId: userLevel._id,
+      userLevelName: userLevel.name,
+      position: userData.position
+    });
+
+    if (existingUser) {
+      await ctx.db.patch(existingUser._id, userData);
+      console.log('✅ Updated existing user in database');
+      return existingUser._id;
+    } else {
+      const userId = await ctx.db.insert("users", userData);
+      
+      // Create welcome notification if possible
+      try {
+        await ctx.db.insert("notifications", {
+          userId,
+          title: "Welcome to BarangayLink!",
+          message: `Welcome to our community management system. You are now a ${userLevel.name} in the ${userData.department} department.`,
+          type: "welcome",
+          category: "system",
+          isRead: false,
+          createdAt: now,
+        });
+        console.log('✅ Created welcome notification');
+      } catch (error) {
+        console.log("⚠️ Notifications table not available, skipping welcome notification");
+      }
+
+      console.log('🎉 Successfully created new user:', {
+        userId,
+        email: userData.email,
+        department: userData.department,
+        role: userLevel.name
+      });
+      
+      return userId;
+    }
+  },
+});
+
+// Delete user (for webhook)
+export const deleteUser = internalMutation({
+  args: {
+    clerkUserId: v.string(),
+  },
+  handler: async (ctx, { clerkUserId }) => {
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkId"), clerkUserId))
+      .first();
+
+    if (user) {
+      await ctx.db.delete(user._id);
+      console.log('🗑️ Deleted user:', user.email);
     }
   },
 });
@@ -259,7 +544,6 @@ export const getUserPermissions = query({
   },
 });
 
-
 // Assign user level (Admin/Manager only)
 export const assignUserLevel = mutation({
   args: {
@@ -311,22 +595,26 @@ export const assignUserLevel = mutation({
       userLevel: args.newUserLevelId,
     });
 
-    // Create audit trail
-    await ctx.db.insert("analytics", {
-      eventType: "user_level_changed",
-      userId: currentUser._id,
-      eventData: {
-        action: "user_level_changed",
-        metadata: {
-          previousValue: targetUserLevel.name,
-          newValue: newUserLevel.name,
-          reason: args.reason || "No reason provided",
-          targetUserId: args.userId,
+    // Create audit trail if analytics table exists
+    try {
+      await ctx.db.insert("analytics", {
+        eventType: "user_level_changed",
+        userId: currentUser._id,
+        eventData: {
+          action: "user_level_changed",
+          metadata: {
+            previousValue: targetUserLevel.name,
+            newValue: newUserLevel.name,
+            reason: args.reason || "No reason provided",
+            targetUserId: args.userId,
+          },
         },
-      },
-      sessionId: identity.subject,
-      timestamp: Date.now(),
-    });
+        sessionId: identity.subject,
+        timestamp: Date.now(),
+      });
+    } catch (error) {
+      console.log("Analytics table not available, skipping audit trail");
+    }
 
     return args.userId;
   },
@@ -566,22 +854,40 @@ export const updateUserStatus = mutation({
       isActive,
     });
 
-    // Create audit trail
-    await ctx.db.insert("analytics", {
-      eventType: "user_status_changed",
-      userId: currentUser._id,
-      eventData: {
-        action: "user_status_changed",
-        metadata: {
-          targetUserId: userId,
-          previousStatus: targetUser.isActive,
-          newStatus: isActive,
+    // Create audit trail if analytics table exists
+    try {
+      await ctx.db.insert("analytics", {
+        eventType: "user_status_changed",
+        userId: currentUser._id,
+        eventData: {
+          action: "user_status_changed",
+          metadata: {
+            targetUserId: userId,
+            previousStatus: targetUser.isActive,
+            newStatus: isActive,
+          },
         },
-      },
-      sessionId: identity.subject,
-      timestamp: Date.now(),
-    });
+        sessionId: identity.subject,
+        timestamp: Date.now(),
+      });
+    } catch (error) {
+      console.log("Analytics table not available, skipping audit trail");
+    }
 
     return userId;
+  },
+});
+
+// Debug function to check user levels (for development)
+export const debugUserLevels = query({
+  args: {},
+  handler: async (ctx) => {
+    const userLevels = await ctx.db.query("userLevels").collect();
+    console.log('Available user levels:', userLevels.map(l => ({
+      name: l.name,
+      level: l.level,
+      id: l._id
+    })));
+    return userLevels;
   },
 });
