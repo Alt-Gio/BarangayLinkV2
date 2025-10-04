@@ -21,7 +21,7 @@ export const createProject = mutation({
     }
     
     // Set initial status based on role
-    const initialStatus = currentUser.userLevel.name === "BUILDER" ? "planning" : "active";
+    const initialStatus = currentUser.userLevel.name === "BUILDER" ? "draft" : "active";
 
     const projectId = await ctx.db.insert("projects", {
       title: args.title,
@@ -29,6 +29,7 @@ export const createProject = mutation({
       department: args.department,
       status: initialStatus,
       priority: "medium",
+      urgency: "normal" as const,
       budget: args.budget || 0,
       spent: 0,
       startDate: args.startDate,
@@ -42,6 +43,14 @@ export const createProject = mutation({
       isPublic: false,
       location: undefined,
       coordinates: undefined,
+      approvalStatus: initialStatus === "draft" ? "pending" as const : "approved" as const,
+      successCriteria: [],
+      milestones: [],
+      totalExperienceReward: 0,
+      projectLevel: 1,
+      impactArea: [],
+      publicVisibility: "internal" as const,
+      statusHistory: [{ status: initialStatus, changedBy: currentUser._id, changedAt: Date.now() }],
     });
 
     // If created by BUILDER, notify department MANAGER for approval
@@ -125,13 +134,16 @@ export const createTask = mutation({
       }
     }
     const taskId = await ctx.db.insert("tasks", {
+      userId: args.assignedTo,
       projectId: args.projectId,
       title: args.title,
       description: args.description,
-      type: "todo", // Default to todo type
-      priority: args.priority,
-      status: "todo",
+      type: "todo",
       difficulty: "easy",
+      status: "todo",
+      priority: args.priority,
+      completed: false,
+      createdAt: Date.now(),
       assignedTo: args.assignedTo,
       createdBy: currentUser._id,
       dueDate: args.dueDate,
@@ -393,7 +405,7 @@ export const getDashboardAnalytics = query({
         return {
           projectStats: {
             total: projects.length,
-            planning: projects.filter(p => p.status === "planning").length,
+            planning: projects.filter(p => p.status === "draft").length,
             active: projects.filter(p => p.status === "active").length,
             completed: projects.filter(p => p.status === "completed").length,
             cancelled: projects.filter(p => p.status === "cancelled").length,
@@ -422,7 +434,7 @@ export const getDashboardAnalytics = query({
         return {
           projectStats: {
             total: validWorkerProjects.length,
-            planning: validWorkerProjects.filter(p => p?.status === "planning").length,
+            planning: validWorkerProjects.filter(p => p?.status === "draft").length,
             active: validWorkerProjects.filter(p => p?.status === "active").length,
             completed: validWorkerProjects.filter(p => p?.status === "completed").length,
             cancelled: validWorkerProjects.filter(p => p?.status === "cancelled").length,
@@ -463,7 +475,7 @@ export const getDashboardAnalytics = query({
     // Project statistics
     const projectStats = {
       total: projects.length,
-      planning: projects.filter(p => p.status === "planning").length,
+      planning: projects.filter(p => p.status === "draft").length,
       active: projects.filter(p => p.status === "active").length,
       completed: projects.filter(p => p.status === "completed").length,
       cancelled: projects.filter(p => p.status === "cancelled").length,

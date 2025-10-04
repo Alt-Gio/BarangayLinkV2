@@ -28,6 +28,7 @@ export const createSampleContent = mutation({
       description: "Establish a community garden to promote sustainable living and food security",
       status: "active",
       priority: "high",
+      urgency: "normal" as const,
       startDate: now,
       endDate: now + (30 * 24 * 60 * 60 * 1000), // 30 days from now
       budget: 15000,
@@ -41,13 +42,22 @@ export const createSampleContent = mutation({
       attachments: [],
       liveblocksRoom: `project_${Date.now()}_1`,
       isPublic: true,
+      approvalStatus: "approved" as const,
+      successCriteria: [{ criterion: "Complete garden setup", achieved: false }],
+      milestones: [{ id: "m1", title: "Site Preparation", description: "Prepare the site", dueDate: now + (10 * 24 * 60 * 60 * 1000), completed: false, order: 1 }],
+      totalExperienceReward: 500,
+      projectLevel: 3,
+      impactArea: ["community", "environment"],
+      publicVisibility: "public" as const,
+      statusHistory: [{ status: "active", changedBy: user._id, changedAt: now }],
     });
 
     const project2 = await ctx.db.insert("projects", {
       title: "Digital Literacy Program",
       description: "Provide computer and internet literacy training for residents",
-      status: "planning",
+      status: "draft",
       priority: "medium",
+      urgency: "normal" as const,
       startDate: now + (7 * 24 * 60 * 60 * 1000), // 7 days from now
       endDate: now + (60 * 24 * 60 * 60 * 1000), // 60 days from now
       budget: 8000,
@@ -61,14 +71,27 @@ export const createSampleContent = mutation({
       attachments: [],
       liveblocksRoom: `project_${Date.now()}_2`,
       isPublic: true,
+      approvalStatus: "pending" as const,
+      successCriteria: [{ criterion: "Train 50 residents", achieved: false }],
+      milestones: [{ id: "m1", title: "Curriculum Development", description: "Develop training curriculum", dueDate: now + (15 * 24 * 60 * 60 * 1000), completed: false, order: 1 }],
+      totalExperienceReward: 600,
+      projectLevel: 4,
+      impactArea: ["education", "technology"],
+      publicVisibility: "public" as const,
+      statusHistory: [{ status: "draft", changedBy: user._id, changedAt: now }],
     });
 
     // Create sample tasks
     const task1 = await ctx.db.insert("tasks", {
+      userId: user._id,
       title: "Soil Testing and Preparation",
       description: "Test soil quality and prepare garden beds for planting",
+      type: "todo",
+      difficulty: "medium",
       status: "in_progress",
       priority: "high",
+      completed: false,
+      createdAt: now,
       projectId: project1,
       assignedTo: user._id,
       createdBy: user._id,
@@ -83,16 +106,19 @@ export const createSampleContent = mutation({
       experienceReward: 120,
       goldReward: 30,
       completionCount: 0,
-      type: "todo",
-      difficulty: "medium",
       isBlocking: false,
     });
 
     const task2 = await ctx.db.insert("tasks", {
+      userId: user._id,
       title: "Purchase Garden Supplies",
       description: "Buy seeds, tools, and irrigation equipment",
+      type: "todo",
+      difficulty: "medium",
       status: "todo",
       priority: "medium",
+      completed: false,
+      createdAt: now,
       projectId: project1,
       assignedTo: user._id,
       createdBy: user._id,
@@ -106,16 +132,19 @@ export const createSampleContent = mutation({
       experienceReward: 100,
       goldReward: 25,
       completionCount: 0,
-      type: "todo",
-      difficulty: "medium",
       isBlocking: false,
     });
 
     const task3 = await ctx.db.insert("tasks", {
+      userId: user._id,
       title: "Curriculum Development",
       description: "Develop training materials for digital literacy program",
+      type: "todo",
+      difficulty: "hard",
       status: "todo",
       priority: "high",
+      completed: false,
+      createdAt: now,
       projectId: project2,
       assignedTo: user._id,
       createdBy: user._id,
@@ -130,8 +159,6 @@ export const createSampleContent = mutation({
       experienceReward: 150,
       goldReward: 30,
       completionCount: 0,
-      type: "todo",
-      difficulty: "hard",
       isBlocking: false,
     });
 

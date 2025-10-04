@@ -69,12 +69,24 @@ export default defineSchema({
   projects: defineTable({
     title: v.string(),
     description: v.string(),
-    status: v.union(v.literal("planning"), v.literal("active"), v.literal("completed"), v.literal("cancelled")),
+    status: v.union(
+      v.literal("draft"),           // Initial creation
+      v.literal("pending_approval"), // Awaiting manager/admin approval
+      v.literal("approved"),         // Approved but not started
+      v.literal("active"),           // Currently in progress
+      v.literal("on_hold"),          // Temporarily paused
+      v.literal("completed"),        // Successfully finished
+      v.literal("cancelled"),        // Cancelled/Rejected
+      v.literal("archived")          // archived for reference
+    ),
     priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("critical")),
+    urgency: v.union(v.literal("normal"), v.literal("urgent"), v.literal("emergency")), // Additional urgency field
     budget: v.number(),
     spent: v.number(),
     startDate: v.number(),
     endDate: v.number(),
+    actualStartDate: v.optional(v.number()),
+    actualEndDate: v.optional(v.number()),
     location: v.optional(v.string()),
     coordinates: v.optional(v.object({
       latitude: v.number(),
@@ -85,36 +97,97 @@ export default defineSchema({
     department: v.string(),
     tags: v.array(v.string()),
     attachments: v.array(v.id("documents")),
-    progress: v.number(), // 0-100
+    progress: v.number(), // 0-100 calculated from tasks
     liveblocksRoom: v.string(), // For real-time collaboration
     isPublic: v.boolean(),
+    
+    // Approval workflow
+    approvalStatus: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("rejected"),
+      v.literal("revision_requested")
+    ),
+    approvedBy: v.optional(v.id("users")),
+    approvedAt: v.optional(v.number()),
+    rejectionReason: v.optional(v.string()),
+    revisionNotes: v.optional(v.string()),
+    
+    // Success metrics
+    successCriteria: v.array(v.object({
+      criterion: v.string(),
+      targetValue: v.optional(v.string()),
+      achieved: v.boolean(),
+      achievedAt: v.optional(v.number()),
+    })),
+    
+    // Milestones
+    milestones: v.array(v.object({
+      id: v.string(),
+      title: v.string(),
+      description: v.string(),
+      dueDate: v.number(),
+      completed: v.boolean(),
+      completedAt: v.optional(v.number()),
+      order: v.number(),
+    })),
+    
+    // Gamification
+    totalExperienceReward: v.number(), // Total XP for project completion
+    projectLevel: v.number(), // Difficulty level (1-10)
+    
+    // Impact and visibility
+    impactArea: v.array(v.string()), // e.g., ["infrastructure", "community", "environment"]
+    estimatedBeneficiaries: v.optional(v.number()),
+    publicVisibility: v.union(v.literal("public"), v.literal("internal"), v.literal("private")),
+    
+    // History tracking
+    statusHistory: v.array(v.object({
+      status: v.string(),
+      changedBy: v.id("users"),
+      changedAt: v.number(),
+      notes: v.optional(v.string()),
+    })),
   })
   .index("by_status", ["status"])
+  .index("by_approval_status", ["approvalStatus"])
   .index("by_department", ["department"])
   .index("by_assigned_to", ["assignedTo"])
-  .index("by_created_by", ["createdBy"]),
+  .index("by_created_by", ["createdBy"])
+  .index("by_priority", ["priority"])
+  .index("by_urgency", ["urgency"]),
 
   // Tasks linked to projects (Habitica-style gamified)
   tasks: defineTable({
+    userId: v.id("users"), // Owner of the task (for personal tasks)
     title: v.string(),
     description: v.string(),
     projectId: v.optional(v.id("projects")),
     eventId: v.optional(v.id("events")),
+    type: v.union(v.literal("todo"), v.literal("daily"), v.literal("milestone")), // Task types: todo, daily, milestone
+    difficulty: v.union(v.literal("trivial"), v.literal("easy"), v.literal("medium"), v.literal("hard")),
     status: v.union(v.literal("todo"), v.literal("in_progress"), v.literal("review"), v.literal("completed"), v.literal("cancelled")),
     priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent")),
-    difficulty: v.union(v.literal("trivial"), v.literal("easy"), v.literal("medium"), v.literal("hard")), // Habitica-style difficulty
-    type: v.union(v.literal("habit"), v.literal("daily"), v.literal("todo"), v.literal("reward")), // Habitica task types
-    assignedTo: v.id("users"),
-    createdBy: v.id("users"),
+    completed: v.boolean(),
+    completedAt: v.optional(v.number()),
     dueDate: v.optional(v.number()),
+    createdAt: v.number(),
+    // Habit-specific
+    habitScore: v.optional(v.number()), // Track positive/negative count
+    habitFrequency: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"))),
+    positiveHabit: v.optional(v.boolean()),
+    // Time tracking (for project tasks)
     estimatedHours: v.optional(v.number()),
     actualHours: v.optional(v.number()),
-    loggedHours: v.array(v.object({
-      hours: v.number(),
-      date: v.number(),
-      userId: v.id("users"),
-      description: v.optional(v.string()),
-    })),
+    assignedTo: v.id("users"), // Who is responsible (can be same as userId for personal tasks)
+    createdBy: v.id("users"),
+    // Gamification
+    experienceReward: v.number(),
+    goldReward: v.number(),
+    streak: v.optional(v.number()),
+    lastCompleted: v.optional(v.number()),
+    completionCount: v.number(),
+    // Additional fields
     tags: v.array(v.string()),
     attachments: v.array(v.id("documents")),
     dependencies: v.array(v.id("tasks")),
@@ -123,19 +196,16 @@ export default defineSchema({
       completed: v.boolean(),
       hours: v.optional(v.number()),
     })),
-    // Gamification elements
-    experienceReward: v.number(), // XP gained on completion
-    goldReward: v.number(), // Gold earned
-    streak: v.optional(v.number()), // For daily tasks
-    lastCompleted: v.optional(v.number()),
-    completionCount: v.number(), // Total times completed
-    // Habit-specific
-    habitFrequency: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"))),
-    positiveHabit: v.optional(v.boolean()), // true for good habits, false for bad habits
-    // Project impact scoring
-    projectImpactScore: v.optional(v.number()), // How much this task affects project success (1-10)
-    isBlocking: v.boolean(), // If this task blocks other tasks/project progress
+    loggedHours: v.array(v.object({
+      hours: v.number(),
+      date: v.number(),
+      userId: v.id("users"),
+      description: v.optional(v.string()),
+    })),
+    projectImpactScore: v.optional(v.number()),
+    isBlocking: v.boolean(),
   })
+  .index("by_user", ["userId"])
   .index("by_project", ["projectId"])
   .index("by_event", ["eventId"])
   .index("by_assigned_to", ["assignedTo"])
@@ -143,6 +213,22 @@ export default defineSchema({
   .index("by_type", ["type"])
   .index("by_due_date", ["dueDate"])
   .index("by_priority", ["priority"]),
+
+  // User stats for gamification (Habitica-style)
+  userStats: defineTable({
+    userId: v.id("users"),
+    level: v.number(),
+    xp: v.number(),
+    gold: v.number(),
+    streak: v.number(),
+    lastCompletedDate: v.number(),
+    totalTasksCompleted: v.optional(v.number()),
+    todosCompleted: v.optional(v.number()),
+    dailiesCompleted: v.optional(v.number()),
+    habitsTracked: v.optional(v.number()),
+  })
+  .index("by_user", ["userId"])
+  .index("by_level", ["level"]),
 
   // Events and calendar
   events: defineTable({
@@ -261,13 +347,14 @@ export default defineSchema({
   .index("by_user", ["userId"])
   .index("by_read_status", ["userId", "isRead"]),
 
-  // User sessions for tracking login/logout
+  // User sessions for tracking login/logout (OPTIMIZED)
   userSessions: defineTable({
     userId: v.id("users"),
     clerkSessionId: v.string(),
     loginTime: v.number(),
     logoutTime: v.optional(v.number()),
     isActive: v.boolean(),
+    lastHeartbeat: v.optional(v.number()), // Last activity ping (every 5 min)
     ipAddress: v.optional(v.string()),
     userAgent: v.optional(v.string()),
     deviceInfo: v.optional(v.object({
@@ -279,11 +366,56 @@ export default defineSchema({
       city: v.optional(v.string()),
       country: v.optional(v.string()),
     })),
+    // Activity summary instead of individual logs
+    activitySummary: v.optional(v.object({
+      totalActions: v.optional(v.number()),
+      pagesVisited: v.optional(v.array(v.string())),
+      lastPage: v.optional(v.string()),
+    })),
   })
   .index("by_user", ["userId"])
   .index("by_session", ["clerkSessionId"])
   .index("by_active", ["isActive"])
   .index("by_login_time", ["loginTime"]),
+
+  // Optimized audit logs (ONLY significant events)
+  auditLogs: defineTable({
+    userId: v.id("users"),
+    sessionId: v.optional(v.id("userSessions")),
+    eventType: v.union(
+      v.literal("login"),
+      v.literal("logout"),
+      v.literal("error"),
+      v.literal("project_created"),
+      v.literal("project_approved"),
+      v.literal("task_completed"),
+      v.literal("file_uploaded"),
+      v.literal("permission_change"),
+      v.literal("data_export")
+    ),
+    severity: v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("critical")),
+    timestamp: v.number(),
+    details: v.optional(v.any()),
+  })
+  .index("by_user", ["userId"])
+  .index("by_event_type", ["eventType"])
+  .index("by_severity", ["severity"])
+  .index("by_timestamp", ["timestamp"])
+  .index("by_user_timestamp", ["userId", "timestamp"]),
+
+  // Online presence tracking for real-time collaboration
+  onlinePresence: defineTable({
+    userId: v.id("users"),
+    clerkId: v.string(),
+    lastSeen: v.number(),
+    status: v.union(v.literal("online"), v.literal("away"), v.literal("offline")),
+    currentPage: v.optional(v.string()),
+    isActive: v.boolean(),
+  })
+  .index("by_user", ["userId"])
+  .index("by_clerk_id", ["clerkId"])
+  .index("by_status", ["status"])
+  .index("by_last_seen", ["lastSeen"]),
 
   // User activity logs for operational monitoring
   userActivityLogs: defineTable({

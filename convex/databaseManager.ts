@@ -406,7 +406,7 @@ async function initProjects(ctx: any) {
     {
       title: "Youth Sports Program",
       description: "Establish a comprehensive sports program for youth aged 10-18 with regular tournaments and training sessions.",
-      status: "planning",
+      status: "draft",
       priority: "medium",
       budget: 75000,
       spent: 5000,

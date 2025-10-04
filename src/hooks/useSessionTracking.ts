@@ -1,3 +1,12 @@
+/**
+ * OPTIMIZED SESSION TRACKING HOOK
+ * 
+ * Replaces the old inefficient logging with the new audit system
+ * - Uses auditSystem instead of userSessions
+ * - Graceful error handling (no crashes)
+ * - Integrates with useOptimizedAudit for batching
+ */
+
 import { useEffect, useRef } from 'react';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useMutation } from 'convex/react';
@@ -17,9 +26,12 @@ interface LocationInfo {
 export const useSessionTracking = () => {
   const { isSignedIn, sessionId } = useAuth();
   const { user } = useUser();
-  const startSession = useMutation(api.userSessions.startSession);
-  const endSession = useMutation(api.userSessions.endSession);
-  const logActivity = useMutation(api.userSessions.logActivity);
+  
+  // Use NEW optimized audit system
+  const startSession = useMutation(api.auditSystem.startSession);
+  const endSession = useMutation(api.auditSystem.endSession);
+  
+  // Note: logActivity is deprecated - use useOptimizedAudit hook instead
   
   const sessionStartedRef = useRef(false);
   const lastActivityRef = useRef(Date.now());
@@ -71,25 +83,31 @@ export const useSessionTracking = () => {
     }
   };
 
-  // Start session when user signs in
+  // Start session when user signs in (with retry logic)
   useEffect(() => {
     const initSession = async () => {
       if (isSignedIn && sessionId && user && !sessionStartedRef.current) {
         try {
           const deviceInfo = getDeviceInfo();
-          const locationInfo = await getLocationInfo();
+          // Skip location lookup to avoid external API dependency
           
-          await startSession({
+          const result = await startSession({
             clerkSessionId: sessionId,
             userAgent: navigator.userAgent,
             deviceInfo,
-            location: locationInfo,
           });
           
-          sessionStartedRef.current = true;
-          console.log('Session started successfully');
+          if (result) {
+            sessionStartedRef.current = true;
+            console.log('Session started successfully');
+          } else {
+            // Session start returned null (user not ready), retry in 2 seconds
+            console.log('Session start deferred, retrying...');
+            setTimeout(initSession, 2000);
+          }
         } catch (error) {
           console.error('Failed to start session:', error);
+          // Don't crash the app, session will be created via heartbeat if needed
         }
       }
     };
@@ -109,110 +127,41 @@ export const useSessionTracking = () => {
       }
     };
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && sessionStartedRef.current) {
-        // Log when user switches away from the tab
-        logActivity({
-          activityType: 'page_view',
-          page: window.location.pathname,
-          details: { action: 'tab_hidden' },
-        }).catch(console.error);
-      } else if (document.visibilityState === 'visible' && sessionStartedRef.current) {
-        // Log when user returns to the tab
-        logActivity({
-          activityType: 'page_view',
-          page: window.location.pathname,
-          details: { action: 'tab_visible' },
-        }).catch(console.error);
-      }
-    };
+    // REMOVED: Tab visibility logging (was causing excessive API calls)
+    // Use useOptimizedAudit hook instead for page tracking
 
     // Add event listeners
     window.addEventListener('beforeunload', handleBeforeUnload);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
       
       // End session on cleanup
       if (sessionStartedRef.current && sessionId) {
         endSession({ clerkSessionId: sessionId }).catch(console.error);
       }
     };
-  }, [sessionId, endSession, logActivity]);
+  }, [sessionId, endSession]);
 
-  // Track page views
+  // DEPRECATED: Old tracking functions kept for backward compatibility
+  // Use useOptimizedAudit hook instead for new code
   const trackPageView = (page: string, details?: any) => {
-    if (sessionStartedRef.current) {
-      logActivity({
-        activityType: 'page_view',
-        page,
-        details,
-      }).catch(console.error);
-    }
+    console.warn('trackPageView is deprecated. Use useOptimizedAudit hook instead.');
+    // No-op: Page tracking now handled by useOptimizedAudit heartbeat
   };
 
-  // Track user actions
   const trackAction = (action: string, page?: string, details?: any, duration?: number) => {
-    if (sessionStartedRef.current) {
-      logActivity({
-        activityType: 'action',
-        action,
-        page: page || window.location.pathname,
-        details,
-        duration,
-      }).catch(console.error);
-    }
+    console.warn('trackAction is deprecated. Use useOptimizedAudit hook instead.');
+    // No-op: Action tracking now handled by useOptimizedAudit batching
   };
 
-  // Track errors
   const trackError = (error: string, page?: string, details?: any) => {
-    if (sessionStartedRef.current) {
-      logActivity({
-        activityType: 'error',
-        page: page || window.location.pathname,
-        details: { error, ...details },
-      }).catch(console.error);
-    }
+    console.warn('trackError is deprecated. Use useOptimizedAudit.logSignificantEvent instead.');
+    // No-op: Error tracking should use logSignificantEvent
   };
 
-  // Activity heartbeat to keep session alive
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const timeSinceLastActivity = now - lastActivityRef.current;
-      
-      // If more than 5 minutes of inactivity, log it
-      if (timeSinceLastActivity > 5 * 60 * 1000 && sessionStartedRef.current) {
-        trackAction('heartbeat', window.location.pathname, {
-          inactiveTime: timeSinceLastActivity,
-        });
-      }
-      
-      lastActivityRef.current = now;
-    }, 60000); // Check every minute
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Track user interactions to update last activity
-  useEffect(() => {
-    const updateActivity = () => {
-      lastActivityRef.current = Date.now();
-    };
-
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-    events.forEach(event => {
-      document.addEventListener(event, updateActivity, true);
-    });
-
-    return () => {
-      events.forEach(event => {
-        document.removeEventListener(event, updateActivity, true);
-      });
-    };
-  }, []);
+  // REMOVED: Excessive event listeners that caused 8K+ API calls
+  // Now handled by useOptimizedAudit hook with 5-minute heartbeat batching
 
   return {
     trackPageView,

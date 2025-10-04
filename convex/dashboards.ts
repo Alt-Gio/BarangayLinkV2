@@ -237,7 +237,7 @@ export const getManagerDashboard = query({
       ctx.db.query("projects").filter((q: any) => q.eq(q.field("department"), department)).collect(),
       ctx.db.query("tasks").collect(),
       ctx.db.query("projects")
-        .filter((q: any) => q.eq(q.field("status"), "planning"))
+        .filter((q: any) => q.eq(q.field("status"), "draft"))
         .filter((q: any) => q.eq(q.field("department"), department))
         .collect(),
       ctx.db.query("events").filter((q: any) => q.eq(q.field("organizer"), currentUser._id)).collect()

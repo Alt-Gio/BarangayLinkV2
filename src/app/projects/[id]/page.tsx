@@ -1,16 +1,36 @@
 "use client";
 
 import { use } from 'react';
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
-import { ProjectHeader } from '@/components/projects/ProjectHeader';
-import { ProjectTabs } from '@/components/projects/ProjectTabs';
-import { ProjectOverview } from '@/components/projects/ProjectOverview';
-import { ProjectTasks } from '@/components/projects/ProjectTasks';
-import { ProjectEvents } from '@/components/projects/ProjectEvents';
-import { ProjectTeam } from '@/components/projects/ProjectTeam';
-import { ProjectSettings } from '@/components/projects/ProjectSettings';
 import { useState } from 'react';
+import { Id } from '../../../../convex/_generated/dataModel';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Edit, 
+  Save, 
+  X, 
+  ArrowLeft,
+  CheckCircle2,
+  TrendingUp,
+  DollarSign,
+  Calendar,
+  Users,
+  MapPin,
+  Flag,
+  Target,
+  Clock,
+  Plus,
+  Circle,
+  Repeat,
+  Zap,
+  Sparkles
+} from 'lucide-react';
 
 // Force dynamic rendering for project pages
 export const dynamic = 'force-dynamic';
@@ -21,106 +41,593 @@ interface ProjectPageProps {
 
 export default function ProjectPage({ params }: ProjectPageProps) {
   const { id } = use(params);
+  
+  // ALL HOOKS MUST BE AT THE TOP (Rules of Hooks)
+  const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [editedData, setEditedData] = useState<any>({});
 
   // Get current user with role
   const currentUser = useQuery(api.users.getCurrentUser);
   
-  // Get project details
+  // Get project data
   const project = useQuery(api.productivity.getProjects, { limit: 100 })?.find(p => p._id === id);
   
-  // Get project tasks
-  const tasks = useQuery(api.productivity.getProjectTasks, { projectId: id as any });
+  // Get project tasks (using the new task system)
+  const tasks = useQuery(api.tasks.getProjectTasks, { projectId: id as any });
   
-  // Get project events (we'll need to create this)
+  // Get project events  
   const events = useQuery(api.events.getProjectEvents, { projectId: id as any });
   
   // Get project team members
   const teamMembers = useQuery(api.users.getProjectTeamMembers, { projectId: id as any });
+  
+  // Update mutation
+  const updateProject = useMutation(api.projectsEnhanced.updateProject);
+  
+  // Task mutations
+  const completeTask = useMutation(api.tasks.completeTask);
+  const uncompleteTask = useMutation(api.tasks.uncompleteTask);
 
-  if (!currentUser || !project) {
+  // NOW we can do conditional logic and early returns
+  if (!currentUser) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading project details...</p>
+          <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading project...</p>
         </div>
       </div>
     );
   }
 
-  // Check user permissions for this project
+  if (!project) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading project...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check user permissions
   const userRole = currentUser.userLevel.name;
   const canEdit = userRole === "ADMIN" || 
-                  (userRole === "MANAGER" && project.department === currentUser.department) ||
+                  (userRole === "MANAGER" && project.department === (currentUser as any).department) ||
                   (userRole === "BUILDER" && project.createdBy === currentUser._id);
 
-  const canManageTasks = ["ADMIN", "MANAGER", "BUILDER"].includes(userRole);
-  const canManageEvents = ["ADMIN", "MANAGER"].includes(userRole);
+  // Handlers
+  const handleEdit = (field: string, value: any) => {
+    setEditedData({ ...editedData, [field]: value });
+  };
+
+  const handleSave = async () => {
+    try {
+      await updateProject({
+        projectId: project._id as Id<"projects">,
+        updates: editedData,
+      });
+      setIsEditing(false);
+      setEditedData({});
+    } catch (error) {
+      console.error("Failed to update project:", error);
+    }
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setEditedData({});
+  };
+
+  // Calculate stats
+  const completedTasks = tasks?.filter(t => t.status === 'completed').length || 0;
+  const totalTasks = tasks?.length || 0;
+  const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  const budgetUsed = project.spent || 0;
+  const budgetTotal = project.budget || 1;
+  const daysRemaining = project.endDate ? Math.ceil((project.endDate - Date.now()) / (1000 * 60 * 60 * 24)) : 0;
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900">
       <div className="max-w-7xl mx-auto p-6 space-y-6">
-        {/* Project Header */}
-        <ProjectHeader 
-          project={project}
-          currentUser={currentUser}
-          canEdit={canEdit}
-        />
-
-        {/* Navigation Tabs */}
-        <ProjectTabs 
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          userRole={userRole}
-        />
-
-        {/* Tab Content */}
-        <div className="bg-gray-800 rounded-lg">
-          {activeTab === 'overview' && (
-            <ProjectOverview 
-              project={project}
-              tasks={tasks || []}
-              events={events || []}
-              teamMembers={teamMembers || []}
-            />
-          )}
+        
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <Button 
+            variant="ghost" 
+            onClick={() => window.history.back()}
+            className="text-gray-400 hover:text-white"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Projects
+          </Button>
           
-          {activeTab === 'tasks' && (
-            <ProjectTasks 
-              project={project}
-              tasks={tasks || []}
-              currentUser={currentUser}
-              canManageTasks={canManageTasks}
-            />
-          )}
-          
-          {activeTab === 'events' && (
-            <ProjectEvents 
-              projectId={id as any}
-              events={events || []}
-              currentUser={currentUser}
-              canManageEvents={canManageEvents}
-            />
-          )}
-          
-          {activeTab === 'team' && (
-            <ProjectTeam 
-              project={project}
-              teamMembers={teamMembers || []}
-              currentUser={currentUser}
-              canEdit={canEdit}
-            />
-          )}
-          
-          {activeTab === 'settings' && canEdit && (
-            <ProjectSettings 
-              project={project}
-              currentUser={currentUser}
-              userRole={userRole}
-            />
+          {canEdit && (
+            <div className="flex gap-2">
+              {isEditing ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleCancel}
+                    className="border-gray-700 text-gray-300"
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSave}
+                    className="bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Changes
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  onClick={() => setIsEditing(true)}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit Project
+                </Button>
+              )}
+            </div>
           )}
         </div>
+
+        {/* Project Title & Status */}
+        <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              {isEditing ? (
+                <Input
+                  value={editedData.title ?? project.title}
+                  onChange={(e) => handleEdit('title', e.target.value)}
+                  className="text-3xl font-bold bg-gray-900 border-gray-700 text-white mb-4"
+                  placeholder="Project Title"
+                />
+              ) : (
+                <h1 className="text-3xl font-bold text-white mb-2">{project.title}</h1>
+              )}
+              
+              {isEditing ? (
+                <Textarea
+                  value={editedData.description ?? project.description}
+                  onChange={(e) => handleEdit('description', e.target.value)}
+                  className="bg-gray-900 border-gray-700 text-white"
+                  rows={3}
+                  placeholder="Project Description"
+                />
+              ) : (
+                <p className="text-gray-400">{project.description}</p>
+              )}
+            </div>
+
+            {/* Progress Circle */}
+            <div className="relative w-24 h-24">
+              <svg className="w-24 h-24 transform -rotate-90">
+                <circle
+                  cx="48"
+                  cy="48"
+                  r="40"
+                  stroke="currentColor"
+                  strokeWidth="8"
+                  fill="none"
+                  className="text-gray-700"
+                />
+                <circle
+                  cx="48"
+                  cy="48"
+                  r="40"
+                  stroke="currentColor"
+                  strokeWidth="8"
+                  fill="none"
+                  strokeDasharray={`${2 * Math.PI * 40}`}
+                  strokeDashoffset={`${2 * Math.PI * 40 * (1 - progress / 100)}`}
+                  className="text-emerald-500 transition-all duration-300"
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-2xl font-bold text-white">{progress}%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Project Meta Info */}
+          <div className="grid grid-cols-4 gap-4 mt-6">
+            <div>
+              <div className="text-xs text-gray-500 mb-1">Department</div>
+              <div className="text-white font-medium">{project.department}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500 mb-1">Duration</div>
+              <div className="text-white font-medium">
+                {new Date(project.startDate).toLocaleDateString()} - {new Date(project.endDate).toLocaleDateString()}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500 mb-1">Budget</div>
+              <div className="text-emerald-400 font-medium">₱{budgetTotal.toLocaleString()}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500 mb-1">Progress</div>
+              <div className="text-white font-medium">{progress}%</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-4 gap-4">
+          <Card className="bg-gray-800/50 border-gray-700/50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Total Tasks
+                  </div>
+                  <div className="text-3xl font-bold text-white">{totalTasks}</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {completedTasks} completed, {totalTasks - completedTasks} in progress
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gray-800/50 border-gray-700/50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
+                    <TrendingUp className="w-4 h-4" />
+                    Progress
+                  </div>
+                  <div className="text-3xl font-bold text-white">{progress}%</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {progress === 100 ? 'Completed!' : `${100 - progress}% remaining`}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gray-800/50 border-gray-700/50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
+                    <DollarSign className="w-4 h-4" />
+                    Budget Used
+                  </div>
+                  <div className="text-3xl font-bold text-white">₱{budgetUsed.toLocaleString()}</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {Math.round((budgetUsed / budgetTotal) * 100)}% of ₱{budgetTotal.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gray-800/50 border-gray-700/50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
+                    <Calendar className="w-4 h-4" />
+                    Days Remaining
+                  </div>
+                  <div className="text-3xl font-bold text-white">{daysRemaining}</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Until {new Date(project.endDate).toLocaleDateString()}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5 bg-gray-800/50 border border-gray-700/50">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="tasks">Tasks</TabsTrigger>
+            <TabsTrigger value="events">Events</TabsTrigger>
+            <TabsTrigger value="team">Team</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid grid-cols-3 gap-6">
+              {/* Project Details */}
+              <Card className="col-span-2 bg-gray-800/50 border-gray-700/50">
+                <CardHeader>
+                  <CardTitle className="text-white">Project Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-sm text-gray-500 mb-1">Department</div>
+                      <div className="text-white">{project.department}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500 mb-1">Priority</div>
+                      <Badge variant="outline" className="capitalize">{project.priority}</Badge>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500 mb-1">Start Date</div>
+                      <div className="text-white">{new Date(project.startDate).toLocaleDateString()}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500 mb-1">End Date</div>
+                      <div className="text-white">{new Date(project.endDate).toLocaleDateString()}</div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="text-sm text-gray-500 mb-1">Description</div>
+                    <div className="text-white">{project.description}</div>
+                  </div>
+
+                  {project.location && (
+                    <div>
+                      <div className="text-sm text-gray-500 mb-1">Location</div>
+                      <div className="text-white flex items-center gap-2">
+                        <MapPin className="w-4 h-4" />
+                        {project.location}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Upcoming Events */}
+              <Card className="bg-gray-800/50 border-gray-700/50">
+                <CardHeader>
+                  <CardTitle className="text-white">Upcoming Events</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {events && events.length > 0 ? (
+                    <div className="space-y-3">
+                      {events.slice(0, 3).map((event: any) => (
+                        <div key={event._id} className="p-3 bg-gray-900/50 rounded-lg">
+                          <div className="font-medium text-white">{event.title}</div>
+                          <div className="text-xs text-gray-400 mt-1">
+                            <Calendar className="w-3 h-3 inline mr-1" />
+                            {new Date(event.startDate).toLocaleDateString()}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-sm">No upcoming events</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Team Members */}
+            <Card className="bg-gray-800/50 border-gray-700/50">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Team
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2 text-gray-400">
+                  <Users className="w-4 h-4" />
+                  {teamMembers?.length || 0} members
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="tasks" className="space-y-4">
+            <Card className="bg-gray-800/50 border-gray-700/50">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center justify-between">
+                  <span>Project Tasks</span>
+                  <Badge variant="outline">{tasks?.length || 0} tasks</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {!tasks || tasks.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Target className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400">No tasks yet. Create tasks from the My Tasks page and link them to this project.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Todos */}
+                    {tasks.filter(t => t.type === 'todo').length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4" />
+                          Todos ({tasks.filter(t => t.type === 'todo').length})
+                        </h4>
+                        <div className="space-y-2">
+                          {tasks.filter(t => t.type === 'todo').map((task) => (
+                            <Card key={task._id} className={`bg-gray-900/50 border-gray-700/50 ${task.completed ? 'opacity-60' : ''}`}>
+                              <CardContent className="p-4">
+                                <div className="flex items-start gap-4">
+                                  <button
+                                    onClick={() => task.completed ? uncompleteTask({ taskId: task._id }) : completeTask({ taskId: task._id })}
+                                    className={`mt-1 ${task.completed ? 'text-blue-500' : 'text-gray-600 hover:text-blue-500'}`}
+                                  >
+                                    {task.completed ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
+                                  </button>
+                                  <div className="flex-1">
+                                    <h5 className={`font-medium ${task.completed ? 'line-through text-gray-500' : 'text-white'}`}>
+                                      {task.title}
+                                    </h5>
+                                    {task.description && (
+                                      <p className="text-sm text-gray-400 mt-1">{task.description}</p>
+                                    )}
+                                    <div className="flex items-center gap-4 mt-2 text-xs">
+                                      <Badge variant="secondary" className="capitalize">{task.difficulty}</Badge>
+                                      <span className="flex items-center gap-1 text-blue-400">
+                                        <Zap className="w-3 h-3" />
+                                        {task.experienceReward} XP
+                                      </span>
+                                      <span className="flex items-center gap-1 text-yellow-400">
+                                        <Sparkles className="w-3 h-3" />
+                                        {task.goldReward} Gold
+                                      </span>
+                                      {task.dueDate && (
+                                        <span className="flex items-center gap-1 text-gray-400">
+                                          <Calendar className="w-3 h-3" />
+                                          {new Date(task.dueDate).toLocaleDateString()}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Dailies */}
+                    {tasks.filter(t => t.type === 'daily').length > 0 && (
+                      <div className="mt-6">
+                        <h4 className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-2">
+                          <Repeat className="w-4 h-4" />
+                          Dailies ({tasks.filter(t => t.type === 'daily').length})
+                        </h4>
+                        <div className="space-y-2">
+                          {tasks.filter(t => t.type === 'daily').map((task) => (
+                            <Card key={task._id} className={`bg-gray-900/50 border-gray-700/50 ${task.completed ? 'opacity-60' : ''}`}>
+                              <CardContent className="p-4">
+                                <div className="flex items-start gap-4">
+                                  <button
+                                    onClick={() => task.completed ? uncompleteTask({ taskId: task._id }) : completeTask({ taskId: task._id })}
+                                    className={`mt-1 ${task.completed ? 'text-purple-500' : 'text-gray-600 hover:text-purple-500'}`}
+                                  >
+                                    {task.completed ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
+                                  </button>
+                                  <div className="flex-1">
+                                    <h5 className={`font-medium ${task.completed ? 'line-through text-gray-500' : 'text-white'}`}>
+                                      {task.title}
+                                    </h5>
+                                    {task.description && (
+                                      <p className="text-sm text-gray-400 mt-1">{task.description}</p>
+                                    )}
+                                    <div className="flex items-center gap-4 mt-2 text-xs">
+                                      <Badge variant="secondary" className="capitalize">{task.difficulty}</Badge>
+                                      <Badge variant="outline">Daily</Badge>
+                                      <span className="flex items-center gap-1 text-blue-400">
+                                        <Zap className="w-3 h-3" />
+                                        {task.experienceReward} XP
+                                      </span>
+                                      <span className="flex items-center gap-1 text-yellow-400">
+                                        <Sparkles className="w-3 h-3" />
+                                        {task.goldReward} Gold
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Milestones */}
+                    {tasks.filter(t => t.type === 'milestone').length > 0 && (
+                      <div className="mt-6">
+                        <h4 className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-2">
+                          <Target className="w-4 h-4" />
+                          Milestones ({tasks.filter(t => t.type === 'milestone').length})
+                        </h4>
+                        <div className="space-y-2">
+                          {tasks.filter(t => t.type === 'milestone').map((task) => (
+                            <Card key={task._id} className={`bg-gray-900/50 border-gray-700/50 ${task.completed ? 'opacity-60' : ''}`}>
+                              <CardContent className="p-4">
+                                <div className="flex items-start gap-4">
+                                  <button
+                                    onClick={() => task.completed ? uncompleteTask({ taskId: task._id }) : completeTask({ taskId: task._id })}
+                                    className={`mt-1 ${task.completed ? 'text-emerald-500' : 'text-gray-600 hover:text-emerald-500'}`}
+                                  >
+                                    {task.completed ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
+                                  </button>
+                                  <div className="flex-1">
+                                    <h5 className={`font-medium ${task.completed ? 'line-through text-gray-500' : 'text-white'}`}>
+                                      {task.title}
+                                    </h5>
+                                    {task.description && (
+                                      <p className="text-sm text-gray-400 mt-1">{task.description}</p>
+                                    )}
+                                    <div className="flex items-center gap-4 mt-2 text-xs">
+                                      <Badge variant="secondary" className="capitalize">{task.difficulty}</Badge>
+                                      <Badge variant="outline">Milestone</Badge>
+                                      <span className="flex items-center gap-1 text-blue-400">
+                                        <Zap className="w-3 h-3" />
+                                        {task.experienceReward} XP
+                                      </span>
+                                      <span className="flex items-center gap-1 text-yellow-400">
+                                        <Sparkles className="w-3 h-3" />
+                                        {task.goldReward} Gold
+                                      </span>
+                                      {task.dueDate && (
+                                        <span className="flex items-center gap-1 text-gray-400">
+                                          <Calendar className="w-3 h-3" />
+                                          {new Date(task.dueDate).toLocaleDateString()}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="events">
+            <Card className="bg-gray-800/50 border-gray-700/50">
+              <CardHeader>
+                <CardTitle className="text-white">Events</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-400">Event management interface will be displayed here</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="team">
+            <Card className="bg-gray-800/50 border-gray-700/50">
+              <CardHeader>
+                <CardTitle className="text-white">Team Management</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-400">Team management interface will be displayed here</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <Card className="bg-gray-800/50 border-gray-700/50">
+              <CardHeader>
+                <CardTitle className="text-white">Project Settings</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-400">Settings interface will be displayed here</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

@@ -183,7 +183,7 @@ export const getSystemAnalytics = query({
       totalBudget: allProjects.reduce((sum, p) => sum + p.budget, 0),
       departmentStats,
       projectsByStatus: {
-        planning: allProjects.filter(p => p.status === "planning").length,
+        planning: allProjects.filter(p => p.status === "draft").length,
         active: allProjects.filter(p => p.status === "active").length,
         completed: allProjects.filter(p => p.status === "completed").length,
         cancelled: allProjects.filter(p => p.status === "cancelled").length,
@@ -365,7 +365,7 @@ export const createProjectWithApproval = mutation({
     }
     
     // Set initial status based on role
-    const initialStatus = currentUser.userLevel.name === "BUILDER" ? "planning" : "active";
+    const initialStatus = currentUser.userLevel.name === "BUILDER" ? "draft" : "active";
     
     const projectId = await ctx.db.insert("projects", {
       title: args.title,
@@ -373,6 +373,7 @@ export const createProjectWithApproval = mutation({
       department: args.department,
       status: initialStatus,
       priority: "medium",
+      urgency: "normal" as const,
       budget: args.budget || 0,
       spent: 0,
       startDate: args.startDate,
@@ -385,7 +386,15 @@ export const createProjectWithApproval = mutation({
       liveblocksRoom: `project-${Date.now()}`,
       isPublic: false,
       location: undefined,
-      coordinates: undefined
+      coordinates: undefined,
+      approvalStatus: initialStatus === "draft" ? "pending" as const : "approved" as const,
+      successCriteria: [],
+      milestones: [],
+      totalExperienceReward: 0,
+      projectLevel: 1,
+      impactArea: [],
+      publicVisibility: "internal" as const,
+      statusHistory: [{ status: initialStatus, changedBy: currentUser._id, changedAt: Date.now() }],
     });
     
     // If created by BUILDER, notify department MANAGER for approval

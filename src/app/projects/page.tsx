@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
 
 // Force dynamic rendering for authenticated pages
 export const dynamic = 'force-dynamic';
@@ -10,10 +11,17 @@ import { api } from '../../../convex/_generated/api';
 import { CreateProjectForm } from '@/components/projects/CreateProjectForm';
 import { ProjectsList } from '@/components/projects/ProjectsList';
 import { ProjectFilters } from '@/components/projects/ProjectFilters';
+import { ProjectWizard } from '@/components/projects/ProjectWizard';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function ProjectsPage() {
   const { user } = useUser();
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const router = useRouter();
+  const [showWizard, setShowWizard] = useState(false);
+  const [activeView, setActiveView] = useState<'all' | 'pending' | 'active' | 'completed'>('all');
   const [filters, setFilters] = useState({
     status: "all",
     department: "all"
@@ -22,12 +30,26 @@ export default function ProjectsPage() {
   // Get current user with role
   const currentUser = useQuery(api.users.getCurrentUser);
   
-  // Get projects based on user role (uses your existing function)
+  // Use existing API (enhanced API will be available after running: npx convex dev)
   const projects = useQuery(api.productivity.getProjects, {
     status: filters.status === "all" ? undefined : filters.status,
     department: filters.department === "all" ? undefined : filters.department,
     limit: 50
   });
+
+  // Filter projects by activeView locally for now
+  const filteredProjects = projects?.filter((p: any) => {
+    if (activeView === 'all') return true;
+    if (activeView === 'pending') return p.status === 'pending_approval' || p.status === 'planning';
+    if (activeView === 'active') return p.status === 'active';
+    if (activeView === 'completed') return p.status === 'completed';
+    return true;
+  }) || [];
+
+  // Calculate pending approvals from filtered data (for managers/admins)
+  const pendingApprovals = currentUser?.userLevel?.name && ["MANAGER", "ADMIN"].includes(currentUser.userLevel.name)
+    ? projects?.filter((p: any) => p.status === 'pending_approval' || p.status === 'planning') || []
+    : [];
 
   // Check if user can create projects
   const canCreateProjects = currentUser?.userLevel?.name && 
@@ -44,29 +66,90 @@ export default function ProjectsPage() {
     );
   }
 
+  // If wizard is shown, display it full screen
+  if (showWizard) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900">
+        <ProjectWizard
+          onComplete={(projectId) => {
+            setShowWizard(false);
+            router.push(`/projects/${projectId}`);
+          }}
+          onCancel={() => setShowWizard(false)}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-900 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-white">Projects</h1>
             <p className="text-gray-400">
-              {currentUser.userLevel.name} - {currentUser.department || 'Unassigned'} Department
+              {currentUser.userLevel.name} - {(currentUser as any).department || 'Unassigned'} Department
             </p>
           </div>
           
-          {canCreateProjects && (
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Create Project
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {/* Pending Approvals Badge for Managers/Admins */}
+            {pendingApprovals && pendingApprovals.length > 0 && (
+              <Button
+                variant="outline"
+                onClick={() => setActiveView('pending')}
+                className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
+              >
+                <AlertCircle className="w-4 h-4 mr-2" />
+                {pendingApprovals.length} Pending Approval
+              </Button>
+            )}
+
+            {canCreateProjects && (
+              <Button
+                onClick={() => setShowWizard(true)}
+                className="bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-white"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Create Project
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Quick View Tabs */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant={activeView === 'all' ? 'default' : 'outline'}
+            onClick={() => setActiveView('all')}
+            className={activeView === 'all' ? 'bg-blue-600' : ''}
+          >
+            All Projects
+          </Button>
+          <Button
+            variant={activeView === 'pending' ? 'default' : 'outline'}
+            onClick={() => setActiveView('pending')}
+            className={activeView === 'pending' ? 'bg-yellow-600' : ''}
+          >
+            <Clock className="w-4 h-4 mr-2" />
+            Pending Approval
+          </Button>
+          <Button
+            variant={activeView === 'active' ? 'default' : 'outline'}
+            onClick={() => setActiveView('active')}
+            className={activeView === 'active' ? 'bg-emerald-600' : ''}
+          >
+            Active
+          </Button>
+          <Button
+            variant={activeView === 'completed' ? 'default' : 'outline'}
+            onClick={() => setActiveView('completed')}
+            className={activeView === 'completed' ? 'bg-green-600' : ''}
+          >
+            <CheckCircle2 className="w-4 h-4 mr-2" />
+            Completed
+          </Button>
         </div>
 
         {/* Filters */}
@@ -74,21 +157,12 @@ export default function ProjectsPage() {
           filters={filters} 
           onFiltersChange={setFilters}
           userRole={currentUser.userLevel.name}
-          userDepartment={currentUser.department || ''}
+          userDepartment={(currentUser as any).department || ''}
         />
-
-        {/* Create Project Form Modal */}
-        {showCreateForm && (
-          <CreateProjectForm
-            onClose={() => setShowCreateForm(false)}
-            userRole={currentUser.userLevel.name}
-            userDepartment={currentUser.department || ''}
-          />
-        )}
 
         {/* Projects List */}
         <ProjectsList 
-          projects={projects || []}
+          projects={filteredProjects as any}
           userRole={currentUser.userLevel.name}
           currentUserId={currentUser._id}
         />

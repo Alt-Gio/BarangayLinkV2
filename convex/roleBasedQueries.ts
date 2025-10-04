@@ -275,7 +275,7 @@ export const getRoleBasedAnalytics = query({
         return {
           projectStats: {
             total: projects.length,
-            planning: projects.filter(p => p.status === "planning").length,
+            planning: projects.filter(p => p.status === "draft").length,
             active: projects.filter(p => p.status === "active").length,
             completed: projects.filter(p => p.status === "completed").length,
             cancelled: projects.filter(p => p.status === "cancelled").length,
@@ -316,7 +316,7 @@ export const getRoleBasedAnalytics = query({
         return {
           projectStats: {
             total: validWorkerProjects.length,
-            planning: validWorkerProjects.filter(p => p?.status === "planning").length,
+            planning: validWorkerProjects.filter(p => p?.status === "draft").length,
             active: validWorkerProjects.filter(p => p?.status === "active").length,
             completed: validWorkerProjects.filter(p => p?.status === "completed").length,
             cancelled: validWorkerProjects.filter(p => p?.status === "cancelled").length,
@@ -353,7 +353,7 @@ export const getRoleBasedAnalytics = query({
       return {
         projectStats: {
           total: projects.length,
-          planning: projects.filter(p => p.status === "planning").length,
+          planning: projects.filter(p => p.status === "draft").length,
           active: projects.filter(p => p.status === "active").length,
           completed: projects.filter(p => p.status === "completed").length,
           cancelled: projects.filter(p => p.status === "cancelled").length,
@@ -506,7 +506,7 @@ export const getPendingApprovals = query({
     
     let query = ctx.db
       .query("projects")
-      .filter((q) => q.eq(q.field("status"), "planning"));
+      .filter((q) => q.eq(q.field("status"), "draft"));
     
     // MANAGER can only see approvals in their department
     if (userLevel === "MANAGER") {

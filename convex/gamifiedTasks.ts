@@ -49,14 +49,17 @@ export const createTask = mutation({
     const { xp, gold } = calculateRewards(args.difficulty, args.estimatedHours || 1);
 
     const taskId = await ctx.db.insert("tasks", {
+      userId: user._id,
       title: args.title,
       description: args.description,
       projectId: args.projectId,
       eventId: args.eventId,
+      type: args.type,
+      difficulty: args.difficulty,
       status: "todo",
       priority: args.priority,
-      difficulty: args.difficulty,
-      type: args.type,
+      completed: false,
+      createdAt: Date.now(),
       assignedTo: args.assignedTo,
       createdBy: user._id,
       dueDate: args.dueDate,
