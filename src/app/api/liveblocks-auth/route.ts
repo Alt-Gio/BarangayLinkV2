@@ -3,6 +3,7 @@ import { Liveblocks } from '@liveblocks/node'
 
 export async function POST(req: Request) {
   console.log('🔐 Liveblocks auth request received');
+  console.log('📋 Request headers:', Object.fromEntries(req.headers.entries()));
   
   // Check if Liveblocks secret key is configured
   if (!process.env.LIVEBLOCKS_SECRET_KEY) {
@@ -10,47 +11,52 @@ export async function POST(req: Request) {
     return new Response('Liveblocks not configured', { status: 500 })
   }
   
-  // Use Clerk to get the session for the current user.
-  // Return a 401 response if not authenticated
-  const { userId } = await auth()
-  console.log('👤 Clerk userId:', userId);
-  
-  if (!userId) {
-    console.log('❌ No userId from Clerk auth');
-    return new Response('Not authorized', { status: 401 })
-  }
-
-  // Use Clerk to get more details about the current user.
-  const user = await currentUser()
-  console.log('👤 Current user:', user?.id, user?.fullName);
-  
-  if (!user) {
-    console.log('❌ No user from Clerk currentUser');
-    return new Response('Not authorized', { status: 401 })
-  }
-
-  // Parse the room ID from the request
-  let room;
   try {
-    const body = await req.json()
-    room = body.room
-    console.log('🏠 Room ID:', room);
-  } catch (error) {
-    console.error('❌ Error parsing request body:', error);
-    return new Response('Invalid request body', { status: 400 })
-  }
-  
-  if (!room) {
-    console.log('❌ No room ID provided');
-    return new Response('Room ID required', { status: 400 })
-  }
+    // Use Clerk to get the session for the current user.
+    // Return a 401 response if not authenticated
+    console.log('🔍 Attempting to get auth from Clerk...');
+    const authResult = await auth()
+    console.log('🔍 Auth result:', authResult);
+    const userId = authResult?.userId
+    console.log('👤 Clerk userId:', userId);
+    
+    if (!userId) {
+      console.log('❌ No userId from Clerk auth');
+      console.log('💡 Tip: Make sure you are logged in and the session is active');
+      return new Response('Not authorized', { status: 401 })
+    }
 
-  // Basic room access validation - you can add more specific logic here
-  // For now, we'll allow authenticated users to access rooms
-  
-  // All security checks passed so create the session and include the name and
-  // avatar of the user, which will be shown within Liveblocks components
-  try {
+    // Use Clerk to get more details about the current user.
+    console.log('🔍 Getting current user details...');
+    const user = await currentUser()
+    console.log('👤 Current user:', user?.id, user?.fullName);
+    
+    if (!user) {
+      console.log('❌ No user from Clerk currentUser');
+      return new Response('Not authorized', { status: 401 })
+    }
+
+    // Parse the room ID from the request
+    let room;
+    try {
+      const body = await req.json()
+      room = body.room
+      console.log('🏠 Room ID:', room);
+    } catch (error) {
+      console.error('❌ Error parsing request body:', error);
+      return new Response('Invalid request body', { status: 400 })
+    }
+    
+    if (!room) {
+      console.log('❌ No room ID provided');
+      return new Response('Room ID required', { status: 400 })
+    }
+
+    // Basic room access validation - you can add more specific logic here
+    // For now, we'll allow authenticated users to access rooms
+    
+    // All security checks passed so create the session and include the name and
+    // avatar of the user, which will be shown within Liveblocks components
     console.log('🔧 Creating Liveblocks session for user:', user.id);
     
     const liveblocks = new Liveblocks({
@@ -67,11 +73,11 @@ export async function POST(req: Request) {
     session.allow(room, session.FULL_ACCESS)
     console.log('✅ Session prepared, authorizing...');
     
-    const { body, status } = await session.authorize()
+    const { body: responseBody, status } = await session.authorize()
     console.log('✅ Liveblocks session authorized with status:', status);
 
     // Return the response
-    return new Response(body, { status })
+    return new Response(responseBody, { status })
   } catch (error) {
     console.error('❌ Error creating Liveblocks session:', error);
     return new Response('Internal server error', { status: 500 })

@@ -1,21 +1,19 @@
 "use client";
 
 import { RoleBasedDashboard } from '../../components/dashboard/RoleBasedDashboard';
-import { LiveblocksRoomProvider } from '../../components/liveblocks/LiveblocksProvider';
-import { CollaborativeRoom } from '../../components/liveblocks/CollaborativeRoom';
-import { LiveblocksClientProvider } from '../../components/liveblocks/LiveblocksClientProvider';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 // Force dynamic rendering for authenticated pages
 export const dynamic = 'force-dynamic';
 
 export default function DashboardPage() {
-  const { user, isLoaded } = useUser();
+  const { user, isLoaded, isSignedIn } = useUser();
   const router = useRouter();
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Initialize database and ensure user exists
   const initDb = useMutation(api.seedData.seedUserLevels);
@@ -29,24 +27,26 @@ export default function DashboardPage() {
         await initDb();
         // Then ensure current user exists in database
         await ensureUserExists();
+        setIsInitialized(true);
       } catch (error) {
         console.log('App initialization completed or skipped:', error instanceof Error ? error.message : 'Unknown error');
+        setIsInitialized(true); // Continue even if initialization fails
       }
     };
     
-    if (user && isLoaded) {
+    if (user && isLoaded && isSignedIn) {
       initializeApp();
     }
-  }, [user, isLoaded, initDb, ensureUserExists]);
+  }, [user, isLoaded, isSignedIn, initDb, ensureUserExists]);
 
   // Redirect if not authenticated
   useEffect(() => {
-    if (isLoaded && !user) {
+    if (isLoaded && !isSignedIn) {
       router.push('/login');
     }
-  }, [isLoaded, user, router]);
+  }, [isLoaded, isSignedIn, router]);
 
-  if (!isLoaded || !user) {
+  if (!isLoaded || !isSignedIn || !user || !isInitialized) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -57,11 +57,6 @@ export default function DashboardPage() {
     );
   }
 
-  return (
-    <LiveblocksClientProvider>
-      <LiveblocksRoomProvider roomId={`dashboard-${user.id}`}>
-        <RoleBasedDashboard />
-      </LiveblocksRoomProvider>
-    </LiveblocksClientProvider>
-  );
+  // Render dashboard without Liveblocks - simpler and more reliable
+  return <RoleBasedDashboard />;
 }

@@ -1,5 +1,7 @@
 import { clerkMiddleware } from '@clerk/nextjs/server';
 
+// Simple middleware that makes auth available without enforcing it
+// Individual routes/pages handle their own protection
 export default clerkMiddleware();
 
 export const config = {

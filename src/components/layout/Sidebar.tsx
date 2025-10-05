@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useUser, useClerk } from '@clerk/nextjs';
+import { useUser, useClerk, UserButton } from '@clerk/nextjs';
 import { 
   ChevronDown, 
   ChevronRight,
@@ -30,7 +30,9 @@ import {
   Shield,
   Wrench,
   Menu,
-  X
+  X,
+  Mail,
+  Network
 } from 'lucide-react';
 
 interface MenuItem {
@@ -178,56 +180,6 @@ export function Sidebar({
       ]
     },
     {
-      id: 'registration',
-      label: 'Registration Management',
-      icon: <UserCheck className="w-4 h-4" />,
-      path: '/registration',
-      roles: ['ADMIN']
-    },
-    {
-      id: 'documents',
-      label: 'Document System',
-      icon: <FileText className="w-4 h-4" />,
-      children: [
-        {
-          id: 'document-library',
-          label: 'Document Library',
-          icon: <BookOpen className="w-4 h-4" />,
-          path: '/documents',
-          roles: ['WORKER', 'BUILDER', 'MANAGER', 'ADMIN']
-        },
-        {
-          id: 'official-records',
-          label: 'Official Records',
-          icon: <Archive className="w-4 h-4" />,
-          path: '/documents/official',
-          roles: ['MANAGER', 'ADMIN']
-        },
-        {
-          id: 'upload-documents',
-          label: 'Upload Documents',
-          icon: <Upload className="w-4 h-4" />,
-          path: '/documents/upload',
-          roles: ['BUILDER', 'MANAGER', 'ADMIN']
-        }
-      ]
-    },
-    {
-      id: 'financial',
-      label: 'Financial System',
-      icon: <DollarSign className="w-4 h-4" />,
-      children: [
-        {
-          id: 'budget-overview',
-          label: 'Budget Overview',
-          icon: <CreditCard className="w-4 h-4" />,
-          path: '/financial/budget',
-          roles: ['MANAGER', 'ADMIN']
-        }
-      ],
-      roles: ['MANAGER', 'ADMIN']
-    },
-    {
       id: 'system',
       label: 'System Administrator',
       icon: <Shield className="w-4 h-4" />,
@@ -240,17 +192,24 @@ export function Sidebar({
           roles: ['ADMIN']
         },
         {
+          id: 'invitations',
+          label: 'Invitations',
+          icon: <Mail className="w-4 h-4" />,
+          path: '/admin/invitations',
+          roles: ['ADMIN']
+        },
+        {
+          id: 'org-chart',
+          label: 'Organizational Chart',
+          icon: <Network className="w-4 h-4" />,
+          path: '/admin/org-chart',
+          roles: ['ADMIN']
+        },
+        {
           id: 'system-settings',
           label: 'System Settings',
           icon: <Settings className="w-4 h-4" />,
           path: '/admin/settings',
-          roles: ['ADMIN']
-        },
-        {
-          id: 'maintenance',
-          label: 'Maintenance',
-          icon: <Wrench className="w-4 h-4" />,
-          path: '/admin/maintenance',
           roles: ['ADMIN']
         }
       ],
@@ -451,14 +410,23 @@ export function Sidebar({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex space-x-2">
-              <button
-                onClick={() => handleNavigation('/profile')}
-                className="flex-1 flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                <User className="w-3 h-3" />
-                <span>Profile</span>
-              </button>
+            <div className="flex items-center space-x-2">
+              {/* Clerk Profile Button - Opens Clerk Settings Modal */}
+              <div className="flex-1 flex items-center justify-center">
+                <UserButton 
+                  appearance={{
+                    elements: {
+                      avatarBox: "w-10 h-10",
+                      userButtonPopoverCard: "bg-gray-800 border border-gray-700",
+                      userButtonPopoverActions: "bg-gray-800",
+                      userButtonPopoverActionButton: "text-white hover:bg-gray-700",
+                      userButtonPopoverActionButtonText: "text-white",
+                      userButtonPopoverFooter: "hidden"
+                    }
+                  }}
+                  showName={false}
+                />
+              </div>
               <button
                 onClick={handleSignOut}
                 className="flex-1 flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-red-600 hover:bg-red-700 rounded-lg transition-colors"

@@ -13,6 +13,7 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as adminUserManagement from "../adminUserManagement.js";
 import type * as auditSystem from "../auditSystem.js";
 import type * as chat from "../chat.js";
 import type * as clerk from "../clerk.js";
@@ -23,8 +24,10 @@ import type * as dashboards from "../dashboards.js";
 import type * as databaseManager from "../databaseManager.js";
 import type * as departments from "../departments.js";
 import type * as events from "../events.js";
+import type * as eventsCalendar from "../eventsCalendar.js";
 import type * as eventsEnhanced from "../eventsEnhanced.js";
 import type * as gamifiedTasks from "../gamifiedTasks.js";
+import type * as gamifiedTasksEnhanced from "../gamifiedTasksEnhanced.js";
 import type * as http from "../http.js";
 import type * as init from "../init.js";
 import type * as liveblocks from "../liveblocks.js";
@@ -57,6 +60,7 @@ import type * as users_fixed from "../users_fixed.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  adminUserManagement: typeof adminUserManagement;
   auditSystem: typeof auditSystem;
   chat: typeof chat;
   clerk: typeof clerk;
@@ -67,8 +71,10 @@ declare const fullApi: ApiFromModules<{
   databaseManager: typeof databaseManager;
   departments: typeof departments;
   events: typeof events;
+  eventsCalendar: typeof eventsCalendar;
   eventsEnhanced: typeof eventsEnhanced;
   gamifiedTasks: typeof gamifiedTasks;
+  gamifiedTasksEnhanced: typeof gamifiedTasksEnhanced;
   http: typeof http;
   init: typeof init;
   liveblocks: typeof liveblocks;

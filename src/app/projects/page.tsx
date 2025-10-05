@@ -15,12 +15,14 @@ import { ProjectWizard } from '@/components/projects/ProjectWizard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Sidebar } from '@/components/layout/Sidebar';
+import { Plus, Clock, CheckCircle2, AlertCircle, Menu } from 'lucide-react';
 
 export default function ProjectsPage() {
   const { user } = useUser();
   const router = useRouter();
   const [showWizard, setShowWizard] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeView, setActiveView] = useState<'all' | 'pending' | 'active' | 'completed'>('all');
   const [filters, setFilters] = useState({
     status: "all",
@@ -82,8 +84,29 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="flex h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900">
+      <Sidebar 
+        userRole={currentUser.userLevel.name}
+        dashboardTitle="Projects"
+        dashboardSubtitle="Manage your projects"
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+      />
+      <div className="flex-1 overflow-y-auto">
+        {/* Mobile Header */}
+        <div className="md:hidden bg-gray-800 p-4 flex items-center justify-between sticky top-0 z-10">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600 transition-colors"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <h1 className="text-lg font-semibold text-white">Projects</h1>
+          <div className="w-9" />
+        </div>
+
+        <div className="p-6">
+          <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -166,6 +189,8 @@ export default function ProjectsPage() {
           userRole={currentUser.userLevel.name}
           currentUserId={currentUser._id}
         />
+          </div>
+        </div>
       </div>
     </div>
   );

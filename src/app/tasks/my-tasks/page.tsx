@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Sidebar } from '@/components/layout/Sidebar';
 import {
   Select,
   SelectContent,
@@ -32,12 +33,14 @@ import {
   TrendingUp,
   Award,
   Sparkles,
-  CheckSquare
+  CheckSquare,
+  Menu
 } from 'lucide-react';
 import { Id } from '../../../../convex/_generated/dataModel';
 
 export default function MyTasksPage() {
   const [activeTab, setActiveTab] = useState('todos');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showCreateTask, setShowCreateTask] = useState(false);
   const [newTask, setNewTask] = useState({
     title: '',
@@ -157,8 +160,29 @@ export default function MyTasksPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="flex h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900">
+      <Sidebar 
+        userRole={currentUser?.userLevel?.name || "WORKER"}
+        dashboardTitle="Tasks"
+        dashboardSubtitle="Manage your gamified tasks"
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+      />
+      <div className="flex-1 overflow-y-auto">
+        {/* Mobile Header */}
+        <div className="md:hidden bg-gray-800 p-4 flex items-center justify-between sticky top-0 z-10">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600 transition-colors"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <h1 className="text-lg font-semibold text-white">My Tasks</h1>
+          <div className="w-9" />
+        </div>
+
+        <div className="p-6">
+          <div className="max-w-7xl mx-auto space-y-6">
         
         {/* Header with Stats */}
         <div className="flex items-center justify-between">
@@ -601,6 +625,8 @@ export default function MyTasksPage() {
             )}
           </TabsContent>
         </Tabs>
+          </div>
+        </div>
       </div>
     </div>
   );

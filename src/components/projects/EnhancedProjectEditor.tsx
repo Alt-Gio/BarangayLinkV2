@@ -112,7 +112,7 @@ export function EnhancedProjectEditor({ project, currentUser, onClose, onSave }:
   };
 
   const removeTag = (tag: string) => {
-    setFormData({ ...formData, tags: formData.tags.filter(t => t !== tag) });
+    setFormData({ ...formData, tags: formData.tags.filter((t: string) => t !== tag) });
   };
 
   const addCriterion = () => {
@@ -128,7 +128,7 @@ export function EnhancedProjectEditor({ project, currentUser, onClose, onSave }:
   const removeCriterion = (index: number) => {
     setFormData({
       ...formData,
-      successCriteria: formData.successCriteria.filter((_, i) => i !== index),
+      successCriteria: formData.successCriteria.filter((_: any, i: number) => i !== index),
     });
   };
 
@@ -154,13 +154,13 @@ export function EnhancedProjectEditor({ project, currentUser, onClose, onSave }:
   const removeMilestone = (id: string) => {
     setFormData({
       ...formData,
-      milestones: formData.milestones.filter(m => m.id !== id),
+      milestones: formData.milestones.filter((m: any) => m.id !== id),
     });
   };
 
   const toggleImpactArea = (area: string) => {
     if (formData.impactArea.includes(area)) {
-      setFormData({ ...formData, impactArea: formData.impactArea.filter(a => a !== area) });
+      setFormData({ ...formData, impactArea: formData.impactArea.filter((a: string) => a !== area) });
     } else {
       setFormData({ ...formData, impactArea: [...formData.impactArea, area] });
     }
@@ -409,7 +409,7 @@ export function EnhancedProjectEditor({ project, currentUser, onClose, onSave }:
                   </div>
 
                   <div className="space-y-2">
-                    {formData.successCriteria.map((criterion, index) => (
+                    {formData.successCriteria.map((criterion: any, index: number) => (
                       <div
                         key={index}
                         className="flex items-center justify-between p-3 bg-gray-800 rounded-lg"
@@ -468,7 +468,7 @@ export function EnhancedProjectEditor({ project, currentUser, onClose, onSave }:
                 </div>
 
                 <div className="space-y-3">
-                  {formData.milestones.map((milestone) => (
+                  {formData.milestones.map((milestone: any) => (
                     <Card key={milestone.id} className="bg-gray-800 border-gray-700">
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between">
@@ -539,7 +539,7 @@ export function EnhancedProjectEditor({ project, currentUser, onClose, onSave }:
                     </Button>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {formData.tags.map((tag) => (
+                    {formData.tags.map((tag: string) => (
                       <Badge key={tag} variant="secondary" className="bg-gray-800">
                         {tag}
                         <button

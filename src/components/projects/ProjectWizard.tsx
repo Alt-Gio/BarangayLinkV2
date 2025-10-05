@@ -20,6 +20,7 @@ import {
   ArrowRight,
   ArrowLeft,
   Check,
+  CheckCircle2,
   Calendar,
   DollarSign,
   Users,
@@ -87,7 +88,20 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
   const [currentMilestone, setCurrentMilestone] = useState({ title: "", description: "", dueDate: "" });
   const [currentTag, setCurrentTag] = useState("");
 
-  const departments = useQuery(api.departments.getAllDepartments);
+  const departmentsFromDB = useQuery(api.departments.getAllDepartments);
+  
+  // Fallback departments - ALWAYS show these if DB is empty or loading
+  const fallbackDepartments = [
+    { _id: "health" as any, name: "Health Services", description: "Health and wellness programs" },
+    { _id: "infra" as any, name: "Infrastructure", description: "Infrastructure projects" },
+    { _id: "edu" as any, name: "Education", description: "Education programs" },
+    { _id: "social" as any, name: "Social Welfare", description: "Social welfare services" },
+    { _id: "agriculture" as any, name: "Agriculture", description: "Agriculture and farming" },
+  ];
+  
+  // Use DB departments if available, otherwise use fallback
+  const departments = (departmentsFromDB?.length ?? 0) > 0 ? departmentsFromDB : fallbackDepartments;
+  
   const createProject = useMutation(api.projectsEnhanced.createProject);
 
   const updateField = (field: string, value: any) => {
@@ -295,27 +309,43 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
               <div className="space-y-2">
                 <Label htmlFor="department" className="text-white">
                   Department *
-                  {!canChooseDepartment && (
+                  {canChooseDepartment ? (
+                    <Badge variant="outline" className="ml-2 bg-green-500/10 text-green-400 border-green-500/30">
+                      You can select any department
+                    </Badge>
+                  ) : (
                     <Badge variant="outline" className="ml-2 bg-blue-500/10 text-blue-400 border-blue-500/30">
-                      Your Department
+                      Locked to your department
                     </Badge>
                   )}
                 </Label>
                 
                 {canChooseDepartment ? (
-                  // ADMIN/MANAGER: Can choose from all departments
-                  <Select value={formData.department} onValueChange={(v) => updateField("department", v)}>
-                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                      <SelectValue placeholder="Select department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {departments?.map((dept) => (
-                        <SelectItem key={dept._id} value={dept.name}>
+                  // ADMIN/MANAGER: Can choose from all departments - NATIVE SELECT (WORKS RELIABLY)
+                  <select
+                    value={formData.department}
+                    onChange={(e) => updateField("department", e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white ring-offset-background focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="" disabled className="bg-gray-800 text-gray-400">
+                      Select department
+                    </option>
+                    {departments && departments.length > 0 ? (
+                      departments.map((dept) => (
+                        <option 
+                          key={dept._id || dept.name} 
+                          value={dept.name}
+                          className="bg-gray-800 text-white"
+                        >
                           {dept.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled className="bg-gray-800 text-gray-400">
+                        Loading departments...
+                      </option>
+                    )}
+                  </select>
                 ) : (
                   // BUILDER: Locked to their department
                   <div className="relative">
@@ -331,7 +361,17 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
                   </div>
                 )}
                 
-                {!canChooseDepartment && (
+                {canChooseDepartment ? (
+                  <div className="space-y-1">
+                    <p className="text-xs text-green-400 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Your projects are automatically approved. You can select any department.
+                    </p>
+                    <p className="text-xs text-blue-400">
+                      {departments.length} department{departments.length !== 1 ? 's' : ''} available
+                    </p>
+                  </div>
+                ) : (
                   <p className="text-xs text-gray-400 mt-1">
                     As a Builder, you can only create projects in your assigned department
                   </p>

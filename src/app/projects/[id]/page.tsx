@@ -11,6 +11,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ProjectTaskProgress } from '@/components/projects/ProjectTaskProgress';
+import { ProjectTaskManager } from '@/components/projects/ProjectTaskManager';
+import { ProjectApprovalCard } from '@/components/projects/ProjectApprovalCard';
 import { 
   Edit, 
   Save, 
@@ -340,6 +343,15 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
+            {/* Approval Card (if pending or has status) */}
+            {project.approvalStatus && (
+              <ProjectApprovalCard 
+                project={project} 
+                currentUser={currentUser}
+                onApprovalComplete={() => window.location.reload()}
+              />
+            )}
+
             <div className="grid grid-cols-3 gap-6">
               {/* Project Details */}
               <Card className="col-span-2 bg-gray-800/50 border-gray-700/50">
@@ -425,174 +437,12 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             </Card>
           </TabsContent>
 
-          <TabsContent value="tasks" className="space-y-4">
-            <Card className="bg-gray-800/50 border-gray-700/50">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center justify-between">
-                  <span>Project Tasks</span>
-                  <Badge variant="outline">{tasks?.length || 0} tasks</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {!tasks || tasks.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Target className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-400">No tasks yet. Create tasks from the My Tasks page and link them to this project.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {/* Todos */}
-                    {tasks.filter(t => t.type === 'todo').length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4" />
-                          Todos ({tasks.filter(t => t.type === 'todo').length})
-                        </h4>
-                        <div className="space-y-2">
-                          {tasks.filter(t => t.type === 'todo').map((task) => (
-                            <Card key={task._id} className={`bg-gray-900/50 border-gray-700/50 ${task.completed ? 'opacity-60' : ''}`}>
-                              <CardContent className="p-4">
-                                <div className="flex items-start gap-4">
-                                  <button
-                                    onClick={() => task.completed ? uncompleteTask({ taskId: task._id }) : completeTask({ taskId: task._id })}
-                                    className={`mt-1 ${task.completed ? 'text-blue-500' : 'text-gray-600 hover:text-blue-500'}`}
-                                  >
-                                    {task.completed ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
-                                  </button>
-                                  <div className="flex-1">
-                                    <h5 className={`font-medium ${task.completed ? 'line-through text-gray-500' : 'text-white'}`}>
-                                      {task.title}
-                                    </h5>
-                                    {task.description && (
-                                      <p className="text-sm text-gray-400 mt-1">{task.description}</p>
-                                    )}
-                                    <div className="flex items-center gap-4 mt-2 text-xs">
-                                      <Badge variant="secondary" className="capitalize">{task.difficulty}</Badge>
-                                      <span className="flex items-center gap-1 text-blue-400">
-                                        <Zap className="w-3 h-3" />
-                                        {task.experienceReward} XP
-                                      </span>
-                                      <span className="flex items-center gap-1 text-yellow-400">
-                                        <Sparkles className="w-3 h-3" />
-                                        {task.goldReward} Gold
-                                      </span>
-                                      {task.dueDate && (
-                                        <span className="flex items-center gap-1 text-gray-400">
-                                          <Calendar className="w-3 h-3" />
-                                          {new Date(task.dueDate).toLocaleDateString()}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Dailies */}
-                    {tasks.filter(t => t.type === 'daily').length > 0 && (
-                      <div className="mt-6">
-                        <h4 className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-2">
-                          <Repeat className="w-4 h-4" />
-                          Dailies ({tasks.filter(t => t.type === 'daily').length})
-                        </h4>
-                        <div className="space-y-2">
-                          {tasks.filter(t => t.type === 'daily').map((task) => (
-                            <Card key={task._id} className={`bg-gray-900/50 border-gray-700/50 ${task.completed ? 'opacity-60' : ''}`}>
-                              <CardContent className="p-4">
-                                <div className="flex items-start gap-4">
-                                  <button
-                                    onClick={() => task.completed ? uncompleteTask({ taskId: task._id }) : completeTask({ taskId: task._id })}
-                                    className={`mt-1 ${task.completed ? 'text-purple-500' : 'text-gray-600 hover:text-purple-500'}`}
-                                  >
-                                    {task.completed ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
-                                  </button>
-                                  <div className="flex-1">
-                                    <h5 className={`font-medium ${task.completed ? 'line-through text-gray-500' : 'text-white'}`}>
-                                      {task.title}
-                                    </h5>
-                                    {task.description && (
-                                      <p className="text-sm text-gray-400 mt-1">{task.description}</p>
-                                    )}
-                                    <div className="flex items-center gap-4 mt-2 text-xs">
-                                      <Badge variant="secondary" className="capitalize">{task.difficulty}</Badge>
-                                      <Badge variant="outline">Daily</Badge>
-                                      <span className="flex items-center gap-1 text-blue-400">
-                                        <Zap className="w-3 h-3" />
-                                        {task.experienceReward} XP
-                                      </span>
-                                      <span className="flex items-center gap-1 text-yellow-400">
-                                        <Sparkles className="w-3 h-3" />
-                                        {task.goldReward} Gold
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Milestones */}
-                    {tasks.filter(t => t.type === 'milestone').length > 0 && (
-                      <div className="mt-6">
-                        <h4 className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-2">
-                          <Target className="w-4 h-4" />
-                          Milestones ({tasks.filter(t => t.type === 'milestone').length})
-                        </h4>
-                        <div className="space-y-2">
-                          {tasks.filter(t => t.type === 'milestone').map((task) => (
-                            <Card key={task._id} className={`bg-gray-900/50 border-gray-700/50 ${task.completed ? 'opacity-60' : ''}`}>
-                              <CardContent className="p-4">
-                                <div className="flex items-start gap-4">
-                                  <button
-                                    onClick={() => task.completed ? uncompleteTask({ taskId: task._id }) : completeTask({ taskId: task._id })}
-                                    className={`mt-1 ${task.completed ? 'text-emerald-500' : 'text-gray-600 hover:text-emerald-500'}`}
-                                  >
-                                    {task.completed ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
-                                  </button>
-                                  <div className="flex-1">
-                                    <h5 className={`font-medium ${task.completed ? 'line-through text-gray-500' : 'text-white'}`}>
-                                      {task.title}
-                                    </h5>
-                                    {task.description && (
-                                      <p className="text-sm text-gray-400 mt-1">{task.description}</p>
-                                    )}
-                                    <div className="flex items-center gap-4 mt-2 text-xs">
-                                      <Badge variant="secondary" className="capitalize">{task.difficulty}</Badge>
-                                      <Badge variant="outline">Milestone</Badge>
-                                      <span className="flex items-center gap-1 text-blue-400">
-                                        <Zap className="w-3 h-3" />
-                                        {task.experienceReward} XP
-                                      </span>
-                                      <span className="flex items-center gap-1 text-yellow-400">
-                                        <Sparkles className="w-3 h-3" />
-                                        {task.goldReward} Gold
-                                      </span>
-                                      {task.dueDate && (
-                                        <span className="flex items-center gap-1 text-gray-400">
-                                          <Calendar className="w-3 h-3" />
-                                          {new Date(task.dueDate).toLocaleDateString()}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+          <TabsContent value="tasks" className="space-y-6">
+            {/* Gamification Progress */}
+            <ProjectTaskProgress projectId={id as Id<"projects">} />
+            
+            {/* Task Management */}
+            <ProjectTaskManager projectId={id as Id<"projects">} />
           </TabsContent>
 
           <TabsContent value="events">

@@ -520,3 +520,216 @@ export const getLeaderboard = query({
     }));
   },
 });
+
+// ============================================
+// PROJECT-TASK INTEGRATION FUNCTIONS
+// ============================================
+
+// Get all tasks for a specific project with enriched data
+export const getProjectTasks = query({
+  args: { 
+    projectId: v.id("projects"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const tasks = await ctx.db
+      .query("tasks")
+      .filter((q) => q.eq(q.field("projectId"), args.projectId))
+      .collect();
+
+    // Enrich with user info
+    const enrichedTasks = await Promise.all(
+      tasks.map(async (task) => {
+        const assignedUser = await ctx.db.get(task.assignedTo);
+        return {
+          ...task,
+          assignedUser: assignedUser ? {
+            _id: assignedUser._id,
+            name: assignedUser.name,
+            imageUrl: assignedUser.imageUrl,
+            level: assignedUser.level,
+          } : null,
+        };
+      })
+    );
+
+    return enrichedTasks;
+  },
+});
+
+// Get project progress stats (XP, Gold, Completion)
+export const getProjectStats = query({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const tasks = await ctx.db
+      .query("tasks")
+      .filter((q) => q.eq(q.field("projectId"), args.projectId))
+      .collect();
+
+    const completed = tasks.filter(t => t.status === "completed");
+    const total = tasks.length;
+
+    // Calculate gamification stats
+    const xpEarned = completed.reduce((sum, t) => sum + t.experienceReward, 0);
+    const goldEarned = completed.reduce((sum, t) => sum + t.goldReward, 0);
+    const xpPossible = tasks.reduce((sum, t) => sum + t.experienceReward, 0);
+    const goldPossible = tasks.reduce((sum, t) => sum + t.goldReward, 0);
+
+    // By difficulty
+    const byDifficulty = {
+      trivial: { 
+        total: tasks.filter(t => t.difficulty === "trivial").length, 
+        completed: completed.filter(t => t.difficulty === "trivial").length 
+      },
+      easy: { 
+        total: tasks.filter(t => t.difficulty === "easy").length, 
+        completed: completed.filter(t => t.difficulty === "easy").length 
+      },
+      medium: { 
+        total: tasks.filter(t => t.difficulty === "medium").length, 
+        completed: completed.filter(t => t.difficulty === "medium").length 
+      },
+      hard: { 
+        total: tasks.filter(t => t.difficulty === "hard").length, 
+        completed: completed.filter(t => t.difficulty === "hard").length 
+      },
+    };
+
+    // By type
+    const byType = {
+      todo: tasks.filter(t => t.type === "todo").length,
+      daily: tasks.filter(t => t.type === "daily").length,
+      habit: tasks.filter(t => t.type === "habit").length,
+      milestone: tasks.filter(t => t.type === "milestone").length,
+      reward: tasks.filter(t => t.type === "reward").length,
+    };
+
+    return {
+      total,
+      completed: completed.length,
+      pending: total - completed.length,
+      completionRate: total > 0 ? (completed.length / total) * 100 : 0,
+      xpEarned,
+      goldEarned,
+      xpPossible,
+      goldPossible,
+      xpProgress: xpPossible > 0 ? (xpEarned / xpPossible) * 100 : 0,
+      goldProgress: goldPossible > 0 ? (goldEarned / goldPossible) * 100 : 0,
+      byDifficulty,
+      byType,
+    };
+  },
+});
+
+// Update task difficulty and recalculate rewards
+export const updateTaskDifficulty = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    difficulty: v.union(v.literal("trivial"), v.literal("easy"), v.literal("medium"), v.literal("hard")),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+
+    const { xp, gold } = calculateRewards(args.difficulty, task.estimatedHours || 1);
+
+    await ctx.db.patch(args.taskId, {
+      difficulty: args.difficulty,
+      experienceReward: xp,
+      goldReward: gold,
+    });
+
+    // Update project progress if linked
+    if (task.projectId) {
+      await updateProjectProgress(ctx, task.projectId);
+    }
+
+    return { taskId: args.taskId, newXP: xp, newGold: gold };
+  },
+});
+
+// Assign or reassign task to a user
+export const assignTask = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+
+    await ctx.db.patch(args.taskId, {
+      assignedTo: args.userId,
+    });
+
+    return args.taskId;
+  },
+});
+
+// Get user's tasks grouped by project
+export const getMyProjectTasks = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkId"), identity.subject))
+      .first();
+
+    if (!user) throw new Error("User not found");
+
+    const tasks = await ctx.db
+      .query("tasks")
+      .filter((q) => q.eq(q.field("assignedTo"), user._id))
+      .collect();
+
+    // Group by project
+    const projectGroups: any = {};
+    
+    for (const task of tasks) {
+      if (task.projectId) {
+        const projectId = task.projectId.toString();
+        
+        if (!projectGroups[projectId]) {
+          const project = await ctx.db.get(task.projectId);
+          projectGroups[projectId] = {
+            project,
+            tasks: [],
+            totalXP: 0,
+            earnedXP: 0,
+            totalGold: 0,
+            earnedGold: 0,
+            completed: 0,
+            total: 0,
+          };
+        }
+        
+        projectGroups[projectId].tasks.push(task);
+        projectGroups[projectId].total++;
+        projectGroups[projectId].totalXP += task.experienceReward;
+        projectGroups[projectId].totalGold += task.goldReward;
+        
+        if (task.status === "completed") {
+          projectGroups[projectId].completed++;
+          projectGroups[projectId].earnedXP += task.experienceReward;
+          projectGroups[projectId].earnedGold += task.goldReward;
+        }
+      }
+    }
+
+    return Object.values(projectGroups);
+  },
+});

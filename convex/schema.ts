@@ -50,6 +50,8 @@ export default defineSchema({
     totalHoursLogged: v.number(),
     projectSuccessRate: v.number(), // Percentage of successful projects participated in
     imageUrl: v.optional(v.string()),
+    bio: v.optional(v.string()), // User biography/description
+    skills: v.optional(v.array(v.string())), // User skills/competencies
     metadata: v.optional(v.object({
       lastLogin: v.optional(v.number()),
       preferences: v.optional(v.object({
@@ -164,7 +166,7 @@ export default defineSchema({
     description: v.string(),
     projectId: v.optional(v.id("projects")),
     eventId: v.optional(v.id("events")),
-    type: v.union(v.literal("todo"), v.literal("daily"), v.literal("milestone")), // Task types: todo, daily, milestone
+    type: v.union(v.literal("todo"), v.literal("daily"), v.literal("habit"), v.literal("milestone"), v.literal("reward")), // Task types: todo, daily, habit, milestone, reward
     difficulty: v.union(v.literal("trivial"), v.literal("easy"), v.literal("medium"), v.literal("hard")),
     status: v.union(v.literal("todo"), v.literal("in_progress"), v.literal("review"), v.literal("completed"), v.literal("cancelled")),
     priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent")),

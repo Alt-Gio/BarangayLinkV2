@@ -271,6 +271,12 @@ export const getProjects = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    // Check authentication - return empty if not authenticated
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return [];
+    }
+    
     const currentUser = await getCurrentUser(ctx);
     const userLevel = currentUser.userLevel.name;
     
@@ -352,6 +358,21 @@ export const getDashboardAnalytics = query({
     userId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
+    // Check authentication - return empty analytics if not authenticated
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return {
+        totalProjects: 0,
+        activeProjects: 0,
+        completedProjects: 0,
+        totalTasks: 0,
+        completedTasks: 0,
+        totalBudget: 0,
+        projects: [],
+        tasks: [],
+      };
+    }
+    
     const currentUser = await getCurrentUser(ctx);
     const userLevel = currentUser.userLevel.name;
     

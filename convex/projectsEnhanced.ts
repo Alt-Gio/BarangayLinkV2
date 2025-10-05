@@ -328,6 +328,91 @@ export const updateProjectProgress = mutation({
   },
 });
 
+// Update project details
+export const updateProject = mutation({
+  args: {
+    projectId: v.id("projects"),
+    updates: v.object({
+      title: v.optional(v.string()),
+      description: v.optional(v.string()),
+      status: v.optional(v.union(
+        v.literal("draft"),
+        v.literal("pending_approval"),
+        v.literal("approved"),
+        v.literal("active"),
+        v.literal("on_hold"),
+        v.literal("completed"),
+        v.literal("cancelled"),
+        v.literal("archived")
+      )),
+      priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("critical"))),
+      urgency: v.optional(v.union(v.literal("normal"), v.literal("urgent"), v.literal("emergency"))),
+      budget: v.optional(v.number()),
+      startDate: v.optional(v.number()),
+      endDate: v.optional(v.number()),
+      location: v.optional(v.string()),
+      estimatedBeneficiaries: v.optional(v.number()),
+      impactArea: v.optional(v.array(v.string())),
+      successCriteria: v.optional(v.array(v.object({
+        criterion: v.string(),
+        targetValue: v.optional(v.string()),
+        achieved: v.optional(v.boolean()),
+      }))),
+      milestones: v.optional(v.array(v.object({
+        id: v.optional(v.string()),
+        title: v.string(),
+        description: v.string(),
+        dueDate: v.number(),
+        order: v.optional(v.number()),
+        completed: v.optional(v.boolean()),
+      }))),
+      tags: v.optional(v.array(v.string())),
+      publicVisibility: v.optional(v.union(v.literal("public"), v.literal("internal"), v.literal("private"))),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await checkPermission(ctx, ["BUILDER", "MANAGER", "ADMIN"]);
+    const project = await ctx.db.get(args.projectId);
+    
+    if (!project) throw new Error("Project not found");
+    
+    // Check if user can update this project
+    const canUpdate = currentUser.userLevel.name === "ADMIN" ||
+                     (currentUser.userLevel.name === "MANAGER" && project.department === currentUser.department) ||
+                     project.createdBy === currentUser._id ||
+                     project.assignedTo.includes(currentUser._id);
+    
+    if (!canUpdate) throw new Error("You cannot update this project");
+    
+    // Prepare the update object, only including fields that were provided
+    const updateData: any = {};
+    
+    Object.keys(args.updates).forEach((key) => {
+      const value = (args.updates as any)[key];
+      if (value !== undefined) {
+        updateData[key] = value;
+      }
+    });
+    
+    // Add status history if status changed
+    if (args.updates.status && args.updates.status !== project.status) {
+      updateData.statusHistory = [
+        ...project.statusHistory,
+        {
+          status: args.updates.status,
+          changedBy: currentUser._id,
+          changedAt: Date.now(),
+          notes: "Project updated",
+        },
+      ];
+    }
+    
+    await ctx.db.patch(args.projectId, updateData);
+    
+    return args.projectId;
+  },
+});
+
 // Complete a milestone
 export const completeMilestone = mutation({
   args: {

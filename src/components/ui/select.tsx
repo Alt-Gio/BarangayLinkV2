@@ -73,27 +73,43 @@ const SelectValue = ({ placeholder }: SelectValueProps) => {
 interface SelectContentProps {
   children: React.ReactNode
   className?: string
+  position?: string
+  sideOffset?: number
 }
 
-const SelectContent = ({ children, className }: SelectContentProps) => {
+const SelectContent = ({ children, className, position, sideOffset }: SelectContentProps) => {
   const context = React.useContext(SelectContext)
+  const [triggerRect, setTriggerRect] = React.useState<DOMRect | null>(null)
+  const contentRef = React.useRef<HTMLDivElement>(null)
+  
   if (!context) throw new Error("SelectContent must be used within Select")
 
+  React.useEffect(() => {
+    if (context.open && contentRef.current) {
+      const trigger = contentRef.current.parentElement?.querySelector('button')
+      if (trigger) {
+        setTriggerRect(trigger.getBoundingClientRect())
+      }
+    }
+  }, [context.open])
+
   if (!context.open) return null
+
+  const offset = sideOffset || 4
 
   return (
     <div className="fixed inset-0 z-50" onClick={() => context.onOpenChange(false)}>
       <div
+        ref={contentRef}
         className={cn(
-          "absolute z-50 min-w-[8rem] overflow-hidden rounded-md border bg-white p-1 shadow-md",
+          "absolute z-50 min-w-[8rem] max-h-96 overflow-auto rounded-md border bg-white p-1 shadow-md",
           className
         )}
         onClick={(e) => e.stopPropagation()}
         style={{
-          position: 'absolute',
-          top: '100%',
-          left: 0,
-          width: '100%',
+          top: triggerRect ? `${triggerRect.bottom + offset}px` : '100%',
+          left: triggerRect ? `${triggerRect.left}px` : 0,
+          width: triggerRect ? `${triggerRect.width}px` : '100%',
         }}
       >
         {children}
