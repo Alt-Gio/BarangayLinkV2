@@ -26,10 +26,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { ExportButton } from "@/components/common/ExportButton";
 import { SendInvitationModal } from "@/components/admin/SendInvitationModal";
 import { EditUserModal } from "@/components/admin/EditUserModal";
 import { UserDetailsModal } from "@/components/admin/UserDetailsModal";
 import { AdminGuard } from "@/components/admin/AdminGuard";
+import { exportUserPerformanceReport } from "@/lib/exportUtils";
 
 export const dynamic = "force-dynamic";
 
@@ -133,6 +135,12 @@ export default function AdminUsersPage() {
     WORKER: "bg-emerald-600",
   };
 
+  // Export handler
+  const handleExport = (format: 'pdf' | 'excel') => {
+    if (!users) return;
+    exportUserPerformanceReport(users, format);
+  };
+
   return (
     <AdminGuard>
       <div className="flex h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
@@ -167,13 +175,20 @@ export default function AdminUsersPage() {
               </h1>
               <p className="text-gray-400 mt-1">Manage users and send invitations</p>
             </div>
-            <Button
-              onClick={() => setIsInviteModalOpen(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-all hover:scale-105"
-            >
-              <UserPlus className="w-5 h-5" />
-              Send Invitation
-            </Button>
+            <div className="flex items-center gap-3">
+              <ExportButton 
+                onExport={handleExport} 
+                label="Export Users"
+                disabled={!users || users.length === 0}
+              />
+              <Button
+                onClick={() => setIsInviteModalOpen(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-all hover:scale-105"
+              >
+                <UserPlus className="w-5 h-5" />
+                Send Invitation
+              </Button>
+            </div>
           </div>
 
           {/* Stats */}

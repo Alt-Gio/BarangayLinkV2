@@ -14,6 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProjectTaskProgress } from '@/components/projects/ProjectTaskProgress';
 import { ProjectTaskManager } from '@/components/projects/ProjectTaskManager';
 import { ProjectApprovalCard } from '@/components/projects/ProjectApprovalCard';
+import { DocumentUpload } from '@/components/documents/DocumentUpload';
+import { DocumentList } from '@/components/documents/DocumentList';
 import { 
   Edit, 
   Save, 
@@ -32,7 +34,8 @@ import {
   Circle,
   Repeat,
   Zap,
-  Sparkles
+  Sparkles,
+  FolderOpen
 } from 'lucide-react';
 
 // Force dynamic rendering for project pages
@@ -49,6 +52,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [editedData, setEditedData] = useState<any>({});
+  const [showDocumentUpload, setShowDocumentUpload] = useState(false);
 
   // Get current user with role
   const currentUser = useQuery(api.users.getCurrentUser);
@@ -334,9 +338,10 @@ export default function ProjectPage({ params }: ProjectPageProps) {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 bg-gray-800/50 border border-gray-700/50">
+          <TabsList className="grid w-full grid-cols-6 bg-gray-800/50 border border-gray-700/50">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="tasks">Tasks</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="events">Events</TabsTrigger>
             <TabsTrigger value="team">Team</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -443,6 +448,36 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             
             {/* Task Management */}
             <ProjectTaskManager projectId={id as Id<"projects">} />
+          </TabsContent>
+
+          <TabsContent value="documents" className="space-y-6">
+            <Card className="bg-gray-800/50 border-gray-700/50">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <FolderOpen className="w-5 h-5 text-emerald-500" />
+                    Project Documents
+                  </CardTitle>
+                  <Button
+                    onClick={() => setShowDocumentUpload(!showDocumentUpload)}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Upload Document
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {showDocumentUpload && (
+                  <DocumentUpload
+                    projectId={id as Id<"projects">}
+                    onClose={() => setShowDocumentUpload(false)}
+                    onUploadComplete={() => setShowDocumentUpload(false)}
+                  />
+                )}
+                <DocumentList projectId={id as Id<"projects">} limit={50} />
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="events">

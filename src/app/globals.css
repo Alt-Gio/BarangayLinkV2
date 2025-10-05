@@ -239,3 +239,67 @@ html {
     display: none !important;
   }
 }
+
+/* Mobile-specific styles */
+@supports (padding: max(0px)) {
+  .safe-area-pb {
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+  
+  .safe-area-pt {
+    padding-top: max(16px, env(safe-area-inset-top));
+  }
+  
+  .safe-area-pl {
+    padding-left: max(16px, env(safe-area-inset-left));
+  }
+  
+  .safe-area-pr {
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+}
+
+/* Touch-friendly interaction */
+.touch-manipulation {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* Better mobile scrolling */
+.mobile-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Pull-to-refresh prevention */
+body {
+  overscroll-behavior-y: contain;
+}
+
+/* Prevent text resize on orientation change */
+@media screen and (orientation: portrait) {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+@media screen and (orientation: landscape) {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+/* Mobile bottom nav spacing */
+@media (max-width: 768px) {
+  .main-content {
+    padding-bottom: 80px;
+  }
+}
+
+/* Optimize for iOS notch */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .bottom-nav-safe {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+}

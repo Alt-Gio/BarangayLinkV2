@@ -5,8 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { BarChart3, Download, Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { BarChart3, Menu } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { MetricsCards } from "@/components/analytics/MetricsCards";
@@ -16,6 +15,8 @@ import { RecentActivity } from "@/components/analytics/RecentActivity";
 import { MilestoneTracker } from "@/components/analytics/MilestoneTracker";
 import { DepartmentPerformance } from "@/components/analytics/DepartmentPerformance";
 import { TeamPerformance } from "@/components/analytics/TeamPerformance";
+import { ExportButton } from "@/components/common/ExportButton";
+import { exportAnalyticsReport } from "@/lib/exportUtils";
 
 export const dynamic = "force-dynamic";
 
@@ -103,6 +104,23 @@ export default function AnalyticsPage() {
   const upcomingDeadlines = projects?.filter((p: any) => p.status === "active" && p.endDate)
     .sort((a: any, b: any) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime()).slice(0, 5) || [];
 
+  // Export handler
+  const handleExport = (format: 'pdf' | 'excel') => {
+    const analyticsData = {
+      totalProjects,
+      completedProjects,
+      activeProjects,
+      pendingProjects,
+      totalBudget,
+      completedBudget,
+      departmentStats,
+      teamStats,
+      recentCompletions
+    };
+    
+    exportAnalyticsReport(analyticsData, format);
+  };
+
   return (
     <div className="flex h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <Sidebar
@@ -141,10 +159,7 @@ export default function AnalyticsPage() {
                     <option value="quarter">This Quarter</option>
                     <option value="year">This Year</option>
                   </select>
-                  <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                    <Download className="w-4 h-4 mr-2" />
-                    Export Report
-                  </Button>
+                  <ExportButton onExport={handleExport} />
                 </div>
               </div>
 

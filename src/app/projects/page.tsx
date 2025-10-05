@@ -16,7 +16,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { ExportButton } from '@/components/common/ExportButton';
 import { Plus, Clock, CheckCircle2, AlertCircle, Menu } from 'lucide-react';
+import { exportProjectsReport } from '@/lib/exportUtils';
 
 export default function ProjectsPage() {
   const { user } = useUser();
@@ -56,6 +58,12 @@ export default function ProjectsPage() {
   // Check if user can create projects
   const canCreateProjects = currentUser?.userLevel?.name && 
     ["ADMIN", "MANAGER", "BUILDER"].includes(currentUser.userLevel.name);
+
+  // Export handler
+  const handleExport = (format: 'pdf' | 'excel') => {
+    if (!filteredProjects || filteredProjects.length === 0) return;
+    exportProjectsReport(filteredProjects, format);
+  };
 
   if (!currentUser) {
     return (
@@ -129,6 +137,11 @@ export default function ProjectsPage() {
               </Button>
             )}
 
+            <ExportButton 
+              onExport={handleExport}
+              label="Export Projects"
+              disabled={!filteredProjects || filteredProjects.length === 0}
+            />
             {canCreateProjects && (
               <Button
                 onClick={() => setShowWizard(true)}

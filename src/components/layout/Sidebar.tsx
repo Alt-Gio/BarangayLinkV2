@@ -32,8 +32,10 @@ import {
   Menu,
   X,
   Mail,
-  Network
+  Network,
+  MessageCircle
 } from 'lucide-react';
+import { GlobalSearch } from '@/components/search/GlobalSearch';
 
 interface MenuItem {
   id: string;
@@ -180,6 +182,20 @@ export function Sidebar({
       ]
     },
     {
+      id: 'documents',
+      label: 'Document Library',
+      icon: <FolderOpen className="w-4 h-4" />,
+      path: '/documents',
+      roles: ['WORKER', 'BUILDER', 'MANAGER', 'ADMIN']
+    },
+    {
+      id: 'messages',
+      label: 'Messages',
+      icon: <MessageCircle className="w-4 h-4" />,
+      path: '/messages',
+      roles: ['WORKER', 'BUILDER', 'MANAGER', 'ADMIN']
+    },
+    {
       id: 'system',
       label: 'System Administrator',
       icon: <Shield className="w-4 h-4" />,
@@ -302,6 +318,11 @@ export function Sidebar({
               </button>
             )}
           </div>
+        </div>
+
+        {/* Global Search */}
+        <div className="px-4 pt-4">
+          <GlobalSearch className="w-full" />
         </div>
 
       {/* Navigation */}

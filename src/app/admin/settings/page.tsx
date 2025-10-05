@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
@@ -25,6 +25,10 @@ import {
   Menu,
   CheckCircle,
   AlertCircle,
+  Trash2,
+  Edit,
+  Clock,
+  HardDrive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,8 +47,17 @@ export default function SystemSettingsPage() {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   const currentUser = useQuery(api.users.getCurrentUser);
-  const departments = useQuery(api.departments.getAllDepartments);
-  const userLevels = useQuery(api.userLevels.getAllUserLevels);
+  const departments = useQuery(api.departmentManagement.getAllDepartmentsWithStats);
+  const userLevels = useQuery(api.departmentManagement.getAllUserLevels);
+  const backups = useQuery(api.backup.getAllBackups);
+  const backupSchedule = useQuery(api.backup.getBackupSchedule);
+  
+  // Actions and Mutations
+  const createBackup = useAction(api.backup.createFullBackup);
+  const createDepartmentMut = useMutation(api.departmentManagement.createDepartment);
+  const updateDepartmentMut = useMutation(api.departmentManagement.updateDepartment);
+  const deleteDepartmentMut = useMutation(api.departmentManagement.deleteDepartment);
+  const updateBackupScheduleMut = useMutation(api.backup.updateBackupSchedule);
 
   // System settings state
   const [settings, setSettings] = useState({
@@ -74,7 +87,60 @@ export default function SystemSettingsPage() {
     maintenanceMode: false,
   });
 
-  const [newDepartment, setNewDepartment] = useState({ name: "", description: "" });
+  const [newDepartment, setNewDepartment] = useState({ name: "", description: "", contactEmail: "", location: "" });
+  const [editingDept, setEditingDept] = useState<any>(null);
+  const [backupInProgress, setBackupInProgress] = useState(false);
+
+  const handleCreateBackup = async () => {
+    if (backupInProgress) return;
+    setBackupInProgress(true);
+    try {
+      const result = await createBackup({});
+      alert(`Backup created successfully! ${result.totalRecords} records backed up.`);
+    } catch (error: any) {
+      alert(`Backup failed: ${error.message}`);
+    } finally {
+      setBackupInProgress(false);
+    }
+  };
+
+  const handleCreateDepartment = async () => {
+    if (!newDepartment.name || !newDepartment.description) {
+      alert("Name and description are required");
+      return;
+    }
+    try {
+      await createDepartmentMut(newDepartment);
+      setNewDepartment({ name: "", description: "", contactEmail: "", location: "" });
+      alert("Department created successfully!");
+    } catch (error: any) {
+      alert(`Failed to create department: ${error.message}`);
+    }
+  };
+
+  const handleDeleteDepartment = async (id: any) => {
+    if (!confirm("Are you sure you want to delete this department?")) return;
+    try {
+      await deleteDepartmentMut({ id });
+      alert("Department deleted successfully!");
+    } catch (error: any) {
+      alert(`Failed to delete department: ${error.message}`);
+    }
+  };
+
+  const handleUpdateBackupSchedule = async () => {
+    try {
+      await updateBackupScheduleMut({
+        frequency: settings.backupFrequency as any,
+        time: "00:00",
+        enabled: settings.autoBackup,
+        retentionDays: parseInt(settings.retentionDays),
+      });
+      alert("Backup schedule updated successfully!");
+    } catch (error: any) {
+      alert(`Failed to update schedule: ${error.message}`);
+    }
+  };
 
   if (isLoaded && !user) {
     router.push("/login");
@@ -288,7 +354,10 @@ export default function SystemSettingsPage() {
                           onChange={(e) => setNewDepartment({ ...newDepartment, description: e.target.value })}
                           className="bg-white/10 border-white/20 text-white"
                         />
-                        <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                        <Button 
+                          onClick={handleCreateDepartment}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                        >
                           <Building className="w-4 h-4 mr-2" />
                           Add Department
                         </Button>
@@ -303,13 +372,37 @@ export default function SystemSettingsPage() {
                           key={dept._id}
                           className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-colors"
                         >
-                          <div>
-                            <p className="text-white font-medium">{dept.name}</p>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-1">
+                              <p className="text-white font-medium">{dept.name}</p>
+                              <Badge className="bg-blue-600 text-white text-xs">
+                                {dept.userCount || 0} users
+                              </Badge>
+                            </div>
                             <p className="text-gray-400 text-sm">{dept.description}</p>
+                            {dept.location && (
+                              <p className="text-gray-500 text-xs mt-1">📍 {dept.location}</p>
+                            )}
                           </div>
-                          <Button variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/10">
-                            Edit
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="border-white/20 text-white hover:bg-white/10"
+                              onClick={() => setEditingDept(dept)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="border-red-500/20 text-red-400 hover:bg-red-500/10"
+                              onClick={() => handleDeleteDepartment(dept._id)}
+                              disabled={dept.userCount > 0}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -500,26 +593,82 @@ export default function SystemSettingsPage() {
                     </div>
 
                     {/* Manual Backup Actions */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-blue-600/10 border border-blue-500/30 rounded-lg">
-                      <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                        <Download className="w-4 h-4 mr-2" />
-                        Create Backup Now
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-blue-600/10 border border-blue-500/30 rounded-lg mb-6">
+                      <Button 
+                        onClick={handleCreateBackup}
+                        disabled={backupInProgress}
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        {backupInProgress ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                            Creating Backup...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-4 h-4 mr-2" />
+                            Create Backup Now
+                          </>
+                        )}
                       </Button>
-                      <Button variant="outline" className="border-white/20 text-white hover:bg-white/10">
-                        <Upload className="w-4 h-4 mr-2" />
-                        Restore from Backup
+                      <Button 
+                        onClick={handleUpdateBackupSchedule}
+                        variant="outline" 
+                        className="border-white/20 text-white hover:bg-white/10"
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        Save Schedule
                       </Button>
                     </div>
 
-                    {/* Last Backup Info */}
-                    <div className="mt-6 p-4 bg-emerald-600/10 border border-emerald-500/30 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-emerald-400 font-medium">Last Backup</p>
-                          <p className="text-gray-300 text-sm">December 5, 2025 at 2:00 AM</p>
+                    {/* Backup History */}
+                    <div className="space-y-3">
+                      <h3 className="text-white font-semibold flex items-center gap-2">
+                        <Clock className="w-5 h-5 text-gray-400" />
+                        Backup History
+                      </h3>
+                      {backups && backups.length > 0 ? (
+                        backups.slice(0, 5).map((backup: any) => (
+                          <div 
+                            key={backup._id}
+                            className="p-4 bg-white/5 border border-white/10 rounded-lg"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-3">
+                                <HardDrive className="w-5 h-5 text-blue-400" />
+                                <div>
+                                  <p className="text-white font-medium">
+                                    {backup.type === 'full' ? 'Full Backup' : 'Partial Backup'}
+                                  </p>
+                                  <p className="text-gray-400 text-sm">
+                                    {new Date(backup.timestamp).toLocaleString()}
+                                  </p>
+                                </div>
+                              </div>
+                              <Badge className={`${
+                                backup.status === 'completed' ? 'bg-emerald-600' :
+                                backup.status === 'failed' ? 'bg-red-600' :
+                                'bg-yellow-600'
+                              } text-white`}>
+                                {backup.status}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-gray-400">
+                              <span>{backup.recordCount} records</span>
+                              <span>•</span>
+                              <span>{backup.tables?.length} tables</span>
+                              <span>•</span>
+                              <span>By {backup.creatorName}</span>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-8 text-center bg-white/5 rounded-lg">
+                          <Database className="w-12 h-12 mx-auto text-gray-600 mb-3" />
+                          <p className="text-gray-400">No backups yet</p>
+                          <p className="text-gray-500 text-sm">Create your first backup to get started</p>
                         </div>
-                        <CheckCircle className="w-6 h-6 text-emerald-500" />
-                      </div>
+                      )}
                     </div>
                   </div>
                 </TabsContent>
@@ -565,7 +714,7 @@ export default function SystemSettingsPage() {
                         </div>
                         <div>
                           <p className="text-gray-400 text-sm">Maintenance Mode</p>
-                          <Badge className={settings.maintenanceMode ? "bg-red-600" : "bg-gray-600"} className="text-white mt-1">
+                          <Badge className={`${settings.maintenanceMode ? "bg-red-600" : "bg-gray-600"} text-white mt-1`}>
                             {settings.maintenanceMode ? "Enabled" : "Disabled"}
                           </Badge>
                         </div>

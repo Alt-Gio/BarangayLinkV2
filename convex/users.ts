@@ -873,7 +873,6 @@ export const updateUserStatus = mutation({
     } catch (error) {
       console.log("Analytics table not available, skipping audit trail");
     }
-
     return userId;
   },
 });
@@ -889,5 +888,13 @@ export const debugUserLevels = query({
       id: l._id
     })));
     return userLevels;
+  },
+});
+
+// Get user level by ID
+export const getUserLevel = query({
+  args: { levelId: v.id("userLevels") },
+  handler: async (ctx, { levelId }) => {
+    return await ctx.db.get(levelId);
   },
 });

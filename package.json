@@ -17,6 +17,7 @@
   "dependencies": {
     "@clerk/clerk-sdk-node": "^4.13.23",
     "@clerk/nextjs": "^6.32.0",
+    "@ducanh2912/next-pwa": "^10.2.9",
     "@liveblocks/client": "^3.7.1",
     "@liveblocks/node": "^3.7.1",
     "@liveblocks/react": "^3.7.1",
@@ -30,6 +31,7 @@
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@react-pdf/renderer": "^4.3.1",
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/typography": "^0.5.16",
     "@types/mapbox-gl": "^3.4.1",
@@ -38,6 +40,8 @@
     "convex": "^1.27.0",
     "date-fns": "^4.1.0",
     "gsap": "^3.13.0",
+    "jspdf": "^3.0.3",
+    "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.544.0",
     "mapbox-gl": "^3.15.0",
     "next": "15.5.3",
@@ -47,7 +51,8 @@
     "resend": "^6.1.0",
     "svix": "^1.76.1",
     "tailwind-merge": "^3.3.1",
-    "workbox-webpack-plugin": "^7.3.0"
+    "workbox-webpack-plugin": "^7.3.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

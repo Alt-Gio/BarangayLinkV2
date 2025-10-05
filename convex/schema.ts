@@ -60,6 +60,9 @@ export default defineSchema({
         language: v.optional(v.string()),
         timezone: v.optional(v.string()),
       })),
+      typingInRoom: v.optional(v.any()),
+      typingAt: v.optional(v.number()),
+      notificationPreferences: v.optional(v.any()),
     })),
   })
   .index("by_clerk_id", ["clerkId"])
@@ -587,4 +590,54 @@ export default defineSchema({
   })
   .index("by_category", ["category"])
   .index("by_creator", ["createdBy"]),
+
+  // Email notification queue
+  emailQueue: defineTable({
+    to: v.string(),
+    type: v.string(), // 'welcome', 'task_assigned', 'event_reminder', 'digest', etc.
+    data: v.any(), // Email template data
+    priority: v.union(v.literal("high"), v.literal("normal"), v.literal("low")),
+    status: v.union(v.literal("pending"), v.literal("sent"), v.literal("failed")),
+    attempts: v.number(),
+    lastError: v.optional(v.string()),
+    lastAttemptAt: v.optional(v.number()),
+    sentAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+  .index("by_status", ["status"])
+  .index("by_priority", ["priority"]),
+
+  // Search history
+  searchHistory: defineTable({
+    userId: v.id("users"),
+    query: v.string(),
+    resultType: v.string(), // 'project', 'task', 'user', 'event', 'document'
+    resultId: v.string(),
+    timestamp: v.number(),
+    count: v.number(), // Number of times this search was performed
+  })
+  .index("by_user", ["userId"])
+  .index("by_timestamp", ["timestamp"]),
+
+  // Backup metadata
+  backups: defineTable({
+    timestamp: v.number(),
+    createdBy: v.id("users"),
+    tables: v.array(v.string()),
+    recordCount: v.number(),
+    status: v.union(v.literal("completed"), v.literal("failed"), v.literal("in_progress")),
+    type: v.union(v.literal("full"), v.literal("partial"), v.literal("scheduled")),
+  })
+  .index("by_timestamp", ["timestamp"])
+  .index("by_creator", ["createdBy"]),
+
+  // Backup schedules
+  backupSchedules: defineTable({
+    frequency: v.union(v.literal("hourly"), v.literal("daily"), v.literal("weekly"), v.literal("monthly")),
+    time: v.string(),
+    enabled: v.boolean(),
+    retentionDays: v.number(),
+    updatedBy: v.id("users"),
+    updatedAt: v.number(),
+  }),
 });
