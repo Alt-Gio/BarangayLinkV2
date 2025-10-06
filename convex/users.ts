@@ -15,8 +15,6 @@ export const createOrUpdateUser = mutation({
     role: v.optional(v.string()),
   },
   handler: async (ctx, { clerkId, email, firstName, lastName, imageUrl, phone, department, jobTitle, role }) => {
-    console.log('createOrUpdateUser called:', { email, department, role });
-    
     // Check if user already exists
     const existingUser = await ctx.db
       .query("users")
@@ -51,12 +49,10 @@ export const createOrUpdateUser = mutation({
           .first();
         if (roleLevel) {
           updateData.userLevel = roleLevel._id;
-          console.log('Updated user level to:', roleLevel.name);
         }
       }
       
       await ctx.db.patch(existingUser._id, updateData);
-      console.log('Updated existing user:', email);
       return existingUser._id;
     } else {
       // Get default WORKER user level
@@ -71,16 +67,12 @@ export const createOrUpdateUser = mutation({
 
       // Determine user level based on role
       if (role) {
-        console.log('Looking for role level:', role.toUpperCase());
         const roleLevel = await ctx.db
           .query("userLevels")
           .filter((q) => q.eq(q.field("name"), role.toUpperCase()))
           .first();
         if (roleLevel) {
           selectedUserLevel = roleLevel;
-          console.log('Found and assigned user level:', roleLevel.name);
-        } else {
-          console.log('Role level not found, using WORKER as default');
         }
       }
 
@@ -115,11 +107,6 @@ export const createOrUpdateUser = mutation({
         imageUrl: imageUrl || undefined,
       });
 
-      console.log('Created new user:', { 
-        email, 
-        department: department || "General", 
-        role: selectedUserLevel.name 
-      });
       return userId;
     }
   },
@@ -132,7 +119,6 @@ export const createOrUpdateFromClerk = internalMutation({
   },
   handler: async (ctx, { data }) => {
     const user = data;
-    console.log('Webhook data received for user:', user.email_addresses?.[0]?.email_address);
     
     // Check if user already exists
     const existingUser = await ctx.db
@@ -142,7 +128,6 @@ export const createOrUpdateFromClerk = internalMutation({
 
     // Get role from user metadata
     const userRole = user.unsafe_metadata?.role;
-    console.log('User role from webhook:', userRole);
 
     // Get appropriate user level based on role
     let selectedUserLevel = await ctx.db
@@ -157,7 +142,6 @@ export const createOrUpdateFromClerk = internalMutation({
         .first();
       if (roleLevel) {
         selectedUserLevel = roleLevel;
-        console.log('Webhook: Using role level:', roleLevel.name);
       }
     }
 
@@ -204,7 +188,6 @@ export const createOrUpdateFromClerk = internalMutation({
           lastLogin: now,
         },
       });
-      console.log('Webhook: Updated existing user');
       return existingUser._id;
     } else {
       // Create new user
@@ -221,16 +204,10 @@ export const createOrUpdateFromClerk = internalMutation({
           isRead: false,
           createdAt: now,
         });
-        console.log('Webhook: Created welcome notification');
       } catch (error) {
-        console.log("Webhook: Notifications table not available, skipping welcome notification");
+        // Notifications table not available, skipping
       }
 
-      console.log('Webhook: Created new user:', {
-        email: userData.email,
-        department: userData.department,
-        role: selectedUserLevel.name
-      });
       return userId;
     }
   },
@@ -250,13 +227,6 @@ export const syncUserFromClerk = mutation({
     imageUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    console.log('🔄 syncUserFromClerk called with:', {
-      email: args.email,
-      department: args.department,
-      role: args.role,
-      jobTitle: args.jobTitle
-    });
-
     // Get appropriate user level based on exact role match
     let userLevel = await ctx.db
       .query("userLevels")
@@ -265,7 +235,6 @@ export const syncUserFromClerk = mutation({
 
     if (args.role && typeof args.role === 'string') {
       const roleUpperCase = args.role.toUpperCase();
-      console.log('🔍 Looking for user level:', roleUpperCase);
       
       const roleLevel = await ctx.db
         .query("userLevels")
@@ -274,12 +243,6 @@ export const syncUserFromClerk = mutation({
       
       if (roleLevel) {
         userLevel = roleLevel;
-        console.log('✅ Found user level:', roleLevel.name, 'Level:', roleLevel.level);
-      } else {
-        console.log('❌ User level not found for role:', roleUpperCase);
-        // List available user levels for debugging
-        const allLevels = await ctx.db.query("userLevels").collect();
-        console.log('Available user levels:', allLevels.map(l => l.name));
       }
     }
 
@@ -323,17 +286,8 @@ export const syncUserFromClerk = mutation({
       },
     };
 
-    console.log('📝 Final user data to be saved:', {
-      email: userData.email,
-      department: userData.department,
-      userLevelId: userLevel._id,
-      userLevelName: userLevel.name,
-      position: userData.position
-    });
-
     if (existingUser) {
       await ctx.db.patch(existingUser._id, userData);
-      console.log('✅ Updated existing user in database');
       return existingUser._id;
     } else {
       const userId = await ctx.db.insert("users", userData);
@@ -349,17 +303,9 @@ export const syncUserFromClerk = mutation({
           isRead: false,
           createdAt: now,
         });
-        console.log('✅ Created welcome notification');
       } catch (error) {
-        console.log("⚠️ Notifications table not available, skipping welcome notification");
+        // Notifications table not available
       }
-
-      console.log('🎉 Successfully created new user:', {
-        userId,
-        email: userData.email,
-        department: userData.department,
-        role: userLevel.name
-      });
       
       return userId;
     }
@@ -379,7 +325,6 @@ export const deleteUser = internalMutation({
 
     if (user) {
       await ctx.db.delete(user._id);
-      console.log('🗑️ Deleted user:', user.email);
     }
   },
 });
@@ -613,7 +558,7 @@ export const assignUserLevel = mutation({
         timestamp: Date.now(),
       });
     } catch (error) {
-      console.log("Analytics table not available, skipping audit trail");
+      // Analytics table not available
     }
 
     return args.userId;
@@ -871,7 +816,7 @@ export const updateUserStatus = mutation({
         timestamp: Date.now(),
       });
     } catch (error) {
-      console.log("Analytics table not available, skipping audit trail");
+      // Analytics table not available
     }
     return userId;
   },
@@ -882,11 +827,6 @@ export const debugUserLevels = query({
   args: {},
   handler: async (ctx) => {
     const userLevels = await ctx.db.query("userLevels").collect();
-    console.log('Available user levels:', userLevels.map(l => ({
-      name: l.name,
-      level: l.level,
-      id: l._id
-    })));
     return userLevels;
   },
 });
@@ -896,5 +836,260 @@ export const getUserLevel = query({
   args: { levelId: v.id("userLevels") },
   handler: async (ctx, { levelId }) => {
     return await ctx.db.get(levelId);
+  },
+});
+
+// Create user if doesn't exist (for dashboard initialization)
+export const ensureUserExists = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    // Check if user already exists
+    let user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkId"), identity.subject))
+      .first();
+
+    if (user) {
+      return user._id;
+    }
+
+    // Get WORKER level
+    const workerLevel = await ctx.db
+      .query("userLevels")
+      .filter((q) => q.eq(q.field("name"), "WORKER"))
+      .first();
+
+    if (!workerLevel) {
+      throw new Error("WORKER user level not found. Please seed user levels first.");
+    }
+
+    const now = Date.now();
+    
+    // Extract profile data from Clerk metadata if available
+    const clerkMetadata = (identity as any).unsafeMetadata || {};
+    const department = clerkMetadata.department || "General";
+    const position = clerkMetadata.jobTitle || "Community Member";
+    const phone = clerkMetadata.phone;
+    const role = clerkMetadata.role;
+    
+    // Determine user level based on role from metadata
+    let selectedUserLevel = workerLevel;
+    if (role) {
+      const roleLevel = await ctx.db
+        .query("userLevels")
+        .filter((q) => q.eq(q.field("name"), role.toUpperCase()))
+        .first();
+      if (roleLevel) {
+        selectedUserLevel = roleLevel;
+      }
+    }
+    
+    // Create new user with profile data
+    const userId = await ctx.db.insert("users", {
+      clerkId: identity.subject,
+      email: identity.email || `user-${identity.subject}@temp.com`,
+      name: identity.name || identity.nickname || "New User",
+      userLevel: selectedUserLevel._id,
+      department: department,
+      position: position,
+      phone: phone,
+      isActive: true,
+      level: 1,
+      experience: 0,
+      gold: 50,
+      health: 100,
+      mana: 50,
+      streakCount: 0,
+      lastActiveDate: now,
+      totalTasksCompleted: 0,
+      totalHoursLogged: 0,
+      projectSuccessRate: 0,
+      metadata: {
+        lastLogin: now,
+        preferences: {},
+      },
+    });
+
+    return userId;
+  },
+});
+
+// Create user invitation (for admin user creation)
+export const createUserInvitation = mutation({
+  args: {
+    email: v.string(),
+    firstName: v.string(),
+    lastName: v.string(),
+    department: v.optional(v.string()),
+    position: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    userLevelId: v.id("userLevels"),
+    assignInitialTasks: v.optional(v.boolean()),
+    sendWelcomeMessage: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    // Check if current user has admin permissions
+    const currentUser = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkId"), identity.subject))
+      .first();
+
+    if (!currentUser) {
+      throw new Error("Current user not found");
+    }
+
+    const currentUserLevel = await ctx.db.get(currentUser.userLevel);
+    if (!currentUserLevel || currentUserLevel.level < 4) {
+      throw new Error("Insufficient permissions. Admin level required.");
+    }
+
+    // Check if user already exists
+    const existingUser = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("email"), args.email))
+      .first();
+
+    if (existingUser) {
+      throw new Error("User with this email already exists");
+    }
+
+    // Get the target user level
+    const targetUserLevel = await ctx.db.get(args.userLevelId);
+    if (!targetUserLevel) {
+      throw new Error("Invalid user level");
+    }
+
+    const now = Date.now();
+
+    // Create user invitation record
+    const invitationId = await ctx.db.insert("userInvitations", {
+      email: args.email,
+      firstName: args.firstName,
+      lastName: args.lastName,
+      department: args.department || "General",
+      position: args.position || "Community Member",
+      phone: args.phone,
+      userLevelId: args.userLevelId,
+      invitedBy: currentUser._id,
+      status: "pending",
+      assignInitialTasks: args.assignInitialTasks || false,
+      sendWelcomeMessage: args.sendWelcomeMessage || true,
+      createdAt: now,
+      expiresAt: now + (7 * 24 * 60 * 60 * 1000), // 7 days
+    });
+
+    // Create audit trail
+    try {
+      await ctx.db.insert("analytics", {
+        eventType: "user_invitation_created",
+        userId: currentUser._id,
+        eventData: {
+          action: "user_invitation_created",
+          metadata: {
+            invitationId,
+            targetEmail: args.email,
+          },
+        },
+        sessionId: identity.subject,
+        timestamp: now,
+      });
+    } catch (error) {
+      // Analytics table might not exist
+    }
+
+    return invitationId;
+  },
+});
+
+// ============================================
+// PAGINATED QUERIES (Performance Optimized)
+// ============================================
+
+import { createPaginatedResponse, getPaginationParams, paginationArgs } from "./pagination";
+
+// Get paginated users
+export const getPaginatedUsers = query({
+  args: {
+    ...paginationArgs,
+    department: v.optional(v.string()),
+    userLevelId: v.optional(v.id("userLevels")),
+    search: v.optional(v.string()),
+    isActive: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const { page, limit } = getPaginationParams(args.page, args.limit);
+    
+    // Build filter query
+    let query = ctx.db.query("users");
+    
+    // Collect all users (we'll filter in memory for now)
+    let users = await query.collect();
+    
+    // Apply filters
+    if (args.department) {
+      users = users.filter(u => u.department === args.department);
+    }
+    if (args.userLevelId) {
+      users = users.filter(u => u.userLevel === args.userLevelId);
+    }
+    if (args.isActive !== undefined) {
+      users = users.filter(u => u.isActive === args.isActive);
+    }
+    if (args.search) {
+      const searchLower = args.search.toLowerCase();
+      users = users.filter(u => 
+        u.name.toLowerCase().includes(searchLower) ||
+        u.email.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Sort
+    if (args.sortBy === "name") {
+      users.sort((a, b) => a.name.localeCompare(b.name));
+    } else {
+      users.sort((a, b) => b._creationTime - a._creationTime);
+    }
+    
+    if (args.sortOrder === "asc") {
+      users.reverse();
+    }
+    
+    return createPaginatedResponse(users, page, limit);
+  },
+});
+
+// Get paginated users with level details
+export const getPaginatedUsersWithLevels = query({
+  args: paginationArgs,
+  handler: async (ctx, args) => {
+    const { page, limit } = getPaginationParams(args.page, args.limit);
+    
+    const users = await ctx.db.query("users").collect();
+    
+    // Enrich with user level details
+    const usersWithLevels = await Promise.all(
+      users.map(async (user) => {
+        const userLevel = await ctx.db.get(user.userLevel);
+        return {
+          ...user,
+          userLevel,
+        };
+      })
+    );
+    
+    // Sort by creation time
+    usersWithLevels.sort((a, b) => b._creationTime - a._creationTime);
+    
+    return createPaginatedResponse(usersWithLevels, page, limit);
   },
 });

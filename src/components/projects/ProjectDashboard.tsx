@@ -46,14 +46,14 @@ interface ProjectDashboardProps {
 export function ProjectDashboard({ projectId, userRole }: ProjectDashboardProps) {
   const [activeTab, setActiveTab] = useState("overview");
   
-  const projectDetails = useQuery(api.projectsEnhanced.getProjectDetails, { projectId });
+  const projectDetails = useQuery(api.projects.getProjectDetails, { projectId });
   const tasks = useQuery(api.productivity.getProjectTasks, projectId ? { projectId } : "skip");
-  const events = useQuery(api.eventsEnhanced.getProjectEvents, projectId ? { projectId } : "skip");
+  const events = useQuery(api.events.getProjectEvents, projectId ? { projectId } : "skip");
   
-  const startProject = useMutation(api.projectsEnhanced.startProject);
-  const completeMilestone = useMutation(api.projectsEnhanced.completeMilestone);
-  const completeProject = useMutation(api.projectsEnhanced.completeProject);
-  const reviewProject = useMutation(api.projectsEnhanced.reviewProject);
+  const startProject = useMutation(api.projects.startProject);
+  const completeMilestone = useMutation(api.projects.completeMilestone);
+  const completeProject = useMutation(api.projects.completeProject);
+  const reviewProject = useMutation(api.projects.reviewProject);
 
   if (!projectDetails) {
     return (

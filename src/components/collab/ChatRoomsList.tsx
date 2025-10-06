@@ -18,7 +18,7 @@ interface ChatRoomsListProps {
 
 export function ChatRoomsList({ selectedRoomId, onSelectRoom }: ChatRoomsListProps) {
   const { user } = useUser();
-  const chatRooms = useQuery(api.chat.getUserChatRooms);
+  const chatRooms = useQuery(api.messaging.getUserChatRooms);
 
   const getRoomIcon = (room: any) => {
     if (room.type === "direct") {

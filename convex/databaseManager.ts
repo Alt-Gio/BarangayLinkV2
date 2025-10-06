@@ -9,8 +9,6 @@ import { v } from "convex/values";
 export const initializeDatabase = mutation({
   args: {},
   handler: async (ctx) => {
-    console.log("🚀 Starting complete database initialization...");
-    
     try {
       // Step 1: Initialize User Levels
       await initUserLevels(ctx);
@@ -27,15 +25,12 @@ export const initializeDatabase = mutation({
       // Step 5: Initialize Events
       await initEvents(ctx);
       
-      console.log("✅ Database initialization completed successfully!");
-      
       return {
         success: true,
         message: "Database fully initialized with all required data",
         timestamp: Date.now()
       };
     } catch (error) {
-      console.error("❌ Database initialization failed:", error);
       throw new Error(`Database initialization failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   },
@@ -45,7 +40,6 @@ export const initializeDatabase = mutation({
 async function initUserLevels(ctx: any) {
   const existingLevels = await ctx.db.query("userLevels").collect();
   if (existingLevels.length > 0) {
-    console.log("📋 User levels already exist, skipping...");
     return;
   }
 
@@ -187,15 +181,12 @@ async function initUserLevels(ctx: any) {
   for (const level of userLevels) {
     await ctx.db.insert("userLevels", level);
   }
-  
-  console.log("✅ User levels initialized successfully");
 }
 
 // Initialize sample data for development
 async function initSampleData(ctx: any) {
   const existingUsers = await ctx.db.query("users").collect();
   if (existingUsers.length > 5) {
-    console.log("👥 Sample users already exist, skipping...");
     return;
   }
 
@@ -311,21 +302,17 @@ async function initSampleData(ctx: any) {
   for (const user of sampleUsers) {
     await ctx.db.insert("users", user);
   }
-
-  console.log("✅ Sample users initialized successfully");
 }
 
 // Initialize chat rooms
 async function initChatRooms(ctx: any) {
   const existingRooms = await ctx.db.query("chatRooms").collect();
   if (existingRooms.length > 0) {
-    console.log("💬 Chat rooms already exist, skipping...");
     return;
   }
 
   const adminUser = await ctx.db.query("users").filter((q: any) => q.eq(q.field("email"), "admin@barangaylink.local")).first();
   if (!adminUser) {
-    console.log("⚠️ Admin user not found, skipping chat room creation");
     return;
   }
 
@@ -362,15 +349,11 @@ async function initChatRooms(ctx: any) {
   for (const room of chatRooms) {
     await ctx.db.insert("chatRooms", room);
   }
-
-  console.log("✅ Chat rooms initialized successfully");
 }
-
 // Initialize sample projects
 async function initProjects(ctx: any) {
   const existingProjects = await ctx.db.query("projects").collect();
   if (existingProjects.length > 0) {
-    console.log("🏗️ Projects already exist, skipping...");
     return;
   }
 
@@ -378,7 +361,6 @@ async function initProjects(ctx: any) {
   const managerUser = await ctx.db.query("users").filter((q: any) => q.eq(q.field("email"), "manager@barangaylink.local")).first();
   
   if (!adminUser || !managerUser) {
-    console.log("⚠️ Required users not found, skipping project creation");
     return;
   }
 
@@ -448,22 +430,18 @@ async function initProjects(ctx: any) {
   for (const project of projects) {
     await ctx.db.insert("projects", project);
   }
-
-  console.log("✅ Sample projects initialized successfully");
 }
 
 // Initialize sample events
 async function initEvents(ctx: any) {
   const existingEvents = await ctx.db.query("events").collect();
   if (existingEvents.length > 0) {
-    console.log("📅 Events already exist, skipping...");
     return;
   }
 
   const adminUser = await ctx.db.query("users").filter((q: any) => q.eq(q.field("email"), "admin@barangaylink.local")).first();
   
   if (!adminUser) {
-    console.log("⚠️ Admin user not found, skipping event creation");
     return;
   }
 
@@ -521,8 +499,6 @@ async function initEvents(ctx: any) {
   for (const event of events) {
     await ctx.db.insert("events", event);
   }
-
-  console.log("✅ Sample events initialized successfully");
 }
 
 // Get complete database status

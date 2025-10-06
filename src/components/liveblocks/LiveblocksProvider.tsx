@@ -15,7 +15,7 @@ interface LiveblocksRoomProviderProps {
 
 export function LiveblocksRoomProvider({ children, roomId }: LiveblocksRoomProviderProps) {
   const { user } = useUser();
-  const currentUser = useQuery(api.users_fixed.getCurrentUser);
+  const currentUser = useQuery(api.users.getCurrentUser);
 
   // Don't render if user is not authenticated
   if (!user || !currentUser) {
@@ -54,7 +54,7 @@ export function LiveblocksRoomProvider({ children, roomId }: LiveblocksRoomProvi
 // Hook to get current user's Liveblocks presence
 export function useUserPresence() {
   const { user } = useUser();
-  const currentUser = useQuery(api.users_fixed.getCurrentUser);
+  const currentUser = useQuery(api.users.getCurrentUser);
 
   if (!user || !currentUser) return null;
 

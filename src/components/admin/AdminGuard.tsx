@@ -13,7 +13,7 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
   
   // Get current user's role from Convex
   const currentUser = useQuery(
-    api.users_fixed.getCurrentUser,
+    api.users.getCurrentUser,
     isLoaded && user ? {} : "skip"
   );
 

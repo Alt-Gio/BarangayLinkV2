@@ -12,7 +12,7 @@ interface CreateEventModalProps {
 }
 
 export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
-  const createEvent = useMutation(api.eventsCalendar.createEvent);
+  const createEvent = useMutation(api.events.createEvent);
   
   const [formData, setFormData] = useState({
     title: "",

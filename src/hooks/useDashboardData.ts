@@ -8,12 +8,12 @@ export function useDashboardData() {
   const { user: clerkUser } = useUser();
   
   // Core user data
-  const currentUser = useQuery(api.users_fixed.getCurrentUser);
-  const userPermissions = useQuery(api.users_fixed.getUserPermissions);
+  const currentUser = useQuery(api.users.getCurrentUser);
+  const userPermissions = useQuery(api.users.getUserPermissions);
   
   // Admin-specific data
   const allUsers = useQuery(
-    api.users_fixed.getAllUsersWithLevels,
+    api.users.getAllUsersWithLevels,
     currentUser?.userLevel?.name === 'ADMIN' ? {} : "skip"
   );
   
@@ -24,7 +24,7 @@ export function useDashboardData() {
   
   // Manager-specific data
   const departmentUsers = useQuery(
-    api.users_fixed.getUsersByDepartment,
+    api.users.getUsersByDepartment,
     currentUser?.userLevel?.name === 'MANAGER' && currentUser?.department 
       ? { department: currentUser.department } 
       : "skip"
@@ -80,7 +80,7 @@ export function useDashboardData() {
 
     // All users for task assignment (builders, managers, admins)
     allUsers: useQuery(
-      api.users_fixed.getAllUsersWithLevels,
+      api.users.getAllUsersWithLevels,
       userPermissions?.includes('users:view') ? {} : "skip"
     )
   };

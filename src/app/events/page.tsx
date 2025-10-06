@@ -53,12 +53,12 @@ export default function EventsPage() {
   
   const currentUser = useQuery(api.users.getCurrentUser);
   
-  const events = useQuery(api.eventsCalendar.getAllEvents, {
+  const events = useQuery(api.events.getAllEvents, {
     type: eventType,
     status: "published",
   });
 
-  const upcomingEvents = useQuery(api.eventsCalendar.getUpcomingEvents, { limit: 10 });
+  const upcomingEvents = useQuery(api.events.getUpcomingEvents, { limit: 10 });
 
   // Check for emergency events
   useEffect(() => {

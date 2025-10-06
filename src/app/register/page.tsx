@@ -370,7 +370,7 @@ export default function RegisterPage() {
     e.preventDefault();
     if (!validateStep1()) return;
     
-    console.log('Step 1 completed, moving to profile details');
+    // Step 1 completed, moving to profile details
     setStep(2); // Go to profile details
   };
 
@@ -383,9 +383,6 @@ export default function RegisterPage() {
     setError('');
     
     try {
-      console.log('Step 2: Creating Clerk user with profile data...');
-      console.log('Selected department:', profileDetails.department);
-      console.log('Selected role:', profileDetails.role);
       
       const result = await signUp.create({
         emailAddress: basicInfo.email,
@@ -402,21 +399,19 @@ export default function RegisterPage() {
         }
       });
 
-      console.log('Step 2: Clerk user created:', result.status);
-
       if (result.status === "missing_requirements") {
-        console.log('Step 2: Preparing email verification...');
         await signUp.prepareEmailAddressVerification({ 
           strategy: "email_code" 
         });
-        console.log('Step 2: Moving to verification step');
         setStep(3); // Go to email verification
       } else if (result.status === "complete") {
         // Handle immediate completion
         await handleRegistrationComplete();
       }
     } catch (err: any) {
-      console.error('Step 2 error:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Registration Step 2 error:', err);
+      }
       setError(err.errors?.[0]?.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
@@ -432,13 +427,9 @@ export default function RegisterPage() {
     setError('');
     
     try {
-      console.log('Step 3: Verifying email...');
-      
       const result = await signUp.attemptEmailAddressVerification({
         code: verificationCode,
       });
-
-      console.log('Step 3: Verification result:', result.status);
 
       if (result.status === "complete") {
         await handleRegistrationComplete();
@@ -446,7 +437,9 @@ export default function RegisterPage() {
         setError('Verification incomplete. Please try again.');
       }
     } catch (err: any) {
-      console.error('Step 3 error:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Verification error:', err);
+      }
       setError(err.errors?.[0]?.message || 'Verification failed. Please try again.');
     } finally {
       setIsLoading(false);
@@ -456,9 +449,6 @@ export default function RegisterPage() {
   // Handle registration completion
   const handleRegistrationComplete = async () => {
     try {
-      console.log('Registration complete, syncing to Convex...');
-      console.log('Final department:', profileDetails.department);
-      console.log('Final role:', profileDetails.role);
 
       // Set session active
       if (signUp?.createdSessionId && setActive) {
@@ -467,24 +457,19 @@ export default function RegisterPage() {
 
       // User creation will be handled by the Clerk webhook system
       // The webhook will automatically sync user data to Convex when the user is created
-      console.log('User registration completed. Webhook will handle Convex sync.');
-      console.log('Profile data stored in Clerk metadata:', {
-        department: profileDetails.department,
-        role: profileDetails.role,
-        jobTitle: profileDetails.jobTitle
-      });
 
       // Show success message
       setShowSuccessMessage(true);
       
       // Always redirect to dashboard
       setTimeout(() => {
-        console.log('Redirecting to dashboard...');
         router.push('/dashboard');
       }, 2000);
 
     } catch (err: any) {
-      console.error('Registration completion error:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Registration completion error:', err);
+      }
       // Still redirect to dashboard even on error
       setError('Registration completed! Redirecting to dashboard...');
       setTimeout(() => {
@@ -1007,7 +992,6 @@ export default function RegisterPage() {
                       onChange={(e) => {
                         setProfileDetails(prev => ({ ...prev, department: e.target.value }));
                         clearFieldError('department');
-                        console.log('Department selected:', e.target.value);
                       }}
                       className={`w-full pl-10 pr-4 py-3 bg-gray-700 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors text-white ${
                         fieldErrors.department ? 'border-red-500' : 'border-gray-600'
@@ -1058,7 +1042,6 @@ export default function RegisterPage() {
                               onChange={(e) => {
                                 setProfileDetails(prev => ({ ...prev, role: e.target.value }));
                                 clearFieldError('role');
-                                console.log('Role selected:', e.target.value);
                               }}
                               className="sr-only"
                             />

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useEffect, useState } from 'react';
+import { errorHandler } from '@/lib/errorHandler';
 
 // Force dynamic rendering for authenticated pages
 export const dynamic = 'force-dynamic';
@@ -17,7 +18,7 @@ export default function DashboardPage() {
 
   // Initialize database and ensure user exists
   const initDb = useMutation(api.seedData.seedUserLevels);
-  const ensureUserExists = useMutation(api.users_fixed.ensureUserExists);
+  const ensureUserExists = useMutation(api.users.ensureUserExists);
   
   // Initialize database and user if functions are available
   useEffect(() => {
@@ -29,7 +30,10 @@ export default function DashboardPage() {
         await ensureUserExists();
         setIsInitialized(true);
       } catch (error) {
-        console.log('App initialization completed or skipped:', error instanceof Error ? error.message : 'Unknown error');
+        // Log error in development only
+        if (process.env.NODE_ENV === 'development') {
+          errorHandler.logErrorPublic(error, 'Dashboard initialization');
+        }
         setIsInitialized(true); // Continue even if initialization fails
       }
     };

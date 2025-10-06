@@ -41,7 +41,7 @@ export function UserCreationModal({ isOpen, onClose, onUserCreated }: UserCreati
   const userLevels = useQuery(api.userLevels.getAll);
   
   // Mutation for creating user invitation
-  const createUserInvitation = useMutation(api.users_fixed.createUserInvitation);
+  const createUserInvitation = useMutation(api.users.createUserInvitation);
 
   const departments = [
     'General',

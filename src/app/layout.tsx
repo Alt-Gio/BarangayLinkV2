@@ -8,6 +8,7 @@ import { DatabaseConnectionProvider } from '@/components/common/DatabaseConnecti
 import { DatabaseStatusIndicator } from '@/components/common/DatabaseStatusIndicator'
 import { BottomNav } from '@/components/mobile/BottomNav'
 import { InstallPrompt } from '@/components/mobile/InstallPrompt'
+import { env } from '@/config/env'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -48,7 +49,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || 'pk_test_placeholder'}>
+        <ClerkProvider publishableKey={env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
           <ConvexClientProvider>
             <DatabaseConnectionProvider>
               <SessionTracker />

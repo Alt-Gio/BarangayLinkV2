@@ -15,7 +15,7 @@ interface CollaborativeRoomProps {
 
 export function CollaborativeRoom({ children, roomId, showPresence = true }: CollaborativeRoomProps) {
   const { user } = useUser();
-  const currentUser = useQuery(api.users_fixed.getCurrentUser);
+  const currentUser = useQuery(api.users.getCurrentUser);
   const others = useOthers();
   const [myPresence, updateMyPresence] = useMyPresence();
   const broadcast = useBroadcastEvent();

@@ -31,7 +31,7 @@ export function ProjectApprovalCard({ project, currentUser, onApprovalComplete }
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFeedbackFor, setShowFeedbackFor] = useState<string | null>(null);
 
-  const reviewProject = useMutation(api.projectsEnhanced.reviewProject);
+  const reviewProject = useMutation(api.projects.reviewProject);
 
   const handleReview = async (action: "approve" | "reject" | "request_revision") => {
     if (action !== "approve" && !feedback.trim()) {

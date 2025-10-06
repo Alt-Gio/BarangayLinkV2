@@ -69,7 +69,7 @@ export function EnhancedProjectEditor({ project, currentUser, onClose, onSave }:
   const [newCriterion, setNewCriterion] = useState({ criterion: "", targetValue: "" });
   const [newMilestone, setNewMilestone] = useState({ title: "", description: "", dueDate: "" });
 
-  const updateProject = useMutation(api.projectsEnhanced.updateProject);
+  const updateProject = useMutation(api.projects.updateProject);
   const departments = useQuery(api.departments.getAllDepartments);
 
   const handleSave = async () => {

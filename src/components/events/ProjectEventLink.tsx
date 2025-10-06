@@ -12,8 +12,8 @@ interface ProjectEventLinkProps {
 
 export function ProjectEventLink({ projectId }: ProjectEventLinkProps) {
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
-  const createProjectEvent = useMutation(api.eventsEnhanced.createProjectEvent);
-  const projectEvents = useQuery(api.eventsEnhanced.getProjectEvents, { 
+  const createProjectEvent = useMutation(api.events.createProjectEvent);
+  const projectEvents = useQuery(api.events.getProjectEvents, { 
     projectId: projectId as any 
   });
 

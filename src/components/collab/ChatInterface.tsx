@@ -33,13 +33,13 @@ export function ChatInterface({ roomId, onBack }: ChatInterfaceProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const messages = useQuery(
-    api.chat.getRoomMessages,
+    api.messaging.getRoomMessages,
     roomId ? { roomId, limit: 100 } : "skip"
   );
   
-  const chatRooms = useQuery(api.chat.getUserChatRooms);
-  const sendMessage = useMutation(api.chat.sendMessage);
-  const markAsRead = useMutation(api.chat.markMessagesAsRead);
+  const chatRooms = useQuery(api.messaging.getUserChatRooms);
+  const sendMessage = useMutation(api.messaging.sendMessage);
+  const markAsRead = useMutation(api.messaging.markMessagesAsRead);
 
   const currentRoom = chatRooms?.find((room) => room._id === roomId);
 

@@ -102,7 +102,7 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
   // Use DB departments if available, otherwise use fallback
   const departments = (departmentsFromDB?.length ?? 0) > 0 ? departmentsFromDB : fallbackDepartments;
   
-  const createProject = useMutation(api.projectsEnhanced.createProject);
+  const createProject = useMutation(api.projects.createProject);
 
   const updateField = (field: string, value: any) => {
     setFormData({ ...formData, [field]: value });

@@ -5,6 +5,162 @@ import { v } from "convex/values";
 // CHAT ROOMS
 // ============================================
 
+// Create or get direct message room between two users (convenience method)
+export const getOrCreateDirectChat = mutation({
+  args: {
+    participantId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const currentUser = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkId"), identity.subject))
+      .first();
+
+    if (!currentUser) throw new Error("Current user not found");
+
+    // Check if a direct chat already exists between these two users
+    const existingRoom = await ctx.db
+      .query("chatRooms")
+      .filter((q) => q.eq(q.field("type"), "direct"))
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .collect();
+
+    const dmRoom = existingRoom.find((room) => {
+      const participants = room.participants.map(String);
+      return (
+        participants.length === 2 &&
+        participants.includes(String(currentUser._id)) &&
+        participants.includes(String(args.participantId))
+      );
+    });
+
+    if (dmRoom) {
+      return dmRoom._id;
+    }
+
+    // Create new direct message room
+    const participant = await ctx.db.get(args.participantId);
+    if (!participant) throw new Error("Participant not found");
+
+    const roomId = await ctx.db.insert("chatRooms", {
+      name: `${currentUser.name} & ${participant.name}`,
+      type: "direct",
+      participants: [currentUser._id, args.participantId],
+      createdBy: currentUser._id,
+      isActive: true,
+    });
+
+    return roomId;
+  },
+});
+
+// Create a group chat (convenience method)
+export const createGroupChat = mutation({
+  args: {
+    name: v.string(),
+    participantIds: v.array(v.id("users")),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const currentUser = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkId"), identity.subject))
+      .first();
+
+    if (!currentUser) throw new Error("Current user not found");
+
+    // Add current user to participants if not already included
+    const participants = [...new Set([currentUser._id, ...args.participantIds])];
+
+    const roomId = await ctx.db.insert("chatRooms", {
+      name: args.name,
+      type: "general",
+      participants,
+      createdBy: currentUser._id,
+      isActive: true,
+    });
+
+    return roomId;
+  },
+});
+
+// Alias for getUserChatRooms (for compatibility)
+export const getUserChatRooms = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkId"), identity.subject))
+      .first();
+
+    if (!user) return [];
+
+    const allRooms = await ctx.db.query("chatRooms").collect();
+    
+    const userRooms = allRooms.filter((room) =>
+      room.participants.some((p) => p === user._id)
+    );
+
+    return userRooms;
+  },
+});
+
+// Get messages for current user (simple query for compatibility with messages.ts)
+export const getForCurrentUser = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) {
+      throw new Error('Not authenticated');
+    }
+    return await ctx.db
+      .query('messages')
+      .filter((q) => q.eq(q.field('sender'), identity.subject))
+      .collect();
+  },
+});
+
+// Alias for markMessagesAsRead (for compatibility with chat.ts)
+export const markMessagesAsRead = mutation({
+  args: {
+    roomId: v.id("chatRooms"),
+  },
+  handler: async (ctx, { roomId }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkId"), identity.subject))
+      .first();
+
+    if (!user) throw new Error("User not found");
+
+    const messages = await ctx.db
+      .query("messages")
+      .filter((q) => q.eq(q.field("roomId"), roomId))
+      .collect();
+
+    for (const message of messages) {
+      if (message.sender !== user._id && !message.readBy.some((r) => r.userId === user._id)) {
+        await ctx.db.patch(message._id, {
+          readBy: [...message.readBy, { userId: user._id, readAt: Date.now() }],
+        });
+      }
+    }
+
+    return roomId;
+  },
+});
+
 // Create a new chat room
 export const createChatRoom = mutation({
   args: {

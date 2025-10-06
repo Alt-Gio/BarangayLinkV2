@@ -14,6 +14,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProjectTaskProgress } from '@/components/projects/ProjectTaskProgress';
 import { ProjectTaskManager } from '@/components/projects/ProjectTaskManager';
 import { ProjectApprovalCard } from '@/components/projects/ProjectApprovalCard';
+import { ProjectEventsTab } from '@/components/projects/ProjectEventsTab';
+import { ProjectTeamTab } from '@/components/projects/ProjectTeamTab';
+import { ProjectSettingsTab } from '@/components/projects/ProjectSettingsTab';
 import { DocumentUpload } from '@/components/documents/DocumentUpload';
 import { DocumentList } from '@/components/documents/DocumentList';
 import { 
@@ -48,6 +51,11 @@ interface ProjectPageProps {
 export default function ProjectPage({ params }: ProjectPageProps) {
   const { id } = use(params);
   
+  // Check if this is a special route (not a project ID)
+  if (id === 'approval' || id === 'create') {
+    return null; // Let Next.js handle the proper route
+  }
+  
   // ALL HOOKS MUST BE AT THE TOP (Rules of Hooks)
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -61,7 +69,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   const project = useQuery(api.productivity.getProjects, { limit: 100 })?.find(p => p._id === id);
   
   // Get project tasks (using the new task system)
-  const tasks = useQuery(api.tasks.getProjectTasks, { projectId: id as any });
+  const tasks = useQuery(api.gamifiedTasks.getProjectTasks, { projectId: id as any });
   
   // Get project events  
   const events = useQuery(api.events.getProjectEvents, { projectId: id as any });
@@ -70,7 +78,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   const teamMembers = useQuery(api.users.getProjectTeamMembers, { projectId: id as any });
   
   // Update mutation
-  const updateProject = useMutation(api.projectsEnhanced.updateProject);
+  const updateProject = useMutation(api.projects.updateProject);
   
   // Task mutations
   const completeTask = useMutation(api.tasks.completeTask);
@@ -481,36 +489,23 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           </TabsContent>
 
           <TabsContent value="events">
-            <Card className="bg-gray-800/50 border-gray-700/50">
-              <CardHeader>
-                <CardTitle className="text-white">Events</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-400">Event management interface will be displayed here</p>
-              </CardContent>
-            </Card>
+            <ProjectEventsTab projectId={id as Id<"projects">} project={project} />
           </TabsContent>
 
           <TabsContent value="team">
-            <Card className="bg-gray-800/50 border-gray-700/50">
-              <CardHeader>
-                <CardTitle className="text-white">Team Management</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-400">Team management interface will be displayed here</p>
-              </CardContent>
-            </Card>
+            <ProjectTeamTab 
+              projectId={id as Id<"projects">} 
+              project={project}
+              currentUser={currentUser}
+            />
           </TabsContent>
 
           <TabsContent value="settings">
-            <Card className="bg-gray-800/50 border-gray-700/50">
-              <CardHeader>
-                <CardTitle className="text-white">Project Settings</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-400">Settings interface will be displayed here</p>
-              </CardContent>
-            </Card>
+            <ProjectSettingsTab 
+              projectId={id as Id<"projects">} 
+              project={project}
+              currentUser={currentUser}
+            />
           </TabsContent>
         </Tabs>
       </div>

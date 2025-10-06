@@ -47,16 +47,16 @@ export default function SystemSettingsPage() {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   const currentUser = useQuery(api.users.getCurrentUser);
-  const departments = useQuery(api.departmentManagement.getAllDepartmentsWithStats);
-  const userLevels = useQuery(api.departmentManagement.getAllUserLevels);
+  const departments = useQuery(api.departments.getAllDepartmentsWithStats);
+  const userLevels = useQuery(api.departments.getAllUserLevels);
   const backups = useQuery(api.backup.getAllBackups);
   const backupSchedule = useQuery(api.backup.getBackupSchedule);
   
   // Actions and Mutations
   const createBackup = useAction(api.backup.createFullBackup);
-  const createDepartmentMut = useMutation(api.departmentManagement.createDepartment);
-  const updateDepartmentMut = useMutation(api.departmentManagement.updateDepartment);
-  const deleteDepartmentMut = useMutation(api.departmentManagement.deleteDepartment);
+  const createDepartmentMut = useMutation(api.departments.createDepartment);
+  const updateDepartmentMut = useMutation(api.departments.updateDepartment);
+  const deleteDepartmentMut = useMutation(api.departments.deleteDepartment);
   const updateBackupScheduleMut = useMutation(api.backup.updateBackupSchedule);
 
   // System settings state

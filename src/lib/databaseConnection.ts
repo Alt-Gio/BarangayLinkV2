@@ -45,15 +45,15 @@ export function useDatabaseConnection() {
     if (databaseStatus) {
       setConnectionStatus('connected');
       if (!databaseStatus.isInitialized && initializationStatus === 'pending') {
-        console.log('🔄 Database not initialized, starting initialization...');
         setInitializationStatus('initializing');
         handleDatabaseInitialization();
       } else if (databaseStatus.isInitialized && initializationStatus !== 'completed') {
-        console.log('✅ Database already initialized');
         setInitializationStatus('completed');
       }
     } else if (databaseStatus === null) {
-      console.error('❌ Database status is null, setting error state');
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Database status is null, setting error state');
+      }
       setConnectionStatus('error');
     }
   }, [databaseStatus, initializationStatus]);
@@ -62,7 +62,9 @@ export function useDatabaseConnection() {
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (connectionStatus === 'connecting' || initializationStatus === 'initializing') {
-        console.warn('⚠️ Database connection/initialization timed out after 30 seconds');
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Database connection/initialization timed out after 30 seconds');
+        }
         setHasTimedOut(true);
         // Don't set error state immediately, just mark as timed out
       }
@@ -74,7 +76,6 @@ export function useDatabaseConnection() {
   // Sync user from Clerk when available
   useEffect(() => {
     if (isLoaded && clerkUser && connectionStatus === 'connected' && initializationStatus === 'completed') {
-      console.log('🔄 Syncing user from Clerk...');
       handleUserSync();
     }
   }, [isLoaded, clerkUser, connectionStatus, initializationStatus]);
@@ -82,18 +83,18 @@ export function useDatabaseConnection() {
   // Skip user sync requirement if database is ready but user sync is optional
   useEffect(() => {
     if (connectionStatus === 'connected' && initializationStatus === 'completed' && (!isLoaded || !clerkUser)) {
-      console.log('✅ Database ready, proceeding without user sync (no user signed in)');
+      // Database ready, proceeding without user sync (no user signed in)
     }
   }, [connectionStatus, initializationStatus, isLoaded, clerkUser]);
 
   const handleDatabaseInitialization = async () => {
     try {
-      console.log('🚀 Initializing database...');
       await initializeDatabase({});
       setInitializationStatus('completed');
-      console.log('✅ Database initialized successfully');
     } catch (error) {
-      console.error('❌ Database initialization failed:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Database initialization failed:', error);
+      }
       setInitializationStatus('error');
     }
   };
@@ -108,9 +109,10 @@ export function useDatabaseConnection() {
         name: clerkUser.fullName || clerkUser.firstName || 'User',
         imageUrl: clerkUser.imageUrl,
       });
-      console.log('✅ User synced successfully');
     } catch (error) {
-      console.error('❌ User sync failed:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('User sync failed:', error);
+      }
     }
   };
 
@@ -171,10 +173,11 @@ export function useDatabaseOperations() {
   const performCleanup = async (daysOld: number = 30) => {
     try {
       const result = await cleanupOldData({ daysOld });
-      console.log('✅ Database cleanup completed:', result);
       return result;
     } catch (error) {
-      console.error('❌ Database cleanup failed:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Database cleanup failed:', error);
+      }
       throw error;
     }
   };

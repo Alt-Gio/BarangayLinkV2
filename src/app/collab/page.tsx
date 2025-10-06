@@ -50,8 +50,8 @@ export default function CollabPage() {
     user ? {} : "skip"
   );
   
-  const getOrCreateChat = useMutation(api.chat.getOrCreateDirectChat);
-  const createGroupChat = useMutation(api.chat.createGroupChat);
+  const getOrCreateChat = useMutation(api.messaging.getOrCreateDirectChat);
+  const createGroupChat = useMutation(api.messaging.createGroupChat);
   const updatePresence = useMutation(api.presence.updatePresence);
 
   // Update presence on mount and page activity

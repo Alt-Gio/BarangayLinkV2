@@ -33,7 +33,7 @@ export function useUserSync() {
 
 // Hook to get sync status
 export function useSyncStatus() {
-  const syncStatus = useQuery(api.clerkSync.getSyncStatus);
+  const syncStatus = useQuery(api.clerk.getSyncStatus);
   return syncStatus;
 }
 

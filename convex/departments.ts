@@ -94,6 +94,131 @@ export const updateDepartment = mutation({
   },
 });
 
+// Delete department (Admin only)
+export const deleteDepartment = mutation({
+  args: { id: v.id("departments") },
+  handler: async (ctx, { id }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    // Check if user is admin
+    const currentUser = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkId"), identity.subject))
+      .first();
+
+    if (!currentUser) throw new Error("User not found");
+    
+    const userLevel = await ctx.db.get(currentUser.userLevel);
+    if (!userLevel || userLevel.level < 4) {
+      throw new Error("Insufficient permissions. Admin level required.");
+    }
+
+    // Check if department has users
+    const usersInDept = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("department"), id))
+      .collect();
+
+    if (usersInDept.length > 0) {
+      throw new Error("Cannot delete department with active users. Please reassign users first.");
+    }
+
+    await ctx.db.delete(id);
+    return id;
+  },
+});
+
+// Get department with user stats
+export const getDepartmentWithStats = query({
+  args: { id: v.id("departments") },
+  handler: async (ctx, { id }) => {
+    const department = await ctx.db.get(id);
+    if (!department) return null;
+
+    // Get user count
+    const users = await ctx.db.query("users").collect();
+    const userCount = users.filter((u) => u.department === department.name).length;
+
+    // Get active projects count
+    const projects = await ctx.db.query("projects").collect();
+    const projectCount = projects.filter(
+      (p) => p.department === department.name && p.status === "active"
+    ).length;
+
+    return {
+      ...department,
+      userCount,
+      projectCount,
+    };
+  },
+});
+
+// Get all departments with comprehensive stats
+export const getAllDepartmentsWithStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const departments = await ctx.db.query("departments").collect();
+    const users = await ctx.db.query("users").collect();
+    const projects = await ctx.db.query("projects").collect();
+
+    return departments.map((dept) => {
+      const userCount = users.filter((u) => u.department === dept.name).length;
+      const projectCount = projects.filter(
+        (p) => p.department === dept.name && p.status === "active"
+      ).length;
+
+      return {
+        ...dept,
+        userCount,
+        projectCount,
+      };
+    });
+  },
+});
+
+// User Level Management
+export const updateUserLevel = mutation({
+  args: {
+    id: v.id("userLevels"),
+    name: v.optional(v.string()),
+    permissions: v.optional(v.array(v.string())),
+    description: v.optional(v.string()),
+  },
+  handler: async (ctx, { id, ...updates }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    // Admin check
+    const currentUser = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkId"), identity.subject))
+      .first();
+
+    if (!currentUser) throw new Error("User not found");
+    
+    const userLevel = await ctx.db.get(currentUser.userLevel);
+    if (!userLevel || userLevel.level < 4) {
+      throw new Error("Insufficient permissions. Admin level required.");
+    }
+
+    await ctx.db.patch(id, updates);
+    return id;
+  },
+});
+
+// Get all user levels
+export const getAllUserLevels = query({
+  args: {},
+  handler: async (ctx) => {
+    const levels = await ctx.db
+      .query("userLevels")
+      .order("asc")
+      .collect();
+    return levels;
+  },
+});
+
 // Get users count by department
 export const getDepartmentUserCounts = query({
   args: {},

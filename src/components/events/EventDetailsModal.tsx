@@ -31,8 +31,8 @@ interface EventDetailsModalProps {
 }
 
 export function EventDetailsModal({ event, isOpen, onClose }: EventDetailsModalProps) {
-  const rsvpToEvent = useMutation(api.eventsCalendar.rsvpToEvent);
-  const deleteEvent = useMutation(api.eventsCalendar.deleteEvent);
+  const rsvpToEvent = useMutation(api.events.rsvpToEvent);
+  const deleteEvent = useMutation(api.events.deleteEvent);
   
   const [isRsvping, setIsRsvping] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);

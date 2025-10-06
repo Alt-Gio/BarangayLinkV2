@@ -117,18 +117,11 @@ export function Sidebar({
           roles: ['BUILDER', 'MANAGER', 'ADMIN']
         },
         {
-          id: 'create-project',
-          label: 'Create Project',
-          icon: <Plus className="w-4 h-4" />,
-          path: '/projects/create',
-          roles: ['MANAGER', 'ADMIN']
-        },
-        {
           id: 'project-approval',
           label: 'Project Approval',
           icon: <UserCheck className="w-4 h-4" />,
           path: '/projects/approval',
-          roles: ['ADMIN']
+          roles: ['MANAGER', 'ADMIN']
         }
       ]
     },
@@ -149,13 +142,6 @@ export function Sidebar({
           label: 'Team Tasks',
           icon: <Users className="w-4 h-4" />,
           path: '/tasks/team',
-          roles: ['BUILDER', 'MANAGER', 'ADMIN']
-        },
-        {
-          id: 'create-task',
-          label: 'Create Task',
-          icon: <PlusCircle className="w-4 h-4" />,
-          path: '/tasks/create',
           roles: ['BUILDER', 'MANAGER', 'ADMIN']
         }
       ]
