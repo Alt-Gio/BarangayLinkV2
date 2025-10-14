@@ -54,7 +54,7 @@ export default function EventsPage() {
   const currentUser = useQuery(api.users.getCurrentUser);
   
   const events = useQuery(api.events.getAllEvents, {
-    type: eventType,
+    type: eventType === "all" ? undefined : eventType,
     status: "published",
   });
 

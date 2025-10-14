@@ -157,13 +157,6 @@ export function Sidebar({
           icon: <CalendarDays className="w-4 h-4" />,
           path: '/events',
           roles: ['WORKER', 'BUILDER', 'MANAGER', 'ADMIN']
-        },
-        {
-          id: 'create-event',
-          label: 'Create Event',
-          icon: <Plus className="w-4 h-4" />,
-          path: '/events/create',
-          roles: ['MANAGER', 'ADMIN']
         }
       ]
     },

@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Sidebar } from '@/components/layout/Sidebar';
 import {
   Users,
   TrendingUp,
@@ -25,13 +26,15 @@ import {
   Zap,
   BarChart3,
   ListTodo,
-  FolderOpen
+  FolderOpen,
+  Menu
 } from 'lucide-react';
 
 export default function TeamTasksPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<Id<"projects"> | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Get current user
   const currentUser = useQuery(api.users.getCurrentUser);
@@ -118,18 +121,39 @@ export default function TeamTasksPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-              <Users className="w-8 h-8 text-emerald-500" />
-              Team Tasks & Progress
-            </h1>
-            <p className="text-gray-400 mt-2">View team workload and project progress</p>
-          </div>
+    <div className="flex h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900">
+      <Sidebar 
+        userRole={currentUser?.userLevel?.name || "WORKER"}
+        dashboardTitle="Team Tasks"
+        dashboardSubtitle="View team workload and project progress"
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+      />
+      <div className="flex-1 overflow-y-auto">
+        {/* Mobile Header */}
+        <div className="md:hidden bg-gray-800 p-4 flex items-center justify-between sticky top-0 z-10">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600 transition-colors"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <h1 className="text-lg font-semibold text-white">Team Tasks</h1>
+          <div className="w-9" />
         </div>
+
+        <div className="p-6">
+          <div className="max-w-7xl mx-auto space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                  <Users className="w-8 h-8 text-emerald-500" />
+                  Team Tasks & Progress
+                </h1>
+                <p className="text-gray-400 mt-2">View team workload and project progress</p>
+              </div>
+            </div>
 
         {/* Project Selector */}
         <Card className="bg-gray-800/50 border-gray-700/50">
@@ -419,6 +443,8 @@ export default function TeamTasksPage() {
             </CardContent>
           </Card>
         )}
+          </div>
+        </div>
       </div>
     </div>
   );
