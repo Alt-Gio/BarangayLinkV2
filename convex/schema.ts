@@ -640,4 +640,47 @@ export default defineSchema({
     updatedBy: v.id("users"),
     updatedAt: v.number(),
   }),
+
+  // Facebook/Messenger Integration
+  facebookConnections: defineTable({
+    userId: v.id("users"),
+    facebookUserId: v.string(), // Facebook Page-Scoped ID (PSID)
+    facebookName: v.string(),
+    facebookProfilePic: v.optional(v.string()),
+    accessToken: v.string(), // Encrypted access token
+    pageAccessToken: v.optional(v.string()), // For page messaging
+    tokenExpiresAt: v.optional(v.number()),
+    pageId: v.optional(v.string()), // If connecting to a page
+    isActive: v.boolean(),
+    messengerEnabled: v.boolean(),
+    notificationsEnabled: v.boolean(),
+    connectedAt: v.number(),
+    lastSyncedAt: v.optional(v.number()),
+    syncStatus: v.union(v.literal("active"), v.literal("error"), v.literal("disconnected")),
+    lastError: v.optional(v.string()),
+  })
+  .index("by_user", ["userId"])
+  .index("by_facebook_user_id", ["facebookUserId"])
+  .index("by_sync_status", ["syncStatus"]),
+
+  // Message sync tracking between internal and Messenger
+  messageSyncLog: defineTable({
+    internalMessageId: v.optional(v.id("messages")), // Our internal message ID
+    messengerMessageId: v.optional(v.string()), // Facebook Messenger message ID
+    roomId: v.id("chatRooms"),
+    senderId: v.id("users"),
+    recipientId: v.optional(v.id("users")),
+    content: v.string(),
+    direction: v.union(v.literal("inbound"), v.literal("outbound")), // inbound = from Messenger, outbound = to Messenger
+    platform: v.union(v.literal("internal"), v.literal("messenger"), v.literal("both")),
+    syncStatus: v.union(v.literal("pending"), v.literal("synced"), v.literal("failed")),
+    syncedAt: v.optional(v.number()),
+    error: v.optional(v.string()),
+    timestamp: v.number(),
+  })
+  .index("by_room", ["roomId"])
+  .index("by_messenger_id", ["messengerMessageId"])
+  .index("by_internal_id", ["internalMessageId"])
+  .index("by_sync_status", ["syncStatus"])
+  .index("by_timestamp", ["timestamp"]),
 });

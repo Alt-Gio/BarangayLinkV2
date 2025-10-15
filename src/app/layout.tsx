@@ -10,6 +10,8 @@ import { BottomNav } from '@/components/mobile/BottomNav'
 import { InstallPrompt } from '@/components/mobile/InstallPrompt'
 import { PageTransition } from '@/components/common/PageTransition'
 import { SidebarProvider } from '@/contexts/SidebarContext'
+import { OfflineSyncProvider } from '@/providers/OfflineSyncProvider'
+import { OfflineIndicator } from '@/components/ui/OfflineIndicator'
 import { env } from '@/config/env'
 
 const geistSans = Geist({
@@ -54,16 +56,19 @@ export default function RootLayout({
         <ClerkProvider publishableKey={env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
           <ConvexClientProvider>
             <DatabaseConnectionProvider>
-              <SidebarProvider>
-                <PageTransition />
-                <SessionTracker />
-                <DatabaseStatusIndicator />
-                <div className="pb-16 md:pb-0">
-                  {children}
-                </div>
-                <BottomNav />
-                <InstallPrompt />
-              </SidebarProvider>
+              <OfflineSyncProvider>
+                <SidebarProvider>
+                  <PageTransition />
+                  <SessionTracker />
+                  <DatabaseStatusIndicator />
+                  <OfflineIndicator />
+                  <div className="pb-16 md:pb-0">
+                    {children}
+                  </div>
+                  <BottomNav />
+                  <InstallPrompt />
+                </SidebarProvider>
+              </OfflineSyncProvider>
             </DatabaseConnectionProvider>
           </ConvexClientProvider>
         </ClerkProvider>
