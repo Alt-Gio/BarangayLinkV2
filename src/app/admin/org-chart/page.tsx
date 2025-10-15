@@ -143,20 +143,20 @@ export default function OrganizationalChartPage() {
         />
         <div className="flex-1 overflow-y-auto">
           {/* Mobile Header */}
-          <div className="md:hidden bg-gray-800 p-4 flex items-center justify-between sticky top-0 z-10">
+          <div className="md:hidden bg-gray-800 p-4 flex items-center justify-between sticky top-0 z-50">
             <button
               onClick={() => setSidebarOpen(true)}
               className="p-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600 transition-colors"
             >
               <Menu className="w-5 h-5" />
             </button>
-            <h1 className="text-lg font-semibold text-white">Organizational Chart</h1>
+            <h1 className="text-lg font-semibold text-white">Organization Chart</h1>
             <div className="w-9" />
           </div>
 
           <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
             {/* Header */}
-            <div className="bg-white/5 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
+            <div className="hidden md:block bg-white/5 backdrop-blur-md border-b border-white/10 md:sticky md:top-0 z-40">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                 <div className="flex items-center justify-between">
                   <div>

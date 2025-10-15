@@ -127,7 +127,7 @@ export default function AdminInvitationsPage() {
         />
         <div className="flex-1 overflow-y-auto">
           {/* Mobile Header */}
-          <div className="md:hidden bg-gray-800 p-4 flex items-center justify-between sticky top-0 z-10">
+          <div className="md:hidden bg-gray-800 p-4 flex items-center justify-between sticky top-0 z-50">
             <button
               onClick={() => setSidebarOpen(true)}
               className="p-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600 transition-colors"
@@ -135,11 +135,16 @@ export default function AdminInvitationsPage() {
               <Menu className="w-5 h-5" />
             </button>
             <h1 className="text-lg font-semibold text-white">Invitations</h1>
-            <div className="w-9" />
+            <button
+              onClick={() => setIsInviteModalOpen(true)}
+              className="p-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+            >
+              <UserPlus className="w-5 h-5" />
+            </button>
           </div>
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       {/* Header */}
-      <div className="bg-white/5 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
+      <div className="hidden md:block bg-white/5 backdrop-blur-md border-b border-white/10 md:sticky md:top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -159,7 +164,7 @@ export default function AdminInvitationsPage() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
             <div className="bg-white/10 rounded-lg p-4 border border-white/20">
               <div className="flex items-center justify-between">
                 <div>
@@ -230,8 +235,8 @@ export default function AdminInvitationsPage() {
       </div>
 
       {/* Invitations List */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="space-y-3 sm:space-y-4">
           {filteredInvitations.map((invitation) => {
             const config = statusConfig[invitation.status];
             const StatusIcon = config.icon;
@@ -240,27 +245,27 @@ export default function AdminInvitationsPage() {
             return (
               <div
                 key={invitation._id}
-                className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-6 hover:bg-white/10 transition-all"
+                className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-md rounded-2xl border border-gray-700/50 p-4 sm:p-6 hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-300"
               >
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start justify-between gap-3 sm:gap-4">
                   {/* User Info */}
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-start gap-3 mb-3">
-                      <div className="w-12 h-12 rounded-full bg-emerald-600 flex items-center justify-center flex-shrink-0">
-                        <User className="w-6 h-6 text-white" />
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center flex-shrink-0 shadow-lg">
+                        <User className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-semibold text-white">
+                        <h3 className="text-base sm:text-lg font-bold text-white truncate">
                           {invitation.firstName} {invitation.lastName}
                         </h3>
-                        <p className="text-gray-400 text-sm">{invitation.email}</p>
+                        <p className="text-gray-400 text-xs sm:text-sm truncate">{invitation.email}</p>
                         <div className="flex flex-wrap items-center gap-2 mt-2">
-                          <Badge className={`${config.color} text-white px-3 py-1 flex items-center gap-1`}>
+                          <Badge className={`${config.color} text-white text-xs px-2 sm:px-3 py-1 flex items-center gap-1 shadow-md`}>
                             <StatusIcon className="w-3 h-3" />
                             {config.text}
                           </Badge>
                           {isExpiringSoon && (
-                            <Badge className="bg-orange-600 text-white px-3 py-1">
+                            <Badge className="bg-gradient-to-r from-orange-500 to-orange-600 text-white text-xs px-2 sm:px-3 py-1 shadow-md animate-pulse">
                               Expires Soon
                             </Badge>
                           )}
@@ -269,29 +274,29 @@ export default function AdminInvitationsPage() {
                     </div>
 
                     {/* Details Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div className="flex items-center gap-2 text-gray-400">
-                        <Building className="w-4 h-4" />
-                        <span>{invitation.department}</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-xs sm:text-sm mt-3">
+                      <div className="flex items-center gap-2 text-gray-400 bg-gray-800/50 rounded-lg p-2">
+                        <Building className="w-4 h-4 text-emerald-400" />
+                        <span className="truncate">{invitation.department}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-gray-400">
-                        <Shield className="w-4 h-4" />
-                        <span>{invitation.userLevel?.name}</span>
+                      <div className="flex items-center gap-2 text-gray-400 bg-gray-800/50 rounded-lg p-2">
+                        <Shield className="w-4 h-4 text-blue-400" />
+                        <span className="truncate">{invitation.userLevel?.name}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-gray-400">
-                        <Calendar className="w-4 h-4" />
-                        <span>Sent {formatDate(invitation.createdAt)}</span>
+                      <div className="flex items-center gap-2 text-gray-400 bg-gray-800/50 rounded-lg p-2">
+                        <Calendar className="w-4 h-4 text-purple-400" />
+                        <span className="truncate">Sent {formatDate(invitation.createdAt)}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-gray-400">
-                        <Clock className="w-4 h-4" />
-                        <span>Expires {formatDate(invitation.expiresAt)}</span>
+                      <div className="flex items-center gap-2 text-gray-400 bg-gray-800/50 rounded-lg p-2">
+                        <Clock className="w-4 h-4 text-orange-400" />
+                        <span className="truncate">Expires {formatDate(invitation.expiresAt)}</span>
                       </div>
                     </div>
 
                     {/* Invited By */}
                     {invitation.invitedByUser && (
-                      <div className="mt-3 pt-3 border-t border-white/10 text-sm text-gray-400">
-                        Invited by <span className="text-white font-medium">{invitation.invitedByUser.name}</span>
+                      <div className="mt-3 pt-3 border-t border-gray-700/50 text-xs sm:text-sm text-gray-400">
+                        Invited by <span className="text-emerald-400 font-semibold">{invitation.invitedByUser.name}</span>
                       </div>
                     )}
 
@@ -305,20 +310,20 @@ export default function AdminInvitationsPage() {
 
                   {/* Actions */}
                   {invitation.status === "pending" && (
-                    <div className="flex flex-col gap-2">
+                    <div className="flex sm:flex-col gap-2 mt-3 sm:mt-0">
                       <Button
                         onClick={() => handleResendInvitation(invitation._id)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm"
+                        className="flex-1 sm:flex-none bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-xs sm:text-sm shadow-md hover:shadow-lg transition-all"
                       >
-                        <RefreshCw className="w-4 h-4" />
-                        Resend
+                        <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <span className="hidden sm:inline">Resend</span>
                       </Button>
                       <Button
                         onClick={() => handleCancelInvitation(invitation._id)}
-                        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm"
+                        className="flex-1 sm:flex-none bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-xs sm:text-sm shadow-md hover:shadow-lg transition-all"
                       >
-                        <Ban className="w-4 h-4" />
-                        Cancel
+                        <Ban className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <span className="hidden sm:inline">Cancel</span>
                       </Button>
                     </div>
                   )}
@@ -328,9 +333,12 @@ export default function AdminInvitationsPage() {
           })}
 
           {filteredInvitations.length === 0 && (
-            <div className="text-center py-12 text-gray-400 bg-white/5 rounded-xl border border-white/10">
-              <Mail className="w-16 h-16 mx-auto mb-4 opacity-50" />
-              <p>No invitations found</p>
+            <div className="text-center py-12 sm:py-16 text-gray-400 bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-2xl border border-gray-700/50">
+              <div className="bg-gray-800/50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Mail className="w-10 h-10 text-gray-600" />
+              </div>
+              <p className="text-base sm:text-lg font-semibold text-gray-300">No invitations found</p>
+              <p className="text-sm text-gray-500 mt-2">Try adjusting your search or filters</p>
             </div>
           )}
         </div>

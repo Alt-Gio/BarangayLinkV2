@@ -165,31 +165,31 @@ export default function MessagesPage() {
           {selectedRoomId ? (
             <EnhancedChatRoom roomId={selectedRoomId} onBack={handleBackToList} />
           ) : (
-            <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-gray-900/50">
-              <MessageCircle className="w-24 h-24 text-gray-700 mb-6" />
-              <h2 className="text-2xl font-bold text-white mb-2">Welcome to Messages</h2>
-              <p className="text-gray-400 mb-6 max-w-md">
+            <div className="h-full flex flex-col items-center justify-center p-4 sm:p-8 text-center bg-gray-900/50">
+              <MessageCircle className="w-16 h-16 sm:w-24 sm:h-24 text-gray-700 mb-4 sm:mb-6" />
+              <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">Welcome to Messages</h2>
+              <p className="text-sm sm:text-base text-gray-400 mb-4 sm:mb-6 max-w-md px-4">
                 Select a conversation from the sidebar or start a new chat to begin messaging your team
               </p>
               <Button
                 onClick={() => setShowNewChatModal(true)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm sm:text-base w-full sm:w-auto max-w-xs"
               >
-                <Plus className="w-5 h-5 mr-2" />
+                <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                 Start New Conversation
               </Button>
 
               {/* Quick Stats */}
-              <div className="grid grid-cols-2 gap-4 mt-12 max-w-md w-full">
-                <div className="bg-white/5 rounded-lg p-4">
-                  <Users className="w-8 h-8 text-emerald-500 mb-2" />
-                  <p className="text-2xl font-bold text-white">{onlineUsers?.length || 0}</p>
-                  <p className="text-sm text-gray-400">Online Now</p>
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-8 sm:mt-12 max-w-md w-full px-4">
+                <div className="bg-white/5 rounded-lg p-3 sm:p-4">
+                  <Users className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-500 mb-2 mx-auto" />
+                  <p className="text-xl sm:text-2xl font-bold text-white">{onlineUsers?.length || 0}</p>
+                  <p className="text-xs sm:text-sm text-gray-400">Online Now</p>
                 </div>
-                <div className="bg-white/5 rounded-lg p-4">
-                  <MessageCircle className="w-8 h-8 text-blue-500 mb-2" />
-                  <p className="text-2xl font-bold text-white">0</p>
-                  <p className="text-sm text-gray-400">Unread Messages</p>
+                <div className="bg-white/5 rounded-lg p-3 sm:p-4">
+                  <MessageCircle className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500 mb-2 mx-auto" />
+                  <p className="text-xl sm:text-2xl font-bold text-white">0</p>
+                  <p className="text-xs sm:text-sm text-gray-400">Unread Messages</p>
                 </div>
               </div>
             </div>

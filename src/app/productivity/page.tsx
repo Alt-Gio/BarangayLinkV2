@@ -329,9 +329,9 @@ export default function ProductivityPage() {
 
             {/* Quick Stats */}
             {analytics && (
-              <div className="grid grid-cols-2 gap-3 text-center">
-                <div className="bg-gray-700/50 rounded-lg p-3">
-                  <div className="text-2xl font-bold text-green-400">{analytics.projectStats.total}</div>
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 text-center">
+                <div className="bg-gray-700/50 rounded-lg p-2 sm:p-3">
+                  <div className="text-xl sm:text-2xl font-bold text-green-400">{analytics.projectStats.total}</div>
                   <div className="text-xs text-gray-400">Projects</div>
                 </div>
                 <div className="bg-gray-700/50 rounded-lg p-3">
@@ -478,7 +478,7 @@ export default function ProductivityPage() {
                     />
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-semibold text-gray-300">Department *</label>
                       <Select value={projectForm.department} onValueChange={(value: string) => setProjectForm({ ...projectForm, department: value })}>
@@ -509,7 +509,7 @@ export default function ProductivityPage() {
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-semibold text-gray-300">Start Date *</label>
                       <Input
@@ -584,7 +584,7 @@ export default function ProductivityPage() {
                     />
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-semibold text-gray-300">Project (Optional)</label>
                       <Select value={taskForm.projectId} onValueChange={(value: string) => setTaskForm({ ...taskForm, projectId: value })}>
@@ -618,7 +618,7 @@ export default function ProductivityPage() {
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-semibold text-gray-300">Assign To *</label>
                       <Select value={taskForm.assignedTo} onValueChange={(value: string) => setTaskForm({ ...taskForm, assignedTo: value })}>
@@ -677,9 +677,9 @@ export default function ProductivityPage() {
 
         {/* Analytics Dashboard */}
         {analytics && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
             <Card className="bg-gray-800 border-gray-700">
-              <CardContent className="p-6">
+              <CardContent className="p-3 sm:p-4 md:p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-400 text-sm font-medium">Total Projects</p>
@@ -694,7 +694,7 @@ export default function ProductivityPage() {
             </Card>
 
             <Card className="bg-gray-800 border-gray-700">
-              <CardContent className="p-6">
+              <CardContent className="p-3 sm:p-4 md:p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-400 text-sm font-medium">Total Tasks</p>
@@ -709,7 +709,7 @@ export default function ProductivityPage() {
             </Card>
 
             <Card className="bg-gray-800 border-gray-700">
-              <CardContent className="p-6">
+              <CardContent className="p-3 sm:p-4 md:p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-400 text-sm font-medium">Total Budget</p>
@@ -724,7 +724,7 @@ export default function ProductivityPage() {
             </Card>
 
             <Card className="bg-gray-800 border-gray-700">
-              <CardContent className="p-6">
+              <CardContent className="p-3 sm:p-4 md:p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-400 text-sm font-medium">Overdue Tasks</p>
@@ -801,7 +801,7 @@ export default function ProductivityPage() {
         </div>
 
         {/* Projects Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
           {projects?.filter(project => 
             searchQuery === "" || 
             project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||

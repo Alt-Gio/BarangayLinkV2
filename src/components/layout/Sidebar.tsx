@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUser, useClerk, UserButton } from '@clerk/nextjs';
+import { useSidebar } from '@/contexts/SidebarContext';
 import { 
   ChevronDown, 
   ChevronRight,
@@ -67,19 +68,41 @@ export function Sidebar({
   const pathname = usePathname();
   const { user } = useUser();
   const { signOut } = useClerk();
+  const { setSidebarOpen } = useSidebar();
   const [expandedSections, setExpandedSections] = useState<string[]>(['dashboard', 'projects']);
   const [isMobile, setIsMobile] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Sync sidebar state with global context
+  useEffect(() => {
+    setSidebarOpen(isOpen && isMobile);
+  }, [isOpen, isMobile, setSidebarOpen]);
 
   // Check if mobile on mount and resize
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      // On mobile, ensure sidebar starts closed
+      if (mobile && !isMounted && onToggle && isOpen) {
+        onToggle();
+      }
     };
     
     checkMobile();
+    setIsMounted(true);
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Auto-close sidebar on mobile when route changes - immediate close
+  useEffect(() => {
+    if (isMobile && isOpen && onToggle && isMounted) {
+      // Close immediately on route change
+      onToggle();
+    }
+  }, [pathname]); // Only depend on pathname to trigger on route change
 
   // Define menu structure based on roles
   const menuItems: MenuItem[] = [
@@ -221,7 +244,16 @@ export function Sidebar({
   };
 
   const handleNavigation = (path: string) => {
-    router.push(path);
+    setIsAnimating(true);
+    // Close sidebar on mobile before navigation
+    if (isMobile && onToggle) {
+      onToggle();
+    }
+    // Navigate immediately for snappier feel
+    setTimeout(() => {
+      router.push(path);
+      setIsAnimating(false);
+    }, isMobile ? 100 : 0); // Reduced from 300ms to 100ms
   };
 
   const handleSignOut = async () => {
@@ -258,22 +290,70 @@ export function Sidebar({
 
   return (
     <>
-      {/* Mobile Overlay */}
+      {/* Mobile Overlay with smooth fade */}
       {isMobile && isOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden animate-fadeIn"
           onClick={onToggle}
+          style={{
+            animation: 'fadeIn 0.3s ease-out'
+          }}
         />
       )}
       
-      {/* Sidebar */}
+      {/* Global styles for animations */}
+      <style jsx global>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        
+        @keyframes slideIn {
+          from {
+            transform: translateX(-100%);
+          }
+          to {
+            transform: translateX(0);
+          }
+        }
+        
+        @keyframes slideOut {
+          from {
+            transform: translateX(0);
+          }
+          to {
+            transform: translateX(-100%);
+          }
+        }
+        
+        /* Prevent sidebar flash on mobile during initial load */
+        @media (max-width: 767px) {
+          [class*="fixed"][class*="z-50"] {
+            transform: translateX(-100%);
+          }
+        }
+      `}</style>
+      
+      {/* Sidebar with enhanced animations */}
       <div className={`
         ${isMobile ? 'fixed' : 'relative'} 
         ${isMobile && !isOpen ? '-translate-x-full' : 'translate-x-0'}
         ${isMobile ? 'z-50' : 'z-10'}
-        h-screen w-64 bg-gray-900 text-white flex flex-col transition-transform duration-300 ease-in-out
+        h-screen w-64 bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 text-white flex flex-col
+        transition-all duration-300 ease-out
+        ${isMobile ? 'shadow-2xl shadow-emerald-500/20' : ''}
+        ${!isMounted && isMobile ? 'invisible' : 'visible'}
         ${className}
-      `}>
+      `}
+      style={{
+        transform: isMobile && !isOpen ? 'translateX(-100%)' : 'translateX(0)',
+        transition: isMounted ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+        visibility: !isMounted && isMobile ? 'hidden' : 'visible'
+      }}>
         {/* Header */}
         <div className="p-4 border-b border-gray-700">
           <div className="flex items-center justify-between">
@@ -318,11 +398,11 @@ export function Sidebar({
               <div key={item.id}>
                 {/* Parent Item */}
                 <div
-                  className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-all duration-200 ${
                     item.path && isActive(item.path)
-                      ? 'bg-green-600 text-white'
-                      : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                  }`}
+                      ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-500/30'
+                      : 'text-gray-300 hover:bg-gray-800 hover:text-white hover:shadow-md hover:scale-[1.02]'
+                  } ${isAnimating ? 'opacity-50 pointer-events-none' : ''}`}
                   onClick={() => {
                     if (hasChildren && visibleChildren.length > 0) {
                       toggleSection(item.id);
@@ -352,11 +432,11 @@ export function Sidebar({
                     {visibleChildren.map((child) => (
                       <div
                         key={child.id}
-                        className={`flex items-center space-x-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                        className={`flex items-center space-x-3 px-3 py-2 rounded-lg cursor-pointer transition-all duration-200 ${
                           child.path && isActive(child.path)
-                            ? 'bg-green-600 text-white'
-                            : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-                        }`}
+                            ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-md shadow-emerald-500/20'
+                            : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200 hover:translate-x-1'
+                        } ${isAnimating ? 'opacity-50 pointer-events-none' : ''}`}
                         onClick={() => child.path && handleNavigation(child.path)}
                       >
                         {child.icon}

@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Sidebar } from '@/components/layout/Sidebar';
 import {
   CheckCircle,
   XCircle,
@@ -21,13 +22,15 @@ import {
   Clock,
   FileText,
   MessageSquare,
-  Shield
+  Shield,
+  Menu
 } from 'lucide-react';
 
 export default function ProjectApprovalPage() {
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Get current user
   const currentUser = useQuery(api.users.getCurrentUser);
@@ -101,21 +104,43 @@ export default function ProjectApprovalPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-              <CheckCircle className="w-8 h-8 text-emerald-500" />
-              Project Approval
-            </h1>
-            <p className="text-gray-400 mt-2">Review and approve pending project proposals</p>
-          </div>
-          <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 px-4 py-2">
-            {pendingProjects?.length || 0} Pending
-          </Badge>
+    <div className="flex h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 overflow-hidden">
+      {/* Sidebar */}
+      <Sidebar 
+        userRole={currentUser?.userLevel?.name || 'WORKER'}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+      />
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-auto">
+        {/* Mobile Header */}
+        <div className="md:hidden sticky top-0 z-30 bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 flex items-center justify-between p-4">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-lg bg-gray-800 text-white hover:bg-gray-700 transition-colors"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <h1 className="text-lg font-semibold text-white">Project Approval</h1>
+          <div className="w-9" />
         </div>
+
+        <div className="p-4 sm:p-6">
+          <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                  <CheckCircle className="w-8 h-8 text-emerald-500" />
+                  Project Approval
+                </h1>
+                <p className="text-gray-400 mt-2">Review and approve pending project proposals</p>
+              </div>
+              <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 px-4 py-2">
+                {pendingProjects?.length || 0} Pending
+              </Badge>
+            </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Pending Projects List */}
@@ -376,6 +401,8 @@ export default function ProjectApprovalPage() {
                 </CardContent>
               </Card>
             )}
+          </div>
+        </div>
           </div>
         </div>
       </div>

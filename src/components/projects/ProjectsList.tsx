@@ -109,14 +109,14 @@ export function ProjectsList({ projects, userRole, currentUserId }: ProjectsList
 
   if (!projects.length) {
     return (
-      <div className="bg-gray-800 rounded-lg p-12 text-center">
-        <div className="text-gray-400 mb-4">
-          <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-2xl p-8 sm:p-12 text-center border border-gray-700/50">
+        <div className="bg-gray-800/50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="h-10 w-10 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
         </div>
-        <h3 className="text-lg font-medium text-white mb-2">No Projects Found</h3>
-        <p className="text-gray-400 mb-4">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-300 mb-2">No Projects Found</h3>
+        <p className="text-sm text-gray-500">
           {userRole === "WORKER" 
             ? "You haven't been assigned to any projects yet." 
             : "Create your first project to get started."}
@@ -126,26 +126,26 @@ export function ProjectsList({ projects, userRole, currentUserId }: ProjectsList
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
       {projects.map((project) => {
         const daysRemaining = getDaysRemaining(project.endDate);
         const isProjectOverdue = isOverdue(project.endDate) && project.status !== 'completed';
         
         return (
-          <div key={project._id} className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-gray-600 transition-colors">
+          <div key={project._id} className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-md rounded-2xl p-4 sm:p-6 border border-gray-700/50 hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-300">
             {/* Project Header */}
             <div className="flex justify-between items-start mb-4">
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-white mb-2 line-clamp-2">{project.title}</h3>
-                <div className="flex items-center gap-2">
-                  <Badge className={getStatusColor(project.status)} variant="outline">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base sm:text-lg font-bold text-white mb-2 line-clamp-2">{project.title}</h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className={`${getStatusColor(project.status)} text-xs shadow-md`} variant="outline">
                     <div className="flex items-center gap-1">
                       {getStatusIcon(project.status)}
-                      {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+                      <span className="hidden sm:inline">{project.status.charAt(0).toUpperCase() + project.status.slice(1)}</span>
                     </div>
                   </Badge>
                   {isProjectOverdue && (
-                    <Badge className="bg-red-100 text-red-800 border-red-300" variant="outline">
+                    <Badge className="bg-gradient-to-r from-red-500 to-red-600 text-white border-0 text-xs shadow-md animate-pulse">
                       Overdue
                     </Badge>
                   )}
@@ -154,58 +154,52 @@ export function ProjectsList({ projects, userRole, currentUserId }: ProjectsList
             </div>
 
             {/* Project Details */}
-            <p className="text-gray-400 text-sm mb-4 line-clamp-3">{project.description}</p>
+            <p className="text-gray-400 text-xs sm:text-sm mb-4 line-clamp-2">{project.description}</p>
             
-            <div className="space-y-2 mb-4">
-              <div className="flex justify-between text-sm">
+            <div className="grid grid-cols-1 gap-2 mb-4">
+              <div className="flex justify-between text-xs sm:text-sm bg-gray-800/50 rounded-lg p-2">
                 <span className="text-gray-400">Department:</span>
-                <span className="text-white">{project.department}</span>
+                <span className="text-white font-medium truncate ml-2">{project.department}</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs sm:text-sm bg-gray-800/50 rounded-lg p-2">
                 <span className="text-gray-400">Progress:</span>
-                <span className="text-white">{project.progress}%</span>
+                <span className="text-emerald-400 font-semibold">{project.progress}%</span>
               </div>
               {project.budget && (
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-xs sm:text-sm bg-gray-800/50 rounded-lg p-2">
                   <span className="text-gray-400">Budget:</span>
-                  <span className="text-green-400">₱{project.budget.toLocaleString()}</span>
+                  <span className="text-green-400 font-semibold">₱{project.budget.toLocaleString()}</span>
                 </div>
               )}
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs sm:text-sm bg-gray-800/50 rounded-lg p-2">
                 <span className="text-gray-400">Timeline:</span>
-                <span className={`text-white ${isProjectOverdue ? 'text-red-400' : ''}`}>
+                <span className={`font-medium ${isProjectOverdue ? 'text-red-400' : 'text-white'}`}>
                   {daysRemaining > 0 ? `${daysRemaining} days left` : `${Math.abs(daysRemaining)} days overdue`}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-400">Duration:</span>
-                <span className="text-white">
-                  {new Date(project.startDate).toLocaleDateString()} - {new Date(project.endDate).toLocaleDateString()}
                 </span>
               </div>
             </div>
 
             {/* Progress Bar */}
-            <div className="w-full bg-gray-700 rounded-full h-2 mb-4">
+            <div className="w-full bg-gray-700 rounded-full h-2 sm:h-2.5 mb-4 overflow-hidden">
               <div 
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  project.status === 'completed' ? 'bg-green-500' :
-                  project.status === 'active' ? 'bg-blue-500' :
-                  project.status === 'planning' ? 'bg-yellow-500' :
-                  'bg-red-500'
+                className={`h-full rounded-full transition-all duration-500 ${
+                  project.status === 'completed' ? 'bg-gradient-to-r from-green-500 to-green-600' :
+                  project.status === 'active' ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
+                  project.status === 'planning' ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' :
+                  'bg-gradient-to-r from-red-500 to-red-600'
                 }`}
                 style={{ width: `${project.progress}%` }}
               ></div>
             </div>
 
             {/* Actions */}
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center pt-2 border-t border-gray-700/50">
               <Link 
                 href={`/projects/${project._id}`}
-                className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors flex items-center gap-1"
+                className="text-emerald-400 hover:text-emerald-300 text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1 group"
               >
                 View Details
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </Link>
@@ -215,7 +209,7 @@ export function ProjectsList({ projects, userRole, currentUserId }: ProjectsList
                 <div className="flex gap-2">
                   <Button 
                     size="sm" 
-                    className="bg-green-600 hover:bg-green-700 text-xs"
+                    className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-xs shadow-md"
                     onClick={() => handleApproval(project._id, true)}
                     disabled={approvingProject === project._id}
                   >
@@ -223,8 +217,7 @@ export function ProjectsList({ projects, userRole, currentUserId }: ProjectsList
                   </Button>
                   <Button 
                     size="sm" 
-                    variant="destructive" 
-                    className="text-xs"
+                    className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-xs shadow-md"
                     onClick={() => handleApproval(project._id, false)}
                     disabled={approvingProject === project._id}
                   >

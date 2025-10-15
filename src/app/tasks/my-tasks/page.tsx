@@ -185,18 +185,18 @@ export default function MyTasksPage() {
           <div className="max-w-7xl mx-auto space-y-6">
         
         {/* Header with Stats */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-              <CheckSquare className="w-8 h-8 text-emerald-400" />
+            <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-2 sm:gap-3">
+              <CheckSquare className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-400" />
               My Tasks
             </h1>
-            <p className="text-gray-400 mt-1">Track and manage your project tasks</p>
+            <p className="text-sm sm:text-base text-gray-400 mt-1">Track and manage your project tasks</p>
           </div>
           
           <Button
             onClick={() => setShowCreateTask(!showCreateTask)}
-            className="bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700"
+            className="w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-sm sm:text-base"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Task
@@ -204,29 +204,29 @@ export default function MyTasksPage() {
         </div>
 
         {/* Player Stats */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           <Card className="bg-gray-800/50 border-gray-700/50">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-purple-500/20 rounded-lg">
-                  <Star className="w-6 h-6 text-purple-400" />
+            <CardContent className="p-3 sm:p-6">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-2 sm:p-3 bg-purple-500/20 rounded-lg">
+                  <Star className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400" />
                 </div>
                 <div>
-                  <div className="text-sm text-gray-400">Level</div>
-                  <div className="text-2xl font-bold text-white">{level}</div>
+                  <div className="text-xs sm:text-sm text-gray-400">Level</div>
+                  <div className="text-xl sm:text-2xl font-bold text-white">{level}</div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-gray-800/50 border-gray-700/50">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-blue-500/20 rounded-lg">
-                  <Zap className="w-6 h-6 text-blue-400" />
+            <CardContent className="p-3 sm:p-6">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-2 sm:p-3 bg-blue-500/20 rounded-lg">
+                  <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" />
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm text-gray-400">Experience</div>
+                  <div className="text-xs sm:text-sm text-gray-400">Experience</div>
                   <div className="text-lg font-bold text-white">{xp} / {xpToNextLevel} XP</div>
                   <div className="w-full bg-gray-700 rounded-full h-2 mt-1">
                     <div 
@@ -240,28 +240,28 @@ export default function MyTasksPage() {
           </Card>
 
           <Card className="bg-gray-800/50 border-gray-700/50">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-orange-500/20 rounded-lg">
-                  <Flame className="w-6 h-6 text-orange-400" />
+            <CardContent className="p-3 sm:p-6">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-2 sm:p-3 bg-orange-500/20 rounded-lg">
+                  <Flame className="w-5 h-5 sm:w-6 sm:h-6 text-orange-400" />
                 </div>
                 <div>
-                  <div className="text-sm text-gray-400">Streak</div>
-                  <div className="text-2xl font-bold text-white">{streak} days</div>
+                  <div className="text-xs sm:text-sm text-gray-400">Streak</div>
+                  <div className="text-xl sm:text-2xl font-bold text-white">{streak} days</div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-gray-800/50 border-gray-700/50">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-yellow-500/20 rounded-lg">
-                  <Sparkles className="w-6 h-6 text-yellow-400" />
+            <CardContent className="p-3 sm:p-6">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-2 sm:p-3 bg-yellow-500/20 rounded-lg">
+                  <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-400" />
                 </div>
                 <div>
-                  <div className="text-sm text-gray-400">Gold</div>
-                  <div className="text-2xl font-bold text-white">{gold}</div>
+                  <div className="text-xs sm:text-sm text-gray-400">Gold</div>
+                  <div className="text-xl sm:text-2xl font-bold text-white">{gold}</div>
                 </div>
               </div>
             </CardContent>

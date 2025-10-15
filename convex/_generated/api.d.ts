@@ -15,6 +15,7 @@ import type {
 } from "convex/server";
 import type * as adminUserManagement from "../adminUserManagement.js";
 import type * as auditSystem from "../auditSystem.js";
+import type * as backup from "../backup.js";
 import type * as clerk from "../clerk.js";
 import type * as collaboration from "../collaboration.js";
 import type * as crons from "../crons.js";
@@ -53,6 +54,7 @@ import type * as users from "../users.js";
 declare const fullApi: ApiFromModules<{
   adminUserManagement: typeof adminUserManagement;
   auditSystem: typeof auditSystem;
+  backup: typeof backup;
   clerk: typeof clerk;
   collaboration: typeof collaboration;
   crons: typeof crons;

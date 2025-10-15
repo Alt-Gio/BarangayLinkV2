@@ -113,16 +113,108 @@ export default function EventsPage() {
         onToggle={() => setSidebarOpen(!sidebarOpen)}
       />
       <div className="flex-1 overflow-y-auto">
-        {/* Mobile Header */}
-        <div className="md:hidden bg-gray-800 p-4 flex items-center justify-between sticky top-0 z-10">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600 transition-colors"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-          <h1 className="text-lg font-semibold text-white">Events</h1>
-          <div className="w-9" />
+        {/* Mobile Header with Filters */}
+        <div className="md:hidden bg-gray-800 sticky top-0 z-50">
+          {/* Top Bar */}
+          <div className="p-4 flex items-center justify-between">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600 transition-colors"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <h1 className="text-lg font-semibold text-white">Events & Calendar</h1>
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="p-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+          </div>
+          
+          {/* Mobile Search */}
+          <div className="px-4 pb-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search events..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+          </div>
+          
+          {/* Mobile Event Type Filter */}
+          <div className="px-4 pb-3 overflow-x-auto">
+            <div className="flex gap-2">
+              {[
+                { value: "all" as const, label: "All Events", icon: Globe },
+                { value: "meeting" as const, label: "Meetings", icon: MessageSquare },
+                { value: "community" as const, label: "Community", icon: Users },
+                { value: "project" as const, label: "Projects", icon: Briefcase },
+                { value: "emergency" as const, label: "Emergency", icon: AlertTriangle },
+              ].map(({ value, label, icon: Icon }) => (
+                <button
+                  key={value}
+                  onClick={() => setEventType(value)}
+                  className={`px-3 py-2 rounded-lg flex items-center gap-2 whitespace-nowrap transition-all text-sm ${
+                    eventType === value
+                      ? "bg-emerald-600 text-white"
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          {/* Mobile View Mode Switcher */}
+          <div className="px-4 pb-4 flex gap-2">
+            <button
+              onClick={() => setViewMode("month")}
+              className={`flex-1 p-2 rounded-lg transition-all ${
+                viewMode === "month" ? "bg-emerald-600 text-white" : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+              }`}
+            >
+              <Calendar className="w-5 h-5 mx-auto" />
+            </button>
+            <button
+              onClick={() => setViewMode("week")}
+              className={`flex-1 p-2 rounded-lg transition-all ${
+                viewMode === "week" ? "bg-emerald-600 text-white" : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+              }`}
+            >
+              <Calendar className="w-5 h-5 mx-auto" />
+            </button>
+            <button
+              onClick={() => setViewMode("day")}
+              className={`flex-1 p-2 rounded-lg transition-all ${
+                viewMode === "day" ? "bg-emerald-600 text-white" : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+              }`}
+            >
+              <Clock className="w-5 h-5 mx-auto" />
+            </button>
+            <button
+              onClick={() => setViewMode("list")}
+              className={`flex-1 p-2 rounded-lg transition-all ${
+                viewMode === "list" ? "bg-emerald-600 text-white" : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+              }`}
+            >
+              <List className="w-5 h-5 mx-auto" />
+            </button>
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`flex-1 p-2 rounded-lg transition-all ${
+                viewMode === "grid" ? "bg-emerald-600 text-white" : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+              }`}
+            >
+              <Grid className="w-5 h-5 mx-auto" />
+            </button>
+          </div>
         </div>
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       {/* Emergency Banner */}
@@ -145,7 +237,7 @@ export default function EventsPage() {
       ))}
 
       {/* Header */}
-      <div className="bg-white/5 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
+      <div className="hidden md:block bg-white/5 backdrop-blur-md border-b border-white/10 md:sticky md:top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-6">
             <div className="flex items-center justify-between mb-6">
@@ -165,7 +257,7 @@ export default function EventsPage() {
               </Button>
             </div>
 
-            {/* Filters and Search */}
+            {/* Filters and Search - Desktop */}
             <div className="flex flex-col sm:flex-row gap-4">
               {/* Search */}
               <div className="flex-1 relative">
@@ -179,7 +271,7 @@ export default function EventsPage() {
                 />
               </div>
 
-              {/* Event Type Filter */}
+              {/* Event Type Filter - Desktop */}
               <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0">
                 {[
                   { value: "all" as const, label: "All Events", icon: Globe },

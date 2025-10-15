@@ -113,78 +113,92 @@ export default function ProjectsPage() {
           <div className="w-9" />
         </div>
 
-        <div className="p-6">
-          <div className="max-w-7xl mx-auto space-y-6">
+        <div className="p-3 sm:p-6">
+          <div className="max-w-7xl mx-auto space-y-3 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Projects</h1>
-            <p className="text-gray-400">
-              {currentUser.userLevel.name} - {(currentUser as any).department || 'Unassigned'} Department
-            </p>
+        <div className="flex flex-col gap-3 sm:gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-3xl font-bold text-white truncate">Projects</h1>
+              <p className="text-xs sm:text-sm text-gray-400 truncate">
+                {currentUser.userLevel.name} · {(currentUser as any).department || 'Unassigned'}
+              </p>
+            </div>
+            {canCreateProjects && (
+              <button
+                onClick={() => setShowWizard(true)}
+                className="md:hidden p-2 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white rounded-xl shadow-lg"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            )}
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 w-full">
             {/* Pending Approvals Badge for Managers/Admins */}
             {pendingApprovals && pendingApprovals.length > 0 && (
               <Button
                 variant="outline"
                 onClick={() => setActiveView('pending')}
-                className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
+                className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10 text-xs sm:text-sm flex-1 sm:flex-none"
               >
-                <AlertCircle className="w-4 h-4 mr-2" />
-                {pendingApprovals.length} Pending Approval
+                <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{pendingApprovals.length} Pending Approval</span>
+                <span className="sm:hidden">{pendingApprovals.length} Pending</span>
               </Button>
             )}
 
             <ExportButton 
               onExport={handleExport}
-              label="Export Projects"
+              label="Export"
               disabled={!filteredProjects || filteredProjects.length === 0}
+              className="text-xs sm:text-sm flex-1 sm:flex-none min-w-0"
             />
             {canCreateProjects && (
               <Button
                 onClick={() => setShowWizard(true)}
-                className="bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-white"
+                className="hidden md:flex bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-white text-xs sm:text-sm"
               >
-                <Plus className="w-5 h-5 mr-2" />
-                Create Project
+                <Plus className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-2" />
+                <span>Create Project</span>
               </Button>
             )}
           </div>
         </div>
 
         {/* Quick View Tabs */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-2 sm:pb-0">
           <Button
             variant={activeView === 'all' ? 'default' : 'outline'}
             onClick={() => setActiveView('all')}
-            className={activeView === 'all' ? 'bg-blue-600' : ''}
+            className={`text-xs sm:text-sm whitespace-nowrap ${activeView === 'all' ? 'bg-blue-600' : ''}`}
           >
             All Projects
           </Button>
           <Button
             variant={activeView === 'pending' ? 'default' : 'outline'}
             onClick={() => setActiveView('pending')}
-            className={activeView === 'pending' ? 'bg-yellow-600' : ''}
+            className={`text-xs sm:text-sm whitespace-nowrap ${activeView === 'pending' ? 'bg-yellow-600' : ''}`}
           >
-            <Clock className="w-4 h-4 mr-2" />
-            Pending Approval
+            <Clock className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Pending Approval</span>
+            <span className="sm:hidden ml-1">Pending</span>
           </Button>
           <Button
             variant={activeView === 'active' ? 'default' : 'outline'}
             onClick={() => setActiveView('active')}
-            className={activeView === 'active' ? 'bg-emerald-600' : ''}
+            className={`text-xs sm:text-sm whitespace-nowrap ${activeView === 'active' ? 'bg-emerald-600' : ''}`}
           >
             Active
           </Button>
           <Button
             variant={activeView === 'completed' ? 'default' : 'outline'}
             onClick={() => setActiveView('completed')}
-            className={activeView === 'completed' ? 'bg-green-600' : ''}
+            className={`text-xs sm:text-sm whitespace-nowrap ${activeView === 'completed' ? 'bg-green-600' : ''}`}
           >
-            <CheckCircle2 className="w-4 h-4 mr-2" />
-            Completed
+            <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Completed</span>
+            <span className="sm:hidden ml-1">Done</span>
           </Button>
         </div>
 

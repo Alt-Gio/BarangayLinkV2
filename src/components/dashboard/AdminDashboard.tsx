@@ -103,14 +103,14 @@ export function AdminDashboard({ user, permissions }: AdminDashboardProps) {
         
         <div className="p-4 md:p-6 space-y-6">
       {/* System Health Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white">System Administration</h1>
-          <p className="text-gray-400">Overall system health and management overview</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">System Administration</h1>
+          <p className="text-sm sm:text-base text-gray-400">Overall system health and management overview</p>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 bg-green-900/20 rounded-lg border border-green-700">
-          <Activity className="w-5 h-5 text-green-400" />
-          <span className="text-green-400 font-medium">System Healthy</span>
+        <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-green-900/20 rounded-lg border border-green-700">
+          <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
+          <span className="text-sm sm:text-base text-green-400 font-medium">System Healthy</span>
         </div>
       </div>
 
@@ -130,63 +130,63 @@ export function AdminDashboard({ user, permissions }: AdminDashboardProps) {
       )}
 
       {/* System Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
               <div>
-                <p className="text-sm text-gray-400">Total Users</p>
-                <p className="text-3xl font-bold text-white">{systemOverview.totalUsers}</p>
-                <p className="text-sm text-green-400">
+                <p className="text-xs sm:text-sm text-gray-400">Total Users</p>
+                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white">{systemOverview.totalUsers}</p>
+                <p className="text-xs sm:text-sm text-green-400">
                   {systemOverview.activeUsers} currently active
                 </p>
               </div>
-              <Users className="w-12 h-12 text-blue-400" />
+              <Users className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-blue-400" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
               <div>
-                <p className="text-sm text-gray-400">Total Projects</p>
-                <p className="text-3xl font-bold text-white">{systemOverview.totalProjects}</p>
-                <p className="text-sm text-blue-400">
+                <p className="text-xs sm:text-sm text-gray-400">Total Projects</p>
+                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white">{systemOverview.totalProjects}</p>
+                <p className="text-xs sm:text-sm text-blue-400">
                   {systemOverview.activeProjects} active
                 </p>
               </div>
-              <Building2 className="w-12 h-12 text-green-400" />
+              <Building2 className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-green-400" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
               <div>
-                <p className="text-sm text-gray-400">System Tasks</p>
-                <p className="text-3xl font-bold text-white">{systemOverview.totalTasks}</p>
-                <p className="text-sm text-purple-400">
+                <p className="text-xs sm:text-sm text-gray-400">System Tasks</p>
+                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white">{systemOverview.totalTasks}</p>
+                <p className="text-xs sm:text-sm text-purple-400">
                   {systemOverview.totalTasks > 0 ? Math.round((systemOverview.completedTasks / systemOverview.totalTasks) * 100) : 0}% completed
                 </p>
               </div>
-              <CheckSquare className="w-12 h-12 text-purple-400" />
+              <CheckSquare className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-purple-400" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
               <div>
-                <p className="text-sm text-gray-400">Total Budget</p>
-                <p className="text-3xl font-bold text-white">₱{systemOverview.totalBudget.toLocaleString()}</p>
-                <p className="text-sm text-yellow-400">
+                <p className="text-xs sm:text-sm text-gray-400">Total Budget</p>
+                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white">₱{systemOverview.totalBudget.toLocaleString()}</p>
+                <p className="text-xs sm:text-sm text-yellow-400">
                   ₱{systemOverview.totalSpent.toLocaleString()} spent
                 </p>
               </div>
-              <DollarSign className="w-12 h-12 text-yellow-400" />
+              <DollarSign className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-yellow-400" />
             </div>
           </CardContent>
         </Card>
