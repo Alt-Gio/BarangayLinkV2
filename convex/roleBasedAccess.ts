@@ -470,7 +470,7 @@ export const assignTaskToWorker = mutation({
     }
     
     await ctx.db.patch(args.taskId, { 
-      assignedTo: args.workerId 
+      assignedTo: [args.workerId] // Wrap in array for multiple assignment support
     });
     
     // Notify worker
@@ -538,17 +538,20 @@ export const updateMyTaskStatus = mutation({
     
     // Award XP and gold if completed for the first time
     if (args.status === "completed" && oldStatus !== "completed") {
-      const assignedUser = await ctx.db.get(task.assignedTo);
-      if (assignedUser) {
-        await ctx.db.patch(task.assignedTo, {
-          experience: assignedUser.experience + (task.experienceReward || 10),
-          gold: assignedUser.gold + (task.goldReward || 5),
-          totalTasksCompleted: assignedUser.totalTasksCompleted + 1
-        });
+      // Award all assigned users
+      for (const userId of task.assignedTo) {
+        const assignedUser = await ctx.db.get(userId);
+        if (assignedUser) {
+          await ctx.db.patch(userId, {
+            experience: assignedUser.experience + (task.experienceReward || 10),
+            gold: assignedUser.gold + (task.goldReward || 5),
+            totalTasksCompleted: assignedUser.totalTasksCompleted + 1
+          });
+        }
       }
       
-      // Notify task creator
-      if (task.createdBy !== task.assignedTo) {
+      // Notify task creator if not in assignee list
+      if (!task.assignedTo.includes(task.createdBy)) {
         await ctx.db.insert("notifications", {
           userId: task.createdBy,
           type: "success",

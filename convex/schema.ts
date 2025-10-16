@@ -184,7 +184,7 @@ export default defineSchema({
     // Time tracking (for project tasks)
     estimatedHours: v.optional(v.number()),
     actualHours: v.optional(v.number()),
-    assignedTo: v.id("users"), // Who is responsible (can be same as userId for personal tasks)
+    assignedTo: v.array(v.id("users")), // Multiple users can be assigned to a task
     createdBy: v.id("users"),
     // Gamification
     experienceReward: v.number(),
@@ -252,13 +252,27 @@ export default defineSchema({
     maxAttendees: v.optional(v.number()),
     isPublic: v.boolean(),
     requiresApproval: v.boolean(),
-    status: v.union(v.literal("draft"), v.literal("published"), v.literal("cancelled")),
+    allowPublicRSVP: v.optional(v.boolean()), // Allow non-logged-in users to RSVP
+    status: v.union(v.literal("draft"), v.literal("published"), v.literal("cancelled"), v.literal("archived")),
+    projectId: v.optional(v.id("projects")), // Link event to project
+    imageUrl: v.optional(v.string()), // Event image for visual documentation
+    imageDocumentId: v.optional(v.id("documents")), // Link to document library for proper documentation
     attachments: v.array(v.id("documents")),
+    publicAttendees: v.optional(v.array(v.object({
+      firstName: v.string(),
+      lastName: v.string(),
+      phone: v.string(),
+      joinedAt: v.number(),
+    }))), // Track public RSVP attendees
     liveblocksRoom: v.optional(v.string()),
+    archivedAt: v.optional(v.number()),
+    archivedBy: v.optional(v.id("users")),
   })
   .index("by_start_date", ["startDate"])
   .index("by_organizer", ["organizer"])
-  .index("by_type", ["type"]),
+  .index("by_type", ["type"])
+  .index("by_status", ["status"])
+  .index("by_project", ["projectId"]),
 
   // Document management
   documents: defineTable({
@@ -683,4 +697,30 @@ export default defineSchema({
   .index("by_internal_id", ["internalMessageId"])
   .index("by_sync_status", ["syncStatus"])
   .index("by_timestamp", ["timestamp"]),
+
+  // Project Expenses for budget tracking
+  expenses: defineTable({
+    projectId: v.id("projects"),
+    description: v.string(),
+    amount: v.number(), // In Peso (₱)
+    category: v.union(
+      v.literal("materials"),
+      v.literal("labor"),
+      v.literal("equipment"),
+      v.literal("transportation"),
+      v.literal("permits"),
+      v.literal("utilities"),
+      v.literal("other")
+    ),
+    date: v.number(),
+    receiptUrl: v.optional(v.id("_storage")), // Optional receipt image
+    receiptDocId: v.optional(v.id("documents")), // Link to document library
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    notes: v.optional(v.string()),
+  })
+  .index("by_project", ["projectId"])
+  .index("by_category", ["category"])
+  .index("by_date", ["date"])
+  .index("by_created_by", ["createdBy"]),
 });

@@ -61,11 +61,19 @@ export default function OrganizationalChartPage() {
     );
   }
 
-  // Organize users by role
-  const admins = allUsers.filter((u: OrgUser) => u.userLevel?.name === "ADMIN");
-  const managers = allUsers.filter((u: OrgUser) => u.userLevel?.name === "MANAGER");
-  const builders = allUsers.filter((u: OrgUser) => u.userLevel?.name === "BUILDER");
-  const workers = allUsers.filter((u: OrgUser) => u.userLevel?.name === "WORKER");
+  // Organize users by role - check both userLevel and userLevelDetails
+  const admins = allUsers.filter((u: any) => 
+    u.userLevel?.name === "ADMIN" || u.userLevelDetails?.name === "ADMIN"
+  );
+  const managers = allUsers.filter((u: any) => 
+    u.userLevel?.name === "MANAGER" || u.userLevelDetails?.name === "MANAGER"
+  );
+  const builders = allUsers.filter((u: any) => 
+    u.userLevel?.name === "BUILDER" || u.userLevelDetails?.name === "BUILDER"
+  );
+  const workers = allUsers.filter((u: any) => 
+    u.userLevel?.name === "WORKER" || u.userLevelDetails?.name === "WORKER"
+  );
 
   // Group by department
   const departments = [...new Set(allUsers.map((u: OrgUser) => u.department).filter(Boolean))];
@@ -96,12 +104,15 @@ export default function OrganizationalChartPage() {
     }
   };
 
-  const UserCard = ({ user, size = "normal" }: { user: OrgUser; size?: "large" | "normal" | "small" }) => {
+  const UserCard = ({ user, size = "normal" }: { user: any; size?: "large" | "normal" | "small" }) => {
     const cardSizes = {
       large: "w-64 p-4",
       normal: "w-56 p-3",
       small: "w-48 p-2",
     };
+
+    // Get role from either userLevel or userLevelDetails
+    const userRole = user.userLevel?.name || user.userLevelDetails?.name || "WORKER";
 
     return (
       <div className={`${cardSizes[size]} bg-white/10 backdrop-blur-md rounded-xl border border-white/20 hover:bg-white/15 transition-all shadow-lg`}>
@@ -115,13 +126,13 @@ export default function OrganizationalChartPage() {
             <h3 className={`${size === "large" ? "text-base" : "text-sm"} font-semibold text-white truncate`}>
               {user.name}
             </h3>
-            <p className="text-xs text-gray-300 truncate">{user.position || user.userLevel.name}</p>
+            <p className="text-xs text-gray-300 truncate">{user.position || userRole}</p>
           </div>
         </div>
         <div className="mt-2 flex items-center justify-between">
-          <Badge className={`${getRoleColor(user.userLevel.name)} text-white text-xs flex items-center gap-1`}>
-            {getRoleIcon(user.userLevel.name)}
-            {user.userLevel.name}
+          <Badge className={`${getRoleColor(userRole)} text-white text-xs flex items-center gap-1`}>
+            {getRoleIcon(userRole)}
+            {userRole}
           </Badge>
           {user.department && (
             <span className="text-xs text-gray-400 truncate max-w-[100px]">{user.department}</span>

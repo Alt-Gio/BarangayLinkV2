@@ -28,7 +28,12 @@ export default function AnalyticsPage() {
 
   const currentUser = useQuery(api.users.getCurrentUser);
   const projects = useQuery(api.productivity.getProjects, {});
-  const allUsers = useQuery(api.adminUserManagement.getAllUsers, {});
+  // Only load all users if current user is admin (level 4+)
+  const isAdmin = currentUser?.userLevel?.level && currentUser.userLevel.level >= 4;
+  const allUsers = useQuery(
+    api.adminUserManagement.getAllUsers, 
+    isAdmin ? {} : "skip"
+  );
   const departments = useQuery(api.departments.getAllDepartments);
 
   if (isLoaded && !user) {

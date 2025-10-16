@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { 
   X, 
@@ -33,6 +33,12 @@ interface EventDetailsModalProps {
 export function EventDetailsModal({ event, isOpen, onClose }: EventDetailsModalProps) {
   const rsvpToEvent = useMutation(api.events.rsvpToEvent);
   const deleteEvent = useMutation(api.events.deleteEvent);
+  
+  // Get image URL if event has an image
+  const imageUrl = useQuery(
+    api.documents.getFileUrl,
+    event?.imageUrl ? { storageId: event.imageUrl } : "skip"
+  );
   
   const [isRsvping, setIsRsvping] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -103,6 +109,18 @@ export function EventDetailsModal({ event, isOpen, onClose }: EventDetailsModalP
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-gray-900 rounded-2xl border border-white/20 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Event Image (if available) */}
+        {imageUrl && (
+          <div className="relative h-64 overflow-hidden">
+            <img 
+              src={imageUrl} 
+              alt={event.title}
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+          </div>
+        )}
+        
         {/* Header with Event Type */}
         <div className={`bg-gradient-to-r ${typeConfig.gradient} p-6`}>
           <div className="flex items-start justify-between mb-4">

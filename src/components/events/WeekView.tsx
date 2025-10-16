@@ -56,32 +56,35 @@ export function WeekView({ events, onEventClick }: WeekViewProps) {
   const today = new Date().toDateString();
 
   return (
-    <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-sm rounded-2xl border border-white/10 p-6 shadow-2xl">
+      {/* Header - Modern Design */}
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-white">
+          <h2 className="text-3xl font-bold text-white bg-gradient-to-r from-emerald-400 to-emerald-600 bg-clip-text text-transparent">
             {monthNames[weekDays[0].getMonth()]} {weekDays[0].getDate()} - {monthNames[weekDays[6].getMonth()]} {weekDays[6].getDate()}, {weekDays[0].getFullYear()}
           </h2>
-          <p className="text-sm text-gray-400 mt-1">Week View</p>
+          <p className="text-sm text-gray-400 mt-2">Week View • {events.filter(e => {
+            const eventDate = new Date(e.startDate);
+            return eventDate >= weekDays[0] && eventDate <= weekDays[6];
+          }).length} events</p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={goToToday}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+            className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-600 text-white rounded-xl text-sm font-semibold transition-all duration-200 shadow-lg shadow-emerald-500/30 hover:scale-105"
           >
             This Week
           </button>
-          <div className="flex gap-2">
+          <div className="flex gap-2 bg-gray-800/50 p-1 rounded-xl border border-white/10">
             <button
               onClick={() => navigateWeek(-1)}
-              className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+              className="p-2.5 hover:bg-white/10 text-gray-300 hover:text-white rounded-lg transition-all duration-200"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
             <button
               onClick={() => navigateWeek(1)}
-              className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+              className="p-2.5 hover:bg-white/10 text-gray-300 hover:text-white rounded-lg transition-all duration-200"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
@@ -89,8 +92,8 @@ export function WeekView({ events, onEventClick }: WeekViewProps) {
         </div>
       </div>
 
-      {/* Week Grid */}
-      <div className="grid grid-cols-7 gap-2">
+      {/* Week Grid - Modern Design */}
+      <div className="grid grid-cols-7 gap-3">
         {weekDays.map((date, index) => {
           const dateString = date.toDateString();
           const dayEvents = eventsByDate[dateString] || [];
@@ -99,47 +102,77 @@ export function WeekView({ events, onEventClick }: WeekViewProps) {
           return (
             <div
               key={index}
-              className={`min-h-[400px] border border-white/10 rounded-lg p-3 ${
-                isToday ? "bg-emerald-900/30 ring-2 ring-emerald-500" : "bg-white/5"
+              className={`min-h-[450px] border rounded-xl p-4 transition-all duration-200 hover:scale-105 hover:shadow-xl ${
+                isToday 
+                  ? "bg-gradient-to-br from-emerald-900/40 to-emerald-800/20 border-emerald-500/50 ring-2 ring-emerald-500/30 shadow-lg shadow-emerald-500/20" 
+                  : "bg-gradient-to-br from-gray-800/30 to-gray-900/10 border-white/10 hover:border-white/20"
               }`}
             >
-              {/* Day Header */}
-              <div className="text-center mb-3 pb-3 border-b border-white/10">
-                <div className={`text-xs font-medium ${isToday ? "text-emerald-400" : "text-gray-400"} uppercase`}>
+              {/* Day Header - Modern Design */}
+              <div className="text-center mb-4 pb-4 border-b border-white/5">
+                <div className={`text-xs font-bold uppercase tracking-wider ${
+                  isToday ? "text-emerald-400" : "text-gray-400"
+                }`}>
                   {dayNames[date.getDay()]}
                 </div>
-                <div className={`text-2xl font-bold mt-1 ${isToday ? "text-emerald-400" : "text-white"}`}>
+                <div className={`text-3xl font-bold mt-2 ${
+                  isToday ? "text-emerald-400" : "text-white"
+                }`}>
                   {date.getDate()}
                 </div>
+                {dayEvents.length > 0 && (
+                  <div className="mt-2">
+                    <span className="text-xs bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-3 py-1 rounded-full font-semibold shadow-lg shadow-emerald-500/30">
+                      {dayEvents.length} {dayEvents.length === 1 ? 'event' : 'events'}
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {/* Events */}
-              <div className="space-y-2 overflow-y-auto max-h-[320px]">
+              {/* Events - Modern Design */}
+              <div className="space-y-3 overflow-y-auto max-h-[350px] pr-1">
                 {dayEvents.map((event: any) => {
                   const startTime = new Date(event.startDate);
+                  const eventColorMap: Record<string, string> = {
+                    meeting: "bg-gradient-to-r from-blue-600 to-blue-500",
+                    community: "bg-gradient-to-r from-emerald-600 to-emerald-500",
+                    project: "bg-gradient-to-r from-purple-600 to-purple-500",
+                    emergency: "bg-gradient-to-r from-red-600 to-red-500",
+                  };
+                  const eventColor = eventColorMap[event.type] || eventColorMap.community;
+                  
                   return (
                     <div
                       key={event._id}
                       onClick={() => onEventClick(event)}
-                      className={`p-2 rounded-lg cursor-pointer hover:opacity-90 transition-all ${eventTypeColors[event.type]} text-white`}
+                      className={`p-3 rounded-xl cursor-pointer hover:scale-105 transition-all duration-200 ${eventColor} text-white shadow-lg group`}
                     >
-                      <div className="text-xs font-semibold mb-1 flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
+                      <div className="text-xs font-bold mb-2 flex items-center gap-1.5 opacity-90">
+                        <Clock className="w-3.5 h-3.5" />
                         {startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
-                      <div className="text-sm font-medium line-clamp-2 mb-1">
+                      <div className="text-sm font-bold line-clamp-2 mb-2">
                         {event.title}
                       </div>
-                      <div className="text-xs opacity-80 flex items-center gap-1">
+                      <div className="text-xs opacity-80 flex items-center gap-1.5">
                         <MapPin className="w-3 h-3" />
-                        {event.location}
+                        <span className="truncate">{event.location}</span>
                       </div>
+                      {event.attendeeCount > 0 && (
+                        <div className="text-xs opacity-80 flex items-center gap-1.5 mt-2 pt-2 border-t border-white/20">
+                          <Users className="w-3 h-3" />
+                          {event.attendeeCount} attending
+                        </div>
+                      )}
                     </div>
                   );
                 })}
                 {dayEvents.length === 0 && (
-                  <div className="text-center py-8 text-gray-500 text-xs">
-                    No events
+                  <div className="text-center py-12 text-gray-500">
+                    <div className="w-12 h-12 rounded-full bg-gray-700/30 mx-auto mb-3 flex items-center justify-center">
+                      <Clock className="w-6 h-6 text-gray-600" />
+                    </div>
+                    <p className="text-xs">No events</p>
                   </div>
                 )}
               </div>

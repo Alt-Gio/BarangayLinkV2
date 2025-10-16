@@ -130,7 +130,7 @@ export const createTask = mutation({
       completed: false,
       habitScore: undefined,
       createdAt: Date.now(),
-      assignedTo: user._id,
+      assignedTo: [user._id], // Wrap in array for multiple assignment support
       createdBy: user._id,
       experienceReward: reward.xp,
       goldReward: reward.gold,

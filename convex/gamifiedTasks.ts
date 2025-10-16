@@ -22,7 +22,7 @@ export const createTask = mutation({
     type: v.union(v.literal("habit"), v.literal("daily"), v.literal("todo"), v.literal("reward")),
     difficulty: v.union(v.literal("trivial"), v.literal("easy"), v.literal("medium"), v.literal("hard")),
     priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent")),
-    assignedTo: v.id("users"),
+    assignedTo: v.array(v.id("users")), // Allow multiple assignees
     dueDate: v.optional(v.number()),
     estimatedHours: v.optional(v.number()),
     tags: v.array(v.string()),
@@ -60,7 +60,7 @@ export const createTask = mutation({
       priority: args.priority,
       completed: false,
       createdAt: Date.now(),
-      assignedTo: args.assignedTo,
+      assignedTo: args.assignedTo, // Now an array
       createdBy: user._id,
       dueDate: args.dueDate,
       estimatedHours: args.estimatedHours,
@@ -376,11 +376,12 @@ export const getUserStats = query({
       throw new Error("Target user not found");
     }
 
-    // Get user's tasks
-    const userTasks = await ctx.db
+    // Get user's tasks (assignedTo is now an array)
+    const allTasks = await ctx.db
       .query("tasks")
-      .filter((q) => q.eq(q.field("assignedTo"), targetUserId))
       .collect();
+    
+    const userTasks = allTasks.filter(t => t.assignedTo.includes(targetUserId));
 
     const completedTasks = userTasks.filter(t => t.status === "completed");
     const activeTasks = userTasks.filter(t => t.status !== "completed" && t.status !== "cancelled");
@@ -435,12 +436,7 @@ export const getGamifiedTasks = query({
 
     let query = ctx.db.query("tasks");
 
-    if (args.userId) {
-      query = query.filter((q) => q.eq(q.field("assignedTo"), args.userId));
-    } else {
-      query = query.filter((q) => q.eq(q.field("assignedTo"), user._id));
-    }
-
+    // Apply filters that work with Convex queries
     if (args.type) {
       query = query.filter((q) => q.eq(q.field("type"), args.type));
     }
@@ -453,7 +449,11 @@ export const getGamifiedTasks = query({
       query = query.filter((q) => q.eq(q.field("projectId"), args.projectId));
     }
 
-    const tasks = await query.collect();
+    let tasks = await query.collect();
+    
+    // Filter by assignedTo in JavaScript (since it's now an array)
+    const targetUserId = args.userId || user._id;
+    tasks = tasks.filter(t => t.assignedTo.includes(targetUserId));
 
     // Apply limit if provided
     const limitedTasks = args.limit ? tasks.slice(0, args.limit) : tasks;
@@ -462,13 +462,24 @@ export const getGamifiedTasks = query({
     const enrichedTasks = await Promise.all(
       limitedTasks.map(async (task) => {
         const project = task.projectId ? await ctx.db.get(task.projectId) : null;
-        const assignedUser = await ctx.db.get(task.assignedTo);
+        
+        // Get all assigned users (assignedTo is now an array)
+        const assignedUsers = await Promise.all(
+          task.assignedTo.map(userId => ctx.db.get(userId))
+        );
         
         return {
           ...task,
-          project: project ? { title: project.title, status: project.status } : null,
-          assignedUser: assignedUser ? { name: assignedUser.name } : null,
-          totalLoggedHours: task.loggedHours.reduce((sum, log) => sum + log.hours, 0),
+          project: project ? {
+            title: project.title,
+            department: project.department,
+          } : null,
+          assignedUsers: assignedUsers.filter(u => u !== null).map(u => ({
+            _id: u!._id,
+            name: u!.name,
+            imageUrl: u!.imageUrl,
+            level: u!.level,
+          })),
         };
       })
     );
@@ -539,18 +550,21 @@ export const getProjectTasks = query({
       .filter((q) => q.eq(q.field("projectId"), args.projectId))
       .collect();
 
-    // Enrich with user info
+    // Enrich with user info (assignedTo is now an array)
     const enrichedTasks = await Promise.all(
       tasks.map(async (task) => {
-        const assignedUser = await ctx.db.get(task.assignedTo);
+        const assignedUsers = await Promise.all(
+          task.assignedTo.map(userId => ctx.db.get(userId))
+        );
+        
         return {
           ...task,
-          assignedUser: assignedUser ? {
-            _id: assignedUser._id,
-            name: assignedUser.name,
-            imageUrl: assignedUser.imageUrl,
-            level: assignedUser.level,
-          } : null,
+          assignedUsers: assignedUsers.filter(u => u !== null).map(u => ({
+            _id: u!._id,
+            name: u!.name,
+            imageUrl: u!.imageUrl,
+            level: u!.level,
+          })),
         };
       })
     );
@@ -656,11 +670,11 @@ export const updateTaskDifficulty = mutation({
   },
 });
 
-// Assign or reassign task to a user
+// Assign or reassign task to users (multiple allowed)
 export const assignTask = mutation({
   args: {
     taskId: v.id("tasks"),
-    userId: v.id("users"),
+    userIds: v.array(v.id("users")), // Changed to array
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -670,7 +684,7 @@ export const assignTask = mutation({
     if (!task) throw new Error("Task not found");
 
     await ctx.db.patch(args.taskId, {
-      assignedTo: args.userId,
+      assignedTo: args.userIds, // Assign array of users
     });
 
     return args.taskId;
@@ -691,10 +705,12 @@ export const getMyProjectTasks = query({
 
     if (!user) throw new Error("User not found");
 
-    const tasks = await ctx.db
+    const allTasks = await ctx.db
       .query("tasks")
-      .filter((q) => q.eq(q.field("assignedTo"), user._id))
       .collect();
+    
+    // Filter by user (assignedTo is now an array)
+    const tasks = allTasks.filter(t => t.assignedTo.includes(user._id));
 
     // Group by project
     const projectGroups: any = {};

@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { useMutation } from 'convex/react';
+import { useState, useRef, useEffect } from 'react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,12 @@ interface DocumentUploadProps {
 }
 
 export function DocumentUpload({ projectId, taskId, eventId, onUploadComplete, onClose }: DocumentUploadProps) {
+  // Fetch project details if projectId is provided
+  const project = useQuery(
+    api.projects.getProject,
+    projectId ? { projectId } : "skip"
+  );
+
   const [file, setFile] = useState<File | null>(null);
   const [category, setCategory] = useState('General');
   const [description, setDescription] = useState('');
@@ -28,11 +34,34 @@ export function DocumentUpload({ projectId, taskId, eventId, onUploadComplete, o
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [autoLabeled, setAutoLabeled] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const generateUploadUrl = useMutation(api.documents.generateUploadUrl);
   const createDocument = useMutation(api.documents.createDocument);
+
+  // Auto-label documents when projectId is provided
+  useEffect(() => {
+    if (projectId && project && !autoLabeled) {
+      // Set category to Project Documents
+      setCategory('Project Documents');
+      
+      // Set to Internal by default for project documents
+      setAccessLevel('internal');
+      setIsPublic(false);
+      
+      // Auto-add project tags
+      const projectTags = [
+        project.title,
+        project.department || '',
+        'project-document'
+      ].filter(Boolean);
+      
+      setTags(projectTags);
+      setAutoLabeled(true);
+    }
+  }, [projectId, project, autoLabeled]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -132,15 +161,16 @@ export function DocumentUpload({ projectId, taskId, eventId, onUploadComplete, o
 
   const handleReset = () => {
     setFile(null);
-    setCategory('General');
+    setCategory(projectId ? 'Project Documents' : 'General');
     setDescription('');
     setTags([]);
     setTagInput('');
-    setIsPublic(false);
-    setAccessLevel('internal');
+    setIsPublic(projectId ? false : false);
+    setAccessLevel(projectId ? 'internal' : 'internal');
     setUploadProgress(0);
     setSuccess(false);
     setError(null);
+    setAutoLabeled(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -177,6 +207,25 @@ export function DocumentUpload({ projectId, taskId, eventId, onUploadComplete, o
           </button>
         )}
       </div>
+
+      {/* Auto-Label Notice */}
+      {projectId && project && (
+        <div className="mb-4 p-3 bg-emerald-900/20 border border-emerald-500/30 rounded-lg">
+          <div className="flex items-start gap-2">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-emerald-400 font-medium text-sm">
+                Auto-labeling for project: {project.title}
+              </p>
+              <p className="text-emerald-400/70 text-xs mt-1">
+                • Category: Project Documents<br/>
+                • Access: Internal (Team members only)<br/>
+                • Tags: Auto-added with project info
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* File Selection */}
       <div className="space-y-4">
@@ -220,10 +269,10 @@ export function DocumentUpload({ projectId, taskId, eventId, onUploadComplete, o
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="w-full px-3 py-2 bg-gray-800 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
             {categories.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
+              <option key={cat} value={cat} className="bg-gray-800 text-white">{cat}</option>
             ))}
           </select>
         </div>
@@ -273,11 +322,11 @@ export function DocumentUpload({ projectId, taskId, eventId, onUploadComplete, o
           <select
             value={accessLevel}
             onChange={(e) => setAccessLevel(e.target.value as any)}
-            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="w-full px-3 py-2 bg-gray-800 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
-            <option value="public">Public - Anyone can view</option>
-            <option value="internal">Internal - Team members only</option>
-            <option value="restricted">Restricted - Limited access</option>
+            <option value="public" className="bg-gray-800 text-white">Public - Anyone can view</option>
+            <option value="internal" className="bg-gray-800 text-white">Internal - Team members only</option>
+            <option value="restricted" className="bg-gray-800 text-white">Restricted - Limited access</option>
           </select>
         </div>
 

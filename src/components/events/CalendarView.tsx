@@ -64,60 +64,65 @@ export function CalendarView({ events, onEventClick }: CalendarViewProps) {
       days.push(
         <div
           key={day}
-          className={`h-32 p-2 border border-white/10 rounded-lg transition-all hover:bg-white/10 relative overflow-hidden ${
-            isToday ? "bg-emerald-900/30 ring-2 ring-emerald-500" : 
-            isWeekend ? "bg-white/5" : "bg-white/5"
+          className={`h-36 p-3 border rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-xl relative overflow-hidden group cursor-pointer ${
+            isToday 
+              ? "bg-gradient-to-br from-emerald-900/40 to-emerald-800/20 border-emerald-500/50 ring-2 ring-emerald-500/30 shadow-lg shadow-emerald-500/20" 
+              : isWeekend
+              ? "bg-gradient-to-br from-gray-800/40 to-gray-900/20 border-white/5 hover:border-white/20"
+              : "bg-gradient-to-br from-gray-800/30 to-gray-900/10 border-white/10 hover:border-white/20"
           }`}
         >
-          <div className="flex items-center justify-between mb-1">
-            <span className={`text-sm font-semibold ${
+          {/* Day Number */}
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-base font-bold ${
               isToday ? "text-emerald-400" : "text-white"
             }`}>
               {day}
             </span>
             {dayEvents.length > 0 && (
-              <span className="text-xs bg-emerald-600 text-white px-2 py-0.5 rounded-full">
+              <span className="text-xs bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-2.5 py-1 rounded-full font-semibold shadow-lg shadow-emerald-500/30">
                 {dayEvents.length}
               </span>
             )}
           </div>
           
-          <div className="space-y-1 overflow-y-auto max-h-20">
-            {dayEvents.slice(0, 3).map((event: any) => {
-              const eventColor = {
-                meeting: "bg-blue-600",
-                community: "bg-emerald-600",
-                project: "bg-purple-600",
-                emergency: "bg-red-600",
-              }[event.type];
-
-              const eventIcon = {
-                meeting: MessageSquare,
-                community: Users,
-                project: Briefcase,
-                emergency: AlertTriangle,
-              }[event.type];
+          {/* Events List */}
+          <div className="space-y-1.5 overflow-y-auto max-h-20">
+            {dayEvents.slice(0, 2).map((event: any) => {
+              const eventConfigMap: Record<string, { bg: string; icon: any }> = {
+                meeting: { bg: "bg-gradient-to-r from-blue-600 to-blue-500", icon: MessageSquare },
+                community: { bg: "bg-gradient-to-r from-emerald-600 to-emerald-500", icon: Users },
+                project: { bg: "bg-gradient-to-r from-purple-600 to-purple-500", icon: Briefcase },
+                emergency: { bg: "bg-gradient-to-r from-red-600 to-red-500", icon: AlertTriangle },
+              };
+              const eventConfig = eventConfigMap[event.type] || eventConfigMap.community;
               
-              const Icon = eventIcon;
+              const Icon = eventConfig.icon;
 
               return (
                 <div
                   key={event._id}
-                  onClick={() => onEventClick(event)}
-                  className={`text-xs px-2 py-1 rounded cursor-pointer hover:opacity-80 transition-opacity ${eventColor} text-white flex items-center gap-1 truncate`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEventClick(event);
+                  }}
+                  className={`text-xs px-2.5 py-1.5 rounded-lg cursor-pointer hover:scale-105 transition-all duration-200 ${eventConfig.bg} text-white flex items-center gap-1.5 truncate shadow-md`}
                   title={event.title}
                 >
-                  <Icon className="w-3 h-3 flex-shrink-0" />
-                  <span className="truncate">{event.title}</span>
+                  <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="truncate font-medium">{event.title}</span>
                 </div>
               );
             })}
-            {dayEvents.length > 3 && (
-              <div className="text-xs text-gray-400 px-2">
-                +{dayEvents.length - 3} more
+            {dayEvents.length > 2 && (
+              <div className="text-xs text-emerald-400 px-2.5 py-1 bg-emerald-900/30 rounded-lg font-medium border border-emerald-500/20">
+                +{dayEvents.length - 2} more
               </div>
             )}
           </div>
+          
+          {/* Hover Effect Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none rounded-xl"></div>
         </div>
       );
     }
@@ -126,34 +131,37 @@ export function CalendarView({ events, onEventClick }: CalendarViewProps) {
   };
 
   return (
-    <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-6">
-      {/* Calendar Header */}
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-sm rounded-2xl border border-white/10 p-6 shadow-2xl">
+      {/* Calendar Header - Modern Design */}
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-white">
+          <h2 className="text-3xl font-bold text-white bg-gradient-to-r from-emerald-400 to-emerald-600 bg-clip-text text-transparent">
             {monthNames[month]} {year}
           </h2>
-          <p className="text-sm text-gray-400 mt-1">
-            {events.length} events this month
+          <p className="text-sm text-gray-400 mt-2 flex items-center gap-2">
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-600/20 text-emerald-400 text-xs font-semibold">
+              {events.length}
+            </span>
+            events this month
           </p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={goToToday}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+            className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-600 text-white rounded-xl text-sm font-semibold transition-all duration-200 shadow-lg shadow-emerald-500/30 hover:scale-105"
           >
             Today
           </button>
-          <div className="flex gap-2">
+          <div className="flex gap-2 bg-gray-800/50 p-1 rounded-xl border border-white/10">
             <button
               onClick={() => navigateMonth(-1)}
-              className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+              className="p-2.5 hover:bg-white/10 text-gray-300 hover:text-white rounded-lg transition-all duration-200"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
             <button
               onClick={() => navigateMonth(1)}
-              className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+              className="p-2.5 hover:bg-white/10 text-gray-300 hover:text-white rounded-lg transition-all duration-200"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
@@ -161,37 +169,37 @@ export function CalendarView({ events, onEventClick }: CalendarViewProps) {
         </div>
       </div>
 
-      {/* Day Names */}
-      <div className="grid grid-cols-7 gap-2 mb-2">
+      {/* Day Names - Modern Design */}
+      <div className="grid grid-cols-7 gap-3 mb-3">
         {dayNames.map(day => (
-          <div key={day} className="text-center text-sm font-semibold text-gray-400 py-2">
+          <div key={day} className="text-center text-xs font-bold text-emerald-400/80 uppercase tracking-wider py-3 bg-gradient-to-b from-emerald-900/20 to-transparent rounded-t-lg">
             {day}
           </div>
         ))}
       </div>
 
-      {/* Calendar Grid */}
-      <div className="grid grid-cols-7 gap-2">
+      {/* Calendar Grid - Modern Design */}
+      <div className="grid grid-cols-7 gap-3">
         {renderCalendarDays()}
       </div>
 
-      {/* Legend */}
-      <div className="mt-6 flex flex-wrap gap-4 pt-4 border-t border-white/10">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-blue-600"></div>
-          <span className="text-xs text-gray-400">Meetings</span>
+      {/* Legend - Modern Design */}
+      <div className="mt-8 flex flex-wrap gap-4 pt-6 border-t border-white/5">
+        <div className="flex items-center gap-2 px-3 py-2 bg-blue-600/10 border border-blue-500/20 rounded-lg">
+          <div className="w-3 h-3 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/50"></div>
+          <span className="text-xs text-blue-300 font-medium">Meetings</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-emerald-600"></div>
-          <span className="text-xs text-gray-400">Community</span>
+        <div className="flex items-center gap-2 px-3 py-2 bg-emerald-600/10 border border-emerald-500/20 rounded-lg">
+          <div className="w-3 h-3 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/50"></div>
+          <span className="text-xs text-emerald-300 font-medium">Community</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-purple-600"></div>
-          <span className="text-xs text-gray-400">Projects</span>
+        <div className="flex items-center gap-2 px-3 py-2 bg-purple-600/10 border border-purple-500/20 rounded-lg">
+          <div className="w-3 h-3 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg shadow-purple-500/50"></div>
+          <span className="text-xs text-purple-300 font-medium">Projects</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-red-600"></div>
-          <span className="text-xs text-gray-400">Emergency</span>
+        <div className="flex items-center gap-2 px-3 py-2 bg-red-600/10 border border-red-500/20 rounded-lg">
+          <div className="w-3 h-3 rounded-full bg-gradient-to-br from-red-500 to-red-600 shadow-lg shadow-red-500/50"></div>
+          <span className="text-xs text-red-300 font-medium">Emergency</span>
         </div>
       </div>
     </div>

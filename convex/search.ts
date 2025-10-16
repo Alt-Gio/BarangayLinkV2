@@ -193,7 +193,7 @@ export const advancedSearch = query({
       }
       
       if (assignedTo) {
-        tasks = tasks.filter(t => t.assignedTo === assignedTo);
+        tasks = tasks.filter(t => t.assignedTo.includes(assignedTo));
       }
       
       if (dateFrom) {

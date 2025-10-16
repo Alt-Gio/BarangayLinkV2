@@ -30,7 +30,7 @@ export function ProjectEventsTab({ projectId, project }: ProjectEventsTabProps) 
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    type: 'project' as 'project' | 'meeting' | 'milestone' | 'deadline',
+    type: 'project' as 'emergency' | 'meeting' | 'community' | 'project',
     startDate: '',
     endDate: '',
     location: '',
@@ -40,7 +40,6 @@ export function ProjectEventsTab({ projectId, project }: ProjectEventsTabProps) 
 
   const events = useQuery(api.events.getProjectEvents, { projectId });
   const createEvent = useMutation(api.events.createEvent);
-  const attendEvent = useMutation(api.events.attendEvent);
 
   const handleCreateEvent = async () => {
     try {
@@ -48,10 +47,9 @@ export function ProjectEventsTab({ projectId, project }: ProjectEventsTabProps) 
       const endDate = new Date(formData.endDate).getTime();
 
       await createEvent({
-        title: formData.title,
+        title: `[${project.title}] ${formData.title}`,
         description: formData.description,
         type: formData.type,
-        status: 'published',
         startDate,
         endDate,
         location: formData.location || project.location,
@@ -79,13 +77,7 @@ export function ProjectEventsTab({ projectId, project }: ProjectEventsTabProps) 
     }
   };
 
-  const handleAttendEvent = async (eventId: Id<"events">) => {
-    try {
-      await attendEvent({ eventId });
-    } catch (error) {
-      console.error('Error attending event:', error);
-    }
-  };
+  // Note: Attend event functionality can be added later if needed
 
   const getEventTypeColor = (type: string) => {
     switch (type) {
@@ -106,6 +98,21 @@ export function ProjectEventsTab({ projectId, project }: ProjectEventsTabProps) 
 
   return (
     <div className="space-y-6">
+      {/* Info Banner */}
+      <div className="p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+        <div className="flex items-start gap-3">
+          <Calendar className="w-5 h-5 text-blue-400 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="text-blue-400 font-medium text-sm mb-1">
+              Project Events for: {project.title}
+            </h4>
+            <p className="text-blue-400/70 text-xs">
+              Events created here are automatically linked to this project and will appear in the main Events page with a project label.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Create Event Button */}
       {!isCreating && (
         <Button
@@ -169,10 +176,10 @@ export function ProjectEventsTab({ projectId, project }: ProjectEventsTabProps) 
                   onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
                   className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700 rounded-md text-white"
                 >
-                  <option value="project">Project Event</option>
-                  <option value="meeting">Team Meeting</option>
-                  <option value="milestone">Milestone</option>
-                  <option value="deadline">Deadline</option>
+                  <option value="project" className="bg-gray-900 text-white">Project Event</option>
+                  <option value="meeting" className="bg-gray-900 text-white">Team Meeting</option>
+                  <option value="community" className="bg-gray-900 text-white">Community Event</option>
+                  <option value="emergency" className="bg-gray-900 text-white">Emergency</option>
                 </select>
               </div>
 
@@ -270,6 +277,9 @@ export function ProjectEventsTab({ projectId, project }: ProjectEventsTabProps) 
                     <div className="flex items-center gap-3 mb-3">
                       {getStatusIcon(event.status)}
                       <h3 className="text-lg font-semibold text-white">{event.title}</h3>
+                      <Badge className="bg-blue-600 text-white">
+                        📁 {project.title}
+                      </Badge>
                       <Badge className={`${getEventTypeColor(event.type)} capitalize`}>
                         {event.type}
                       </Badge>
@@ -327,13 +337,9 @@ export function ProjectEventsTab({ projectId, project }: ProjectEventsTabProps) 
                     </div>
                   </div>
 
-                  <Button
-                    onClick={() => handleAttendEvent(event._id)}
-                    size="sm"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                  >
-                    Attend
-                  </Button>
+                  <div className="text-sm text-gray-400">
+                    {event.attendeeCount || 0} attending
+                  </div>
                 </div>
               </CardContent>
             </Card>

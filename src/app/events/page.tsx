@@ -19,7 +19,9 @@ import {
   Briefcase,
   MessageSquare,
   Globe,
-  Menu
+  Menu,
+  Download,
+  FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -29,6 +31,7 @@ import { DayView } from "@/components/events/DayView";
 import { EventsList } from "@/components/events/EventsList";
 import { EventCard } from "@/components/events/EventCard";
 import { CreateEventModal } from "@/components/events/CreateEventModal";
+import { EditEventModal } from "@/components/events/EditEventModal";
 import { EventDetailsModal } from "@/components/events/EventDetailsModal";
 import { EmergencyAlert, EmergencyBanner } from "@/components/events/EmergencyAlert";
 import { useEffect } from "react";
@@ -42,16 +45,22 @@ export default function EventsPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   
-  const [viewMode, setViewMode] = useState<ViewMode>("month");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [eventType, setEventType] = useState<EventType>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [editingEvent, setEditingEvent] = useState<any>(null);
   const [emergencyAlerts, setEmergencyAlerts] = useState<any[]>([]);
   const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
   
   const currentUser = useQuery(api.users.getCurrentUser);
+  
+  // Mutations for event actions
+  const archiveEvent = useMutation(api.events.archiveEvent);
+  const restoreEvent = useMutation(api.events.restoreEvent);
+  const deleteEvent = useMutation(api.events.deleteEvent);
   
   const events = useQuery(api.events.getAllEvents, {
     type: eventType === "all" ? undefined : eventType,
@@ -59,6 +68,7 @@ export default function EventsPage() {
   });
 
   const upcomingEvents = useQuery(api.events.getUpcomingEvents, { limit: 10 });
+  const exportData = useQuery(api.events.getEventsForExport, {});
 
   // Check for emergency events
   useEffect(() => {
@@ -95,6 +105,33 @@ export default function EventsPage() {
     event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
     event.location.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
+
+  // Export functions
+  const exportToCSV = () => {
+    if (!exportData) return;
+    
+    const headers = ['Title', 'Type', 'Status', 'Start Date', 'End Date', 'Location', 'Organizer', 'Attendees'];
+    const rows = exportData.map(e => [
+      e.title,
+      e.type,
+      e.status,
+      new Date(e.startDate).toLocaleString(),
+      new Date(e.endDate).toLocaleString(),
+      e.location,
+      e.organizer,
+      e.attendeeCount.toString()
+    ]);
+    
+    const csv = [headers, ...rows]
+      .map(row => row.map(cell => `"${cell}"`).join(','))
+      .join('\\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `events-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  };
 
   const eventTypeColors: Record<string, { bg: string; text: string; icon: any }> = {
     meeting: { bg: "bg-blue-100 dark:bg-blue-900/30", text: "text-blue-700 dark:text-blue-400", icon: MessageSquare },
@@ -172,47 +209,25 @@ export default function EventsPage() {
             </div>
           </div>
           
-          {/* Mobile View Mode Switcher */}
-          <div className="px-4 pb-4 flex gap-2">
-            <button
-              onClick={() => setViewMode("month")}
-              className={`flex-1 p-2 rounded-lg transition-all ${
-                viewMode === "month" ? "bg-emerald-600 text-white" : "bg-gray-700 text-gray-400 hover:bg-gray-600"
-              }`}
-            >
-              <Calendar className="w-5 h-5 mx-auto" />
-            </button>
-            <button
-              onClick={() => setViewMode("week")}
-              className={`flex-1 p-2 rounded-lg transition-all ${
-                viewMode === "week" ? "bg-emerald-600 text-white" : "bg-gray-700 text-gray-400 hover:bg-gray-600"
-              }`}
-            >
-              <Calendar className="w-5 h-5 mx-auto" />
-            </button>
-            <button
-              onClick={() => setViewMode("day")}
-              className={`flex-1 p-2 rounded-lg transition-all ${
-                viewMode === "day" ? "bg-emerald-600 text-white" : "bg-gray-700 text-gray-400 hover:bg-gray-600"
-              }`}
-            >
-              <Clock className="w-5 h-5 mx-auto" />
-            </button>
+          {/* Mobile View Mode Switcher - ONLY List and Grid */}
+          <div className="px-4 pb-4 flex gap-3">
             <button
               onClick={() => setViewMode("list")}
-              className={`flex-1 p-2 rounded-lg transition-all ${
+              className={`flex-1 p-3 rounded-xl transition-all flex items-center justify-center gap-2 font-medium ${
                 viewMode === "list" ? "bg-emerald-600 text-white" : "bg-gray-700 text-gray-400 hover:bg-gray-600"
               }`}
             >
-              <List className="w-5 h-5 mx-auto" />
+              <List className="w-5 h-5" />
+              <span>List</span>
             </button>
             <button
               onClick={() => setViewMode("grid")}
-              className={`flex-1 p-2 rounded-lg transition-all ${
+              className={`flex-1 p-3 rounded-xl transition-all flex items-center justify-center gap-2 font-medium ${
                 viewMode === "grid" ? "bg-emerald-600 text-white" : "bg-gray-700 text-gray-400 hover:bg-gray-600"
               }`}
             >
-              <Grid className="w-5 h-5 mx-auto" />
+              <Grid className="w-5 h-5" />
+              <span>Grid</span>
             </button>
           </div>
         </div>
@@ -236,71 +251,84 @@ export default function EventsPage() {
         </div>
       ))}
 
-      {/* Header */}
-      <div className="hidden md:block bg-white/5 backdrop-blur-md border-b border-white/10 md:sticky md:top-0 z-40">
+      {/* Header - Modern Design */}
+      <div className="hidden md:block bg-gradient-to-r from-gray-800/95 via-gray-800/90 to-gray-900/95 backdrop-blur-xl border-b border-emerald-500/20 md:sticky md:top-0 z-40 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-6">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                  <Calendar className="w-8 h-8 text-emerald-500" />
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-400 to-emerald-600 bg-clip-text text-transparent flex items-center gap-3">
+                  <div className="p-2 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-lg shadow-emerald-500/30">
+                    <Calendar className="w-7 h-7 text-white" />
+                  </div>
                   Events & Calendar
                 </h1>
-                <p className="text-gray-400 mt-1">Manage and explore community events</p>
+                <p className="text-gray-400 mt-2 text-sm font-medium">Manage and explore community events</p>
               </div>
-              <Button
-                onClick={() => setIsCreateModalOpen(true)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-all hover:scale-105"
-              >
-                <Plus className="w-5 h-5" />
-                Create Event
-              </Button>
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={exportToCSV}
+                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white px-5 py-3 rounded-xl flex items-center gap-2 transition-all duration-200 hover:scale-105 shadow-lg shadow-blue-500/30 font-semibold"
+                >
+                  <Download className="w-5 h-5" />
+                  <span className="hidden lg:inline">Export CSV</span>
+                </Button>
+                <Button
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white px-6 py-3 rounded-xl flex items-center gap-2 transition-all duration-200 hover:scale-105 shadow-lg shadow-emerald-500/30 font-semibold"
+                >
+                  <Plus className="w-5 h-5" />
+                  Create Event
+                </Button>
+              </div>
             </div>
 
-            {/* Filters and Search - Desktop */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              {/* Search */}
+            {/* Filters and Search - Clean Icon Design */}
+            <div className="flex items-center gap-4">
+              {/* Icon-Only Filter Buttons */}
+              <div className="flex gap-2">
+                {[
+                  { value: "all" as const, icon: Globe, tooltip: "All Events" },
+                  { value: "meeting" as const, icon: MessageSquare, tooltip: "Meetings" },
+                  { value: "community" as const, icon: Users, tooltip: "Community" },
+                  { value: "project" as const, icon: Briefcase, tooltip: "Projects" },
+                  { value: "emergency" as const, icon: AlertTriangle, tooltip: "Emergency" },
+                ].map(({ value, icon: Icon, tooltip }) => (
+                  <button
+                    key={value}
+                    onClick={() => setEventType(value)}
+                    title={tooltip}
+                    className={`p-3.5 rounded-xl transition-all duration-200 ${
+                      eventType === value
+                        ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/40 scale-110"
+                        : "bg-gray-700/60 text-gray-400 hover:bg-gray-700 hover:text-white border border-gray-600 hover:border-emerald-500/50"
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </button>
+                ))}
+              </div>
+
+              {/* Larger Search Bar */}
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-emerald-400" />
                 <input
                   type="text"
                   placeholder="Search events..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full pl-14 pr-5 py-4 text-lg bg-gray-700/50 border-2 border-gray-600 hover:border-emerald-500/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all shadow-inner"
                 />
               </div>
 
-              {/* Event Type Filter - Desktop */}
-              <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0">
-                {[
-                  { value: "all" as const, label: "All Events", icon: Globe },
-                  { value: "meeting" as const, label: "Meetings", icon: MessageSquare },
-                  { value: "community" as const, label: "Community", icon: Users },
-                  { value: "project" as const, label: "Projects", icon: Briefcase },
-                  { value: "emergency" as const, label: "Emergency", icon: AlertTriangle },
-                ].map(({ value, label, icon: Icon }) => (
-                  <button
-                    key={value}
-                    onClick={() => setEventType(value)}
-                    className={`px-4 py-2 rounded-lg flex items-center gap-2 whitespace-nowrap transition-all ${
-                      eventType === value
-                        ? "bg-emerald-600 text-white"
-                        : "bg-white/10 text-gray-300 hover:bg-white/20"
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              {/* View Mode Switcher */}
-              <div className="flex gap-1 bg-white/10 p-1 rounded-lg">
+              {/* View Mode Switcher - Modern Design */}
+              <div className="flex gap-1 bg-gradient-to-r from-gray-800/80 to-gray-800/60 backdrop-blur-sm p-1 rounded-xl border border-white/10 shadow-lg">
                 <button
                   onClick={() => setViewMode("month")}
-                  className={`px-3 py-2 rounded transition-all text-sm font-medium flex items-center gap-2 ${
-                    viewMode === "month" ? "bg-emerald-600 text-white" : "text-gray-400 hover:text-white hover:bg-white/10"
+                  className={`px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-semibold flex items-center gap-2 ${
+                    viewMode === "month" 
+                      ? "bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-500/30" 
+                      : "text-gray-300 hover:text-white hover:bg-white/10"
                   }`}
                 >
                   <Calendar className="w-4 h-4" />
@@ -308,8 +336,10 @@ export default function EventsPage() {
                 </button>
                 <button
                   onClick={() => setViewMode("week")}
-                  className={`px-3 py-2 rounded transition-all text-sm font-medium flex items-center gap-2 ${
-                    viewMode === "week" ? "bg-emerald-600 text-white" : "text-gray-400 hover:text-white hover:bg-white/10"
+                  className={`px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-semibold flex items-center gap-2 ${
+                    viewMode === "week" 
+                      ? "bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-500/30" 
+                      : "text-gray-300 hover:text-white hover:bg-white/10"
                   }`}
                 >
                   <Calendar className="w-4 h-4" />
@@ -317,8 +347,10 @@ export default function EventsPage() {
                 </button>
                 <button
                   onClick={() => setViewMode("day")}
-                  className={`px-3 py-2 rounded transition-all text-sm font-medium flex items-center gap-2 ${
-                    viewMode === "day" ? "bg-emerald-600 text-white" : "text-gray-400 hover:text-white hover:bg-white/10"
+                  className={`px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-semibold flex items-center gap-2 ${
+                    viewMode === "day" 
+                      ? "bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-500/30" 
+                      : "text-gray-300 hover:text-white hover:bg-white/10"
                   }`}
                 >
                   <Clock className="w-4 h-4" />
@@ -326,8 +358,10 @@ export default function EventsPage() {
                 </button>
                 <button
                   onClick={() => setViewMode("list")}
-                  className={`px-3 py-2 rounded transition-all text-sm font-medium flex items-center gap-2 ${
-                    viewMode === "list" ? "bg-emerald-600 text-white" : "text-gray-400 hover:text-white hover:bg-white/10"
+                  className={`px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-semibold flex items-center gap-2 ${
+                    viewMode === "list" 
+                      ? "bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-500/30" 
+                      : "text-gray-300 hover:text-white hover:bg-white/10"
                   }`}
                 >
                   <List className="w-4 h-4" />
@@ -335,8 +369,10 @@ export default function EventsPage() {
                 </button>
                 <button
                   onClick={() => setViewMode("grid")}
-                  className={`px-3 py-2 rounded transition-all text-sm font-medium flex items-center gap-2 ${
-                    viewMode === "grid" ? "bg-emerald-600 text-white" : "text-gray-400 hover:text-white hover:bg-white/10"
+                  className={`px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-semibold flex items-center gap-2 ${
+                    viewMode === "grid" 
+                      ? "bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-500/30" 
+                      : "text-gray-300 hover:text-white hover:bg-white/10"
                   }`}
                 >
                   <Grid className="w-4 h-4" />
@@ -378,14 +414,38 @@ export default function EventsPage() {
               />
             )}
             {viewMode === "grid" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredEvents.map(event => (
-                  <EventCard 
-                    key={event._id} 
-                    event={event} 
-                    onClick={() => setSelectedEvent(event)}
-                  />
-                ))}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredEvents.map(event => {
+                  const isOrganizer = event.organizer === currentUser?._id;
+                  const isAdmin = currentUser?.userLevel?.level && currentUser.userLevel.level >= 4;
+                  
+                  return (
+                    <EventCard 
+                      key={event._id} 
+                      event={event} 
+                      onClick={() => setSelectedEvent(event)}
+                      onEdit={(e) => setEditingEvent(e)}
+                      onArchive={async (id) => {
+                        if (confirm('Archive this event?')) {
+                          await archiveEvent({ eventId: id as any });
+                        }
+                      }}
+                      onRestore={async (id) => {
+                        if (confirm('Restore this event?')) {
+                          await restoreEvent({ eventId: id as any });
+                        }
+                      }}
+                      onDelete={async (id) => {
+                        if (confirm('Permanently delete this event? This cannot be undone.')) {
+                          await deleteEvent({ eventId: id as any });
+                        }
+                      }}
+                      projectName={(event as any).projectName}
+                      isOrganizer={isOrganizer}
+                      isAdmin={Boolean(isAdmin)}
+                    />
+                  );
+                })}
                 {filteredEvents.length === 0 && (
                   <div className="col-span-2 text-center py-12 text-gray-400">
                     <Calendar className="w-16 h-16 mx-auto mb-4 opacity-50" />
@@ -449,6 +509,14 @@ export default function EventsPage() {
         <CreateEventModal
           isOpen={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
+        />
+      )}
+      
+      {editingEvent && (
+        <EditEventModal
+          event={editingEvent}
+          isOpen={!!editingEvent}
+          onClose={() => setEditingEvent(null)}
         />
       )}
       

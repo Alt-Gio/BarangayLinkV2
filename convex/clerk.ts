@@ -21,6 +21,9 @@ export const fulfillClerkWebhook = httpAction(async (ctx, request) => {
       "svix-signature": headerPayload.get("svix-signature")!,
     }) as WebhookEvent;
     
+    // DEBUG: Log which webhook event we received
+    console.log("🎯 CLERK WEBHOOK EVENT:", result.type, "for user:", result.data.id);
+    
     switch (result.type) {
       case "user.created":
       case "user.updated":

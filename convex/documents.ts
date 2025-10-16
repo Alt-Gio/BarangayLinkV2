@@ -224,8 +224,21 @@ export const deleteDocument = mutation({
       throw new Error("Permission denied. Only document owner or admin can delete.");
     }
 
-    // Delete the file from storage
-    await ctx.storage.delete(document.storageId);
+    // Delete the file from storage (only if it's a real storage ID)
+    // Skip for attendance docs and old RSVP docs with fake storage IDs
+    const hasRealStorage = document.storageId && 
+                          !document.storageId.startsWith('rsvp-') && 
+                          !document.storageId.startsWith('attendance-') &&
+                          document.storageId !== 'public-rsvp';
+    
+    if (hasRealStorage) {
+      try {
+        await ctx.storage.delete(document.storageId);
+      } catch (error) {
+        // If storage delete fails, continue with document deletion
+        console.log('Storage delete failed, continuing:', error);
+      }
+    }
 
     // Delete the document record
     await ctx.db.delete(documentId);

@@ -98,6 +98,15 @@ export const updateProjectDetails = mutation({
   }
 });
 
+// Get single project by ID
+export const getProject = query({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    return project;
+  },
+});
+
 // Get project team members with full details
 export const getProjectTeamMembers = query({
   args: { projectId: v.id("projects") },

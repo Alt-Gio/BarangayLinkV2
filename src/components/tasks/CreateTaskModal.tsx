@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
-import { X, Plus, Target, Calendar, Repeat, TrendingUp, Gift } from "lucide-react";
+import { X, Plus, Target, Calendar, Repeat, TrendingUp, Gift, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface CreateTaskModalProps {
@@ -29,11 +29,19 @@ export function CreateTaskModal({ isOpen, onClose, defaultProjectId }: CreateTas
     positiveHabit: true,
     isBlocking: false,
     projectId: defaultProjectId || undefined,
+    assignedTo: [] as Id<"users">[],
   });
 
   const [newTag, setNewTag] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  // Get current user and team members if project is selected
+  const currentUser = useQuery(api.users.getCurrentUser);
+  const teamMembers = useQuery(
+    api.users.getProjectTeamMembers,
+    formData.projectId ? { projectId: formData.projectId } : "skip"
+  );
 
   if (!isOpen) return null;
 
@@ -47,8 +55,12 @@ export function CreateTaskModal({ isOpen, onClose, defaultProjectId }: CreateTas
         throw new Error("Please enter a task title");
       }
 
-      const identity = await window.Clerk?.session?.user;
-      if (!identity) throw new Error("Not authenticated");
+      if (!currentUser) throw new Error("Not authenticated");
+
+      // Use selected team members or default to current user
+      const assignedUsers = formData.assignedTo.length > 0
+        ? formData.assignedTo
+        : [currentUser._id];
 
       await createTask({
         title: formData.title,
@@ -56,7 +68,7 @@ export function CreateTaskModal({ isOpen, onClose, defaultProjectId }: CreateTas
         type: formData.type,
         difficulty: formData.difficulty,
         priority: formData.priority,
-        assignedTo: identity.id as any,
+        assignedTo: assignedUsers,
         dueDate: formData.dueDate ? new Date(formData.dueDate).getTime() : undefined,
         estimatedHours: formData.estimatedHours,
         tags: formData.tags,
@@ -82,6 +94,7 @@ export function CreateTaskModal({ isOpen, onClose, defaultProjectId }: CreateTas
         positiveHabit: true,
         isBlocking: false,
         projectId: defaultProjectId || undefined,
+        assignedTo: [],
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create task");
@@ -185,12 +198,12 @@ export function CreateTaskModal({ isOpen, onClose, defaultProjectId }: CreateTas
               <select
                 value={formData.difficulty}
                 onChange={(e) => setFormData({ ...formData, difficulty: e.target.value as any })}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
-                <option value="trivial">Trivial (5 XP, 2 Gold)</option>
-                <option value="easy">Easy (10 XP, 5 Gold)</option>
-                <option value="medium">Medium (20 XP, 10 Gold)</option>
-                <option value="hard">Hard (40 XP, 20 Gold)</option>
+                <option value="trivial" className="bg-gray-900 text-white">Trivial (5 XP, 2 Gold)</option>
+                <option value="easy" className="bg-gray-900 text-white">Easy (10 XP, 5 Gold)</option>
+                <option value="medium" className="bg-gray-900 text-white">Medium (20 XP, 10 Gold)</option>
+                <option value="hard" className="bg-gray-900 text-white">Hard (40 XP, 20 Gold)</option>
               </select>
             </div>
 
@@ -199,12 +212,12 @@ export function CreateTaskModal({ isOpen, onClose, defaultProjectId }: CreateTas
               <select
                 value={formData.priority}
                 onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="urgent">Urgent</option>
+                <option value="low" className="bg-gray-900 text-white">Low</option>
+                <option value="medium" className="bg-gray-900 text-white">Medium</option>
+                <option value="high" className="bg-gray-900 text-white">High</option>
+                <option value="urgent" className="bg-gray-900 text-white">Urgent</option>
               </select>
             </div>
           </div>
@@ -231,11 +244,11 @@ export function CreateTaskModal({ isOpen, onClose, defaultProjectId }: CreateTas
                 <select
                   value={formData.habitFrequency}
                   onChange={(e) => setFormData({ ...formData, habitFrequency: e.target.value as any })}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
+                  <option value="daily" className="bg-gray-900 text-white">Daily</option>
+                  <option value="weekly" className="bg-gray-900 text-white">Weekly</option>
+                  <option value="monthly" className="bg-gray-900 text-white">Monthly</option>
                 </select>
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
@@ -247,6 +260,50 @@ export function CreateTaskModal({ isOpen, onClose, defaultProjectId }: CreateTas
                 />
                 <span className="text-sm text-gray-300">Positive habit (rewards for doing it)</span>
               </label>
+            </div>
+          )}
+
+          {/* Team Member Assignment (for project tasks) */}
+          {formData.projectId && teamMembers && teamMembers.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-3">
+                <Users className="w-4 h-4 inline mr-2" />
+                Assign to Team Members
+              </label>
+              <div className="space-y-2 max-h-48 overflow-y-auto bg-gray-800/50 rounded-lg p-3 border border-gray-700">
+                {teamMembers.map((member) => (
+                  <label
+                    key={member._id}
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formData.assignedTo.includes(member._id)}
+                      onChange={(e) => {
+                        const newAssigned = e.target.checked
+                          ? [...formData.assignedTo, member._id]
+                          : formData.assignedTo.filter(id => id !== member._id);
+                        setFormData({ ...formData, assignedTo: newAssigned });
+                      }}
+                      className="w-4 h-4 rounded border-gray-600 text-emerald-600 focus:ring-emerald-500 focus:ring-offset-gray-900"
+                    />
+                    <img
+                      src={member.imageUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${member.name}`}
+                      alt={member.name}
+                      className="w-8 h-8 rounded-full border-2 border-gray-700"
+                    />
+                    <div className="flex-1">
+                      <p className="text-white font-medium text-sm">{member.name}</p>
+                      <p className="text-gray-400 text-xs">{member.position || member.department}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              {formData.assignedTo.length > 0 && (
+                <p className="text-sm text-emerald-400 mt-2">
+                  ✓ {formData.assignedTo.length} team member(s) selected
+                </p>
+              )}
             </div>
           )}
 

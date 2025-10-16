@@ -17,6 +17,7 @@ import { ProjectApprovalCard } from '@/components/projects/ProjectApprovalCard';
 import { ProjectEventsTab } from '@/components/projects/ProjectEventsTab';
 import { ProjectTeamTab } from '@/components/projects/ProjectTeamTab';
 import { ProjectSettingsTab } from '@/components/projects/ProjectSettingsTab';
+import { ProjectBudgetTab } from '@/components/projects/ProjectBudgetTab';
 import { DocumentUpload } from '@/components/documents/DocumentUpload';
 import { DocumentList } from '@/components/documents/DocumentList';
 import { 
@@ -346,12 +347,13 @@ export default function ProjectPage({ params }: ProjectPageProps) {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 bg-gray-800/50 border border-gray-700/50">
+          <TabsList className="grid w-full grid-cols-7 bg-gray-800/50 border border-gray-700/50">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="tasks">Tasks</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="events">Events</TabsTrigger>
             <TabsTrigger value="team">Team</TabsTrigger>
+            <TabsTrigger value="budget">Budget</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
@@ -411,24 +413,50 @@ export default function ProjectPage({ params }: ProjectPageProps) {
               {/* Upcoming Events */}
               <Card className="bg-gray-800/50 border-gray-700/50">
                 <CardHeader>
-                  <CardTitle className="text-white">Upcoming Events</CardTitle>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-emerald-500" />
+                    Upcoming Project Events
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {events && events.length > 0 ? (
-                    <div className="space-y-3">
-                      {events.slice(0, 3).map((event: any) => (
-                        <div key={event._id} className="p-3 bg-gray-900/50 rounded-lg">
-                          <div className="font-medium text-white">{event.title}</div>
-                          <div className="text-xs text-gray-400 mt-1">
-                            <Calendar className="w-3 h-3 inline mr-1" />
-                            {new Date(event.startDate).toLocaleDateString()}
+                  {(() => {
+                    const now = Date.now();
+                    const upcomingEvents = events?.filter((event: any) => event.startDate > now)
+                      .sort((a: any, b: any) => a.startDate - b.startDate)
+                      .slice(0, 3) || [];
+                    
+                    return upcomingEvents.length > 0 ? (
+                      <div className="space-y-3">
+                        {upcomingEvents.map((event: any) => (
+                          <div key={event._id} className="p-3 bg-gray-900/50 rounded-lg hover:bg-gray-900/70 transition-colors border border-gray-700/50">
+                            <div className="font-medium text-white">{event.title}</div>
+                            <div className="flex items-center gap-3 text-xs text-gray-400 mt-2">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {new Date(event.startDate).toLocaleDateString()}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {new Date(event.startDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            {event.location && (
+                              <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                {event.location}
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-sm">No upcoming events</p>
-                  )}
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-6">
+                        <Calendar className="w-10 h-10 text-gray-600 mx-auto mb-2" />
+                        <p className="text-gray-500 text-sm">No upcoming events</p>
+                        <p className="text-gray-600 text-xs mt-1">Create events in the Events tab</p>
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             </div>
@@ -497,6 +525,13 @@ export default function ProjectPage({ params }: ProjectPageProps) {
               projectId={id as Id<"projects">} 
               project={project}
               currentUser={currentUser}
+            />
+          </TabsContent>
+
+          <TabsContent value="budget">
+            <ProjectBudgetTab 
+              projectId={id as Id<"projects">} 
+              projectBudget={project.budget || 0}
             />
           </TabsContent>
 

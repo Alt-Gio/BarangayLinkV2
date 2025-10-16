@@ -251,7 +251,7 @@ export const getManagerDashboard = query({
 
     // Calculate team performance
     const teamPerformance = departmentUsers.map(user => {
-      const userTasks = relevantTasks.filter(t => t.assignedTo === user._id);
+      const userTasks = relevantTasks.filter(t => t.assignedTo.includes(user._id));
       const completedTasks = userTasks.filter(t => t.status === "completed");
       
       return {

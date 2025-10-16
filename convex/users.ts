@@ -120,33 +120,67 @@ export const createOrUpdateFromClerk = internalMutation({
   handler: async (ctx, { data }) => {
     const user = data;
     
+    // DEBUG: Log the entire user object to see what we're receiving
+    console.log("🔍 WEBHOOK RECEIVED - Full user data:", JSON.stringify({
+      id: user.id,
+      email: user.email_addresses?.[0]?.email_address,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      unsafeMetadata: user.unsafe_metadata,
+      publicMetadata: user.public_metadata,
+    }, null, 2));
+    
     // Check if user already exists
     const existingUser = await ctx.db
       .query("users")
       .filter((q) => q.eq(q.field("clerkId"), user.id))
       .first();
 
-    // Get role from user metadata
+    // Get role from user metadata - THIS DETERMINES THE ACTUAL USER LEVEL
     const userRole = user.unsafe_metadata?.role;
+    const department = user.unsafe_metadata?.department;
+    const jobTitle = user.unsafe_metadata?.jobTitle;
+    const phone = user.unsafe_metadata?.phone;
 
-    // Get appropriate user level based on role
-    let selectedUserLevel = await ctx.db
-      .query("userLevels")
-      .filter((q) => q.eq(q.field("name"), "WORKER"))
-      .first();
+    // DEBUG: Log what we extracted
+    console.log("📋 EXTRACTED DATA:", {
+      userRole,
+      department,
+      jobTitle,
+      phone,
+      existingUser: !!existingUser
+    });
+
+    // IMPORTANT: Only use defaults if user has NOT provided data during registration
+    // If user selected a role, use that exact role - don't default to WORKER
+    let selectedUserLevel = null;
 
     if (userRole && typeof userRole === 'string') {
+      // User selected a role during registration - use their choice
+      console.log("🔎 Looking for role:", userRole.toUpperCase());
       const roleLevel = await ctx.db
         .query("userLevels")
         .filter((q) => q.eq(q.field("name"), userRole.toUpperCase()))
         .first();
       if (roleLevel) {
         selectedUserLevel = roleLevel;
+        console.log("✅ Found role level:", roleLevel.name, "- Level", roleLevel.level);
+      } else {
+        console.log("❌ Role not found in database:", userRole.toUpperCase());
       }
     }
 
+    // Only if no role was provided, default to WORKER
     if (!selectedUserLevel) {
-      throw new Error("WORKER user level not found. Please run database initialization.");
+      console.log("⚠️ No role found, defaulting to WORKER");
+      selectedUserLevel = await ctx.db
+        .query("userLevels")
+        .filter((q) => q.eq(q.field("name"), "WORKER"))
+        .first();
+    }
+
+    if (!selectedUserLevel) {
+      throw new Error("User level not found. Please run database initialization.");
     }
 
     const now = Date.now();
@@ -155,9 +189,10 @@ export const createOrUpdateFromClerk = internalMutation({
       email: user.email_addresses?.[0]?.email_address || "",
       name: `${user.first_name || ""} ${user.last_name || ""}`.trim() || "New User",
       userLevel: selectedUserLevel._id,
-      department: user.unsafe_metadata?.department || "General",
-      position: user.unsafe_metadata?.jobTitle || "Community Member",
-      phone: user.unsafe_metadata?.phone || user.phone_numbers?.[0]?.phone_number,
+      // Use exact user selections - only default if truly not provided
+      department: department || "General",
+      position: jobTitle || "Community Member", // jobTitle → position (this is the Job Title they entered)
+      phone: phone || user.phone_numbers?.[0]?.phone_number || undefined,
       isActive: true,
       level: 1,
       experience: 0,
@@ -178,6 +213,17 @@ export const createOrUpdateFromClerk = internalMutation({
         },
       },
     };
+
+    // DEBUG: Log what we're about to save
+    console.log("💾 SAVING TO DATABASE:", {
+      name: userData.name,
+      email: userData.email,
+      department: userData.department,
+      position: userData.position,
+      phone: userData.phone,
+      userLevelName: selectedUserLevel.name,
+      userLevelId: selectedUserLevel._id,
+    });
 
     if (existingUser) {
       // Update existing user
@@ -227,12 +273,10 @@ export const syncUserFromClerk = mutation({
     imageUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // Get appropriate user level based on exact role match
-    let userLevel = await ctx.db
-      .query("userLevels")
-      .filter((q) => q.eq(q.field("name"), "WORKER"))
-      .first();
+    // IMPORTANT: Prioritize user's selected role - don't default to WORKER first
+    let userLevel = null;
 
+    // If user provided a role, use that exact role
     if (args.role && typeof args.role === 'string') {
       const roleUpperCase = args.role.toUpperCase();
       
@@ -244,6 +288,14 @@ export const syncUserFromClerk = mutation({
       if (roleLevel) {
         userLevel = roleLevel;
       }
+    }
+
+    // Only default to WORKER if no role was provided
+    if (!userLevel) {
+      userLevel = await ctx.db
+        .query("userLevels")
+        .filter((q) => q.eq(q.field("name"), "WORKER"))
+        .first();
     }
 
     if (!userLevel) {
@@ -262,9 +314,10 @@ export const syncUserFromClerk = mutation({
       email: args.email,
       name: `${args.firstName} ${args.lastName}`.trim(),
       userLevel: userLevel._id,
-      department: args.department || "General", // Exact department match
-      position: args.jobTitle || "Community Member",
-      phone: args.phone,
+      // Use exact values provided by user - position is the Job Title
+      department: args.department || "General",
+      position: args.jobTitle || "Community Member", // jobTitle from form → position in database
+      phone: args.phone || undefined,
       isActive: true,
       level: 1,
       experience: 0,
@@ -436,29 +489,6 @@ export const getTeamMembersDetails = query({
         
         const userLevel = await ctx.db.get(userWithLevel.userLevel);
         return { ...userWithLevel, userLevel };
-      })
-    );
-
-    return members.filter(Boolean);
-  },
-});
-
-// Get project team members
-export const getProjectTeamMembers = query({
-  args: {
-    projectId: v.id("projects")
-  },
-  handler: async (ctx, args) => {
-    const project = await ctx.db.get(args.projectId);
-    if (!project) return [];
-
-    const members = await Promise.all(
-      project.assignedTo.map(async (userId) => {
-        const user = await ctx.db.get(userId);
-        if (!user) return null;
-        
-        const userLevel = await ctx.db.get(user.userLevel);
-        return { ...user, userLevel };
       })
     );
 
@@ -858,27 +888,20 @@ export const ensureUserExists = mutation({
       return user._id;
     }
 
-    // Get WORKER level
-    const workerLevel = await ctx.db
-      .query("userLevels")
-      .filter((q) => q.eq(q.field("name"), "WORKER"))
-      .first();
-
-    if (!workerLevel) {
-      throw new Error("WORKER user level not found. Please seed user levels first.");
-    }
-
     const now = Date.now();
     
     // Extract profile data from Clerk metadata if available
     const clerkMetadata = (identity as any).unsafeMetadata || {};
-    const department = clerkMetadata.department || "General";
-    const position = clerkMetadata.jobTitle || "Community Member";
+    const department = clerkMetadata.department;
+    const jobTitle = clerkMetadata.jobTitle;
     const phone = clerkMetadata.phone;
     const role = clerkMetadata.role;
+    const imageUrl = (identity as any).imageUrl;
     
-    // Determine user level based on role from metadata
-    let selectedUserLevel = workerLevel;
+    // IMPORTANT: Prioritize user's selected role - don't default to WORKER first
+    let selectedUserLevel = null;
+    
+    // If user provided a role during registration, use that exact role
     if (role) {
       const roleLevel = await ctx.db
         .query("userLevels")
@@ -889,15 +912,29 @@ export const ensureUserExists = mutation({
       }
     }
     
-    // Create new user with profile data
+    // Only if no role was provided, default to WORKER
+    if (!selectedUserLevel) {
+      selectedUserLevel = await ctx.db
+        .query("userLevels")
+        .filter((q) => q.eq(q.field("name"), "WORKER"))
+        .first();
+    }
+
+    if (!selectedUserLevel) {
+      throw new Error("User level not found. Please seed user levels first.");
+    }
+    
+    // Create new user with profile data from registration
     const userId = await ctx.db.insert("users", {
       clerkId: identity.subject,
       email: identity.email || `user-${identity.subject}@temp.com`,
       name: identity.name || identity.nickname || "New User",
       userLevel: selectedUserLevel._id,
-      department: department,
-      position: position,
-      phone: phone,
+      // Use exact user selections from registration
+      department: department || "General",
+      position: jobTitle || "Community Member", // jobTitle → position
+      phone: phone || undefined,
+      imageUrl: imageUrl || undefined,
       isActive: true,
       level: 1,
       experience: 0,
@@ -1091,5 +1128,109 @@ export const getPaginatedUsersWithLevels = query({
     usersWithLevels.sort((a, b) => b._creationTime - a._creationTime);
     
     return createPaginatedResponse(usersWithLevels, page, limit);
+  },
+});
+
+// Search users for adding to projects
+export const searchUsers = query({
+  args: {
+    searchTerm: v.string(),
+    department: v.optional(v.string()),
+    excludeUserIds: v.optional(v.array(v.id("users"))),
+  },
+  handler: async (ctx, args) => {
+    let users = await ctx.db.query("users").collect();
+
+    // Filter by search term (if provided and not empty)
+    if (args.searchTerm && args.searchTerm.trim().length > 0) {
+      const searchLower = args.searchTerm.toLowerCase().trim();
+      users = users.filter(u =>
+        (u.name?.toLowerCase().includes(searchLower)) ||
+        (u.email?.toLowerCase().includes(searchLower)) ||
+        (u.position?.toLowerCase().includes(searchLower)) ||
+        (u.department?.toLowerCase().includes(searchLower))
+      );
+    }
+
+    // Filter by department if specified
+    if (args.department) {
+      users = users.filter(u => u.department === args.department);
+    }
+
+    // Exclude specific users (e.g., already on team)
+    if (args.excludeUserIds && args.excludeUserIds.length > 0) {
+      users = users.filter(u => !args.excludeUserIds!.includes(u._id));
+    }
+
+    // Only active users
+    users = users.filter(u => u.isActive);
+
+    // Enrich with user level
+    const enrichedUsers = await Promise.all(
+      users.map(async (user) => {
+        const userLevel = await ctx.db.get(user.userLevel);
+        return {
+          ...user,
+          userLevel,
+        };
+      })
+    );
+
+    // Sort by name
+    enrichedUsers.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Limit results to 50
+    return enrichedUsers.slice(0, 50);
+  },
+});
+
+// Get project team members
+export const getProjectTeamMembers = query({
+  args: {
+    projectId: v.id("projects"),
+  },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project) return [];
+
+    const teamMemberIds = project.assignedTo || [];
+
+    const members = await Promise.all(
+      teamMemberIds.map(async (userId) => {
+        const user = await ctx.db.get(userId);
+        if (!user) return null;
+
+        const userLevel = await ctx.db.get(user.userLevel);
+        return {
+          ...user,
+          userLevel,
+        };
+      })
+    );
+
+    return members.filter(m => m !== null);
+  },
+});
+
+// Get all active users (for debugging/admin)
+export const getAllActiveUsers = query({
+  args: {},
+  handler: async (ctx) => {
+    const users = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .collect();
+
+    const enrichedUsers = await Promise.all(
+      users.map(async (user) => {
+        const userLevel = await ctx.db.get(user.userLevel);
+        return {
+          ...user,
+          userLevel,
+        };
+      })
+    );
+
+    return enrichedUsers.sort((a, b) => a.name.localeCompare(b.name));
   },
 });

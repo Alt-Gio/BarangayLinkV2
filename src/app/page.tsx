@@ -6,7 +6,7 @@ import { SignInButton, UserButton } from '@clerk/nextjs';
 
 // Force dynamic rendering since this page uses Clerk components
 export const dynamic = 'force-dynamic';
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -241,19 +241,94 @@ function QuickStatsSection() {
 }
 
 function RecentEventsSection() {
+  const upcomingEvents = useQuery(api.events.getUpcomingEvents, { limit: 10 });
+  const getFileUrl = api.documents.getFileUrl;
+  const rsvpToEvent = useMutation(api.events.rsvpToEvent);
+  
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [showJoinForm, setShowJoinForm] = useState(false);
+  const [joinFormData, setJoinFormData] = useState({
+    firstName: "",
+    lastName: "",
+    phone: ""
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const handleJoinEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEvent) return;
+    
+    setIsSubmitting(true);
+    try {
+      await rsvpToEvent({
+        eventId: selectedEvent._id,
+        action: "join",
+        attendeeInfo: {
+          firstName: joinFormData.firstName,
+          lastName: joinFormData.lastName,
+          phone: joinFormData.phone,
+        }
+      });
+      
+      alert("✅ Successfully joined the event! You will be contacted soon.");
+      setShowJoinForm(false);
+      setJoinFormData({ firstName: "", lastName: "", phone: "" });
+    } catch (error) {
+      alert("Failed to join event. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
-    <section id="events" className="py-20 bg-white dark:bg-gray-900">
+    <section id="events" className="py-20 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-            Recent Events
+          <h2 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-emerald-400 to-emerald-600 bg-clip-text text-transparent mb-4">
+            Upcoming Events
           </h2>
-          <p className="text-lg text-gray-600 dark:text-gray-300">
-            Stay updated with community activities and upcoming events
+          <p className="text-lg text-gray-400">
+            Join community activities and stay connected
           </p>
         </div>
-        <EventsCalendarWidget />
+        
+        {/* Events List */}
+        <div className="space-y-6">
+          {upcomingEvents?.filter(event => event.allowPublicRSVP && event.isPublic).map(event => (
+            <UpcomingEventCard 
+              key={event._id} 
+              event={event} 
+              onJoin={() => {
+                setSelectedEvent(event);
+                setShowJoinForm(true);
+              }}
+              getFileUrl={getFileUrl}
+            />
+          ))}
+          
+          {(!upcomingEvents || upcomingEvents.length === 0) && (
+            <div className="text-center py-12 bg-gray-800/50 rounded-2xl border border-gray-700">
+              <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-600" />
+              <p className="text-gray-400">No upcoming events at the moment</p>
+            </div>
+          )}
+        </div>
       </div>
+      
+      {/* Join Event Modal */}
+      {showJoinForm && selectedEvent && (
+        <JoinEventModal 
+          event={selectedEvent}
+          formData={joinFormData}
+          setFormData={setJoinFormData}
+          onSubmit={handleJoinEvent}
+          onClose={() => {
+            setShowJoinForm(false);
+            setJoinFormData({ firstName: "", lastName: "", phone: "" });
+          }}
+          isSubmitting={isSubmitting}
+        />
+      )}
     </section>
   );
 }
@@ -296,19 +371,94 @@ function CommunityMapSection() {
 
 // Public sections for unauthenticated users
 function PublicEventsSection() {
+  const upcomingEvents = useQuery(api.events.getUpcomingEvents, { limit: 10 });
+  const getFileUrl = api.documents.getFileUrl;
+  const rsvpToEvent = useMutation(api.events.rsvpToEvent);
+  
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [showJoinForm, setShowJoinForm] = useState(false);
+  const [joinFormData, setJoinFormData] = useState({
+    firstName: "",
+    lastName: "",
+    phone: ""
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const handleJoinEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEvent) return;
+    
+    setIsSubmitting(true);
+    try {
+      await rsvpToEvent({
+        eventId: selectedEvent._id,
+        action: "join",
+        attendeeInfo: {
+          firstName: joinFormData.firstName,
+          lastName: joinFormData.lastName,
+          phone: joinFormData.phone,
+        }
+      });
+      
+      alert("✅ Successfully joined the event! You will be contacted soon.");
+      setShowJoinForm(false);
+      setJoinFormData({ firstName: "", lastName: "", phone: "" });
+    } catch (error) {
+      alert("Failed to join event. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
-    <section id="events" className="py-20 bg-white dark:bg-gray-900">
+    <section id="events" className="py-20 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-            Community Events
+          <h2 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-emerald-400 to-emerald-600 bg-clip-text text-transparent mb-4">
+            Upcoming Community Events
           </h2>
-          <p className="text-lg text-gray-600 dark:text-gray-300">
-            Stay updated with community activities and upcoming events
+          <p className="text-lg text-gray-400">
+            Join community activities and stay connected
           </p>
         </div>
-        <EventsCalendarWidget />
+        
+        {/* Events List */}
+        <div className="space-y-6">
+          {upcomingEvents?.filter(event => event.allowPublicRSVP && event.isPublic).map(event => (
+            <UpcomingEventCard 
+              key={event._id} 
+              event={event} 
+              onJoin={() => {
+                setSelectedEvent(event);
+                setShowJoinForm(true);
+              }}
+              getFileUrl={getFileUrl}
+            />
+          ))}
+          
+          {(!upcomingEvents || upcomingEvents.filter(e => e.allowPublicRSVP && e.isPublic).length === 0) && (
+            <div className="text-center py-12 bg-gray-800/50 rounded-2xl border border-gray-700">
+              <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-600" />
+              <p className="text-gray-400">No upcoming events at the moment</p>
+            </div>
+          )}
+        </div>
       </div>
+      
+      {/* Join Event Modal */}
+      {showJoinForm && selectedEvent && (
+        <JoinEventModal 
+          event={selectedEvent}
+          formData={joinFormData}
+          setFormData={setJoinFormData}
+          onSubmit={handleJoinEvent}
+          onClose={() => {
+            setShowJoinForm(false);
+            setJoinFormData({ firstName: "", lastName: "", phone: "" });
+          }}
+          isSubmitting={isSubmitting}
+        />
+      )}
     </section>
   );
 }
@@ -1102,5 +1252,178 @@ function PublicMapSection() {
         </div>
       </div>
     </section>
+  );
+}
+
+// Upcoming Event Card Component
+function UpcomingEventCard({ event, onJoin, getFileUrl }: any) {
+  const imageUrl = useQuery(getFileUrl, event.imageUrl ? { storageId: event.imageUrl } : "skip");
+  const startDate = new Date(event.startDate);
+  const endDate = new Date(event.endDate);
+  
+  return (
+    <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 overflow-hidden hover:border-emerald-500/50 transition-all duration-300 shadow-xl">
+      <div className="md:flex">
+        {/* Event Image */}
+        {imageUrl && (
+          <div className="md:w-1/3 h-48 md:h-auto">
+            <img 
+              src={imageUrl} 
+              alt={event.title}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+        
+        {/* Event Details */}
+        <div className={`flex-1 p-6 ${!imageUrl ? 'md:flex md:items-center' : ''}`}>
+          <div className="flex-1">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <Badge className="bg-emerald-600 text-white mb-2 capitalize">
+                  {event.type}
+                </Badge>
+                <h3 className="text-2xl font-bold text-white mb-2">{event.title}</h3>
+                <p className="text-gray-400 line-clamp-2">{event.description}</p>
+              </div>
+            </div>
+            
+            <div className="space-y-3 mb-6">
+              <div className="flex items-center text-gray-300">
+                <Clock className="w-5 h-5 text-emerald-400 mr-3" />
+                <span>{startDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} • {startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
+              <div className="flex items-center text-gray-300">
+                <MapPin className="w-5 h-5 text-emerald-400 mr-3" />
+                <span>{event.location}</span>
+              </div>
+              <div className="flex items-center text-gray-300">
+                <Users className="w-5 h-5 text-emerald-400 mr-3" />
+                <span className="font-semibold">
+                  {(event.attendeeCount || 0) + (event.publicAttendees?.length || 0)} Attendees
+                </span>
+                {event.maxAttendees && (
+                  <span className="text-gray-500 ml-2">/ {event.maxAttendees} max</span>
+                )}
+              </div>
+            </div>
+            
+            <Button 
+              onClick={onJoin}
+              className="w-full md:w-auto bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white px-8 py-3 rounded-xl font-semibold transition-all shadow-lg shadow-emerald-500/30"
+            >
+              <Users className="w-5 h-5 mr-2" />
+              Join This Event
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Join Event Modal Component
+function JoinEventModal({ event, formData, setFormData, onSubmit, onClose, isSubmitting }: any) {
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-gray-900 rounded-2xl border border-emerald-500/30 max-w-md w-full shadow-2xl">
+        <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 p-6 rounded-t-2xl">
+          <div className="flex items-center justify-between">
+            <h3 className="text-2xl font-bold text-white">Join Event</h3>
+            <button 
+              onClick={onClose}
+              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+            >
+              <X className="w-6 h-6 text-white" />
+            </button>
+          </div>
+          <p className="text-emerald-100 mt-2">{event.title}</p>
+        </div>
+        
+        <form onSubmit={onSubmit} className="p-6 space-y-5">
+          <p className="text-gray-400 text-sm">
+            Please provide your information so we can contact you about this event.
+          </p>
+          
+          <div>
+            <label className="block text-sm font-semibold text-gray-300 mb-2">
+              First Name *
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.firstName}
+              onChange={(e) => {
+                const value = e.target.value.replace(/[^a-zA-Z\s]/g, ''); // Only letters and spaces
+                const capitalized = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+                setFormData({ ...formData, firstName: capitalized });
+              }}
+              pattern="[A-Za-z\s]+"
+              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              placeholder="Enter your first name"
+              title="Only letters allowed"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-semibold text-gray-300 mb-2">
+              Last Name *
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.lastName}
+              onChange={(e) => {
+                const value = e.target.value.replace(/[^a-zA-Z\s]/g, ''); // Only letters and spaces
+                const capitalized = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+                setFormData({ ...formData, lastName: capitalized });
+              }}
+              pattern="[A-Za-z\s]+"
+              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              placeholder="Enter your last name"
+              title="Only letters allowed"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-semibold text-gray-300 mb-2">
+              Phone Number *
+            </label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+              <input
+                type="tel"
+                required
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                pattern="09[0-9]{9}"
+                maxLength={11}
+                className="w-full pl-11 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                placeholder="09123456789"
+                title="Please enter a valid Philippine mobile number (09XXXXXXXXX)"
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Format: 09XXXXXXXXX (11 digits starting with 09)</p>
+          </div>
+          
+          <div className="flex gap-3 pt-4">
+            <Button
+              type="button"
+              onClick={onClose}
+              className="flex-1 bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-lg font-semibold"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex-1 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50"
+            >
+              {isSubmitting ? "Joining..." : "Confirm Join"}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }

@@ -104,20 +104,25 @@ export const createTask = mutation({
     title: v.string(),
     description: v.string(),
     priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent")),
-    assignedTo: v.id("users"),
+    assignedTo: v.array(v.id("users")),
     dueDate: v.optional(v.number()),
     estimatedHours: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const currentUser = await checkPermission(ctx, ["BUILDER", "MANAGER", "ADMIN"]);
     
-    // Verify the assigned user exists and check department access
-    const assignedUser = await ctx.db.get(args.assignedTo);
-    if (!assignedUser) throw new Error("Assigned user not found");
+    // Verify all assigned users exist and check department access
+    const assignedUsers = await Promise.all(
+      args.assignedTo.map(userId => ctx.db.get(userId))
+    );
+    
+    if (assignedUsers.some(u => !u)) throw new Error("One or more assigned users not found");
     
     // Check department access for BUILDER and MANAGER roles
     if (["BUILDER", "MANAGER"].includes(currentUser.userLevel.name)) {
-      checkDepartmentAccess(currentUser, assignedUser.department || "");
+      for (const user of assignedUsers) {
+        if (user) checkDepartmentAccess(currentUser, user.department || "");
+      }
     }
     
     // If projectId is provided, verify access to the project
@@ -134,7 +139,7 @@ export const createTask = mutation({
       }
     }
     const taskId = await ctx.db.insert("tasks", {
-      userId: args.assignedTo,
+      userId: args.assignedTo[0] || currentUser._id, // Primary assignee (first in array)
       projectId: args.projectId,
       title: args.title,
       description: args.description,
@@ -164,25 +169,27 @@ export const createTask = mutation({
       isBlocking: false,
     });
 
-    // Notify assigned user
-    await ctx.db.insert("notifications", {
-      userId: args.assignedTo,
-      type: "info",
-      title: "New Task Assigned",
-      message: `You have been assigned to task: ${args.title}`,
-      isRead: false,
-      category: "task_assignment",
-      actionUrl: `/tasks/${taskId}`,
-      createdAt: Date.now(),
-      metadata: {
-        priority: args.priority,
+    // Notify all assigned users
+    for (const userId of args.assignedTo) {
+      await ctx.db.insert("notifications", {
+        userId: userId,
+        type: "info",
+        title: "New Task Assigned",
+        message: `You have been assigned to task: ${args.title}`,
+        isRead: false,
         category: "task_assignment",
-        relatedId: taskId,
-        data: {
-          taskTitle: args.title,
-        }
-      },
-    });
+        actionUrl: `/tasks/${taskId}`,
+        createdAt: Date.now(),
+        metadata: {
+          priority: args.priority,
+          category: "task_assignment",
+          relatedId: taskId,
+          data: {
+            taskTitle: args.title,
+          }
+        },
+      });
+    }
 
     return taskId;
   },
@@ -226,17 +233,20 @@ export const updateTaskStatus = mutation({
     
     // Award XP and gold if completed for the first time
     if (args.status === "completed" && oldStatus !== "completed") {
-      const assignedUser = await ctx.db.get(task.assignedTo);
-      if (assignedUser) {
-        await ctx.db.patch(task.assignedTo, {
-          experience: assignedUser.experience + (task.experienceReward || 10),
-          gold: assignedUser.gold + (task.goldReward || 5),
-          totalTasksCompleted: assignedUser.totalTasksCompleted + 1
-        });
+      // Award all assigned users
+      for (const userId of task.assignedTo) {
+        const assignedUser = await ctx.db.get(userId);
+        if (assignedUser) {
+          await ctx.db.patch(userId, {
+            experience: assignedUser.experience + (task.experienceReward || 10),
+            gold: assignedUser.gold + (task.goldReward || 5),
+            totalTasksCompleted: assignedUser.totalTasksCompleted + 1
+          });
+        }
       }
       
-      // Notify task creator if different from assignee
-      if (task.createdBy !== task.assignedTo) {
+      // Notify task creator if not in assignee list
+      if (!task.assignedTo.includes(task.createdBy)) {
         await ctx.db.insert("notifications", {
           userId: task.createdBy,
           type: "success",
@@ -332,17 +342,20 @@ export const getProjectTasks = query({
       .filter((q) => q.eq(q.field("projectId"), args.projectId))
       .collect();
 
-    // Get assignee details for each task
+    // Get assignee details for each task (assignedTo is now an array)
     const tasksWithAssignees = await Promise.all(
       tasks.map(async (task) => {
-        const assignee = await ctx.db.get(task.assignedTo);
+        const assignees = await Promise.all(
+          task.assignedTo.map(userId => ctx.db.get(userId))
+        );
+        
         return {
           ...task,
-          assignee: assignee ? {
-            _id: assignee._id,
-            name: assignee.name,
-            imageUrl: assignee.imageUrl,
-          } : null,
+          assignees: assignees.filter(a => a !== null).map(a => ({
+            _id: a!._id,
+            name: a!.name,
+            imageUrl: a!.imageUrl,
+          })),
         };
       })
     );
@@ -386,9 +399,7 @@ export const getDashboardAnalytics = query({
         if (args.department) {
           projectQuery = projectQuery.filter((q) => q.eq(q.field("department"), args.department));
         }
-        if (args.userId) {
-          taskQuery = taskQuery.filter((q) => q.eq(q.field("assignedTo"), args.userId));
-        }
+        // Note: userId filtering for assignedTo (which is now an array) will be done after collecting
         break;
         
       case "MANAGER":
@@ -443,9 +454,9 @@ export const getDashboardAnalytics = query({
         break;
         
       case "WORKER":
-        // WORKER sees their task data
-        taskQuery = taskQuery.filter((q) => q.eq(q.field("assignedTo"), currentUser._id));
-        const workerTasks = await taskQuery.collect();
+        // WORKER sees their task data (assignedTo is now an array, filter in JS)
+        const allWorkerTasks = await taskQuery.collect();
+        const workerTasks = allWorkerTasks.filter(t => t.assignedTo.includes(currentUser._id));
         const workerProjectIds = [...new Set(workerTasks.map(t => t.projectId).filter(Boolean))];
         const workerProjects = await Promise.all(
           workerProjectIds.map(id => id ? ctx.db.get(id) : null)
@@ -491,7 +502,12 @@ export const getDashboardAnalytics = query({
     }
 
     const projects = await projectQuery.collect();
-    const tasks = await taskQuery.collect();
+    let tasks = await taskQuery.collect();
+    
+    // Filter by userId if specified (assignedTo is now an array)
+    if (args.userId) {
+      tasks = tasks.filter(t => t.assignedTo.includes(args.userId!));
+    }
 
     // Project statistics
     const projectStats = {
