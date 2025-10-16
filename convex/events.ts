@@ -11,7 +11,7 @@ export const createEvent = mutation({
   args: {
     title: v.string(),
     description: v.string(),
-    type: v.union(v.literal("meeting"), v.literal("community"), v.literal("project"), v.literal("emergency")),
+    type: v.union(v.literal("meeting"), v.literal("community"), v.literal("project"), v.literal("emergency"), v.literal("milestone")),
     startDate: v.number(),
     endDate: v.number(),
     location: v.string(),
@@ -23,6 +23,7 @@ export const createEvent = mutation({
     projectId: v.optional(v.id("projects")),
     imageUrl: v.optional(v.string()),
     department: v.optional(v.string()),
+    milestoneTaskCount: v.optional(v.number()), // For milestone events
   },
   handler: async (ctx, args) => {
     const currentUser = await checkPermission(ctx, ["ADMIN", "MANAGER", "BUILDER"]);
@@ -46,6 +47,7 @@ export const createEvent = mutation({
       imageUrl: args.imageUrl, // Event image
       publicAttendees: [],
       attachments: [],
+      milestoneTaskCount: args.milestoneTaskCount, // For milestones
     });
 
     return eventId;
@@ -498,13 +500,20 @@ export const getAllEvents = query({
     
     const events = await query.order("desc").collect();
     
-    // Enrich with organizer details
+    // Enrich with organizer details and project information
     const enrichedEvents = await Promise.all(
       events.map(async (event) => {
         const organizer = await ctx.db.get(event.organizer);
         const attendeeDetails = await Promise.all(
           event.attendees.map(id => ctx.db.get(id))
         );
+        
+        // Fetch project details if event is linked to a project
+        let projectName = null;
+        if (event.projectId) {
+          const project = await ctx.db.get(event.projectId);
+          projectName = project?.title || null;
+        }
         
         return {
           ...event,
@@ -515,6 +524,7 @@ export const getAllEvents = query({
           } : null,
           attendeeCount: event.attendees.length,
           attendeeDetails: attendeeDetails.filter(Boolean),
+          projectName, // Add project name to the event data
         };
       })
     );
@@ -542,10 +552,18 @@ export const getUpcomingEvents = query({
       .order("asc")
       .take(limit);
     
-    // Enrich with details
+    // Enrich with details and project information
     const enrichedEvents = await Promise.all(
       events.map(async (event) => {
         const organizer = await ctx.db.get(event.organizer);
+        
+        // Fetch project details if event is linked to a project
+        let projectName = null;
+        if (event.projectId) {
+          const project = await ctx.db.get(event.projectId);
+          projectName = project?.title || null;
+        }
+        
         return {
           ...event,
           organizerDetails: organizer ? {
@@ -554,6 +572,7 @@ export const getUpcomingEvents = query({
             imageUrl: organizer.imageUrl,
           } : null,
           attendeeCount: event.attendees.length,
+          projectName, // Add project name
         };
       })
     );
@@ -648,23 +667,17 @@ export const getEventById = query({
   },
 });
 
-// Get all events for a project
-// Note: This is a placeholder implementation. For proper project-event linking,
-// consider adding a projectId field to events schema or creating a junction table
+// Get all events for a specific project
 export const getProjectEvents = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
-    // For now, return events where the project team members are organizers
-    // This is a temporary solution until schema is updated
-    const project = await ctx.db.get(args.projectId);
-    if (!project) {
-      return [];
-    }
-    
-    // Get events organized by project team members
+    // Get events directly linked to this project via projectId
+    // This includes events created from both:
+    // 1. The Project Events Tab (with projectId set)
+    // 2. The main Events page with this project linked
     const allEvents = await ctx.db.query("events").collect();
     const projectEvents = allEvents.filter(event => 
-      project.assignedTo.includes(event.organizer)
+      event.projectId && event.projectId === args.projectId
     );
     
     // Enrich events with organizer details
@@ -676,13 +689,15 @@ export const getProjectEvents = query({
           organizerDetails: organizer ? {
             _id: organizer._id,
             name: organizer.name,
+            imageUrl: organizer.imageUrl,
           } : null,
           attendeeCount: event.attendees.length,
         };
       })
     );
     
-    return enrichedEvents;
+    // Sort by start date (upcoming first)
+    return enrichedEvents.sort((a, b) => a.startDate - b.startDate);
   },
 });
 

@@ -190,9 +190,9 @@ export function SendInvitationModal({ isOpen, onClose }: SendInvitationModalProp
                   className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   required
                 >
-                  <option value="">Select Department</option>
+                  <option value="" className="bg-gray-900 text-gray-400">Select Department</option>
                   {departments?.map((dept) => (
-                    <option key={dept._id} value={dept.name}>
+                    <option key={dept._id} value={dept.name} className="bg-gray-900 text-white">
                       {dept.name}
                     </option>
                   ))}
@@ -229,9 +229,9 @@ export function SendInvitationModal({ isOpen, onClose }: SendInvitationModalProp
                   className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   required
                 >
-                  <option value="">Select Level</option>
+                  <option value="" className="bg-gray-900 text-gray-400">Select Level</option>
                   {userLevels?.map((level) => (
-                    <option key={level._id} value={level._id}>
+                    <option key={level._id} value={level._id} className="bg-gray-900 text-white">
                       {level.name} - {level.description}
                     </option>
                   ))}

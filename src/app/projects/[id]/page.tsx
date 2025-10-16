@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProjectTaskProgress } from '@/components/projects/ProjectTaskProgress';
-import { ProjectTaskManager } from '@/components/projects/ProjectTaskManager';
+import { ProjectTasksTab } from '@/components/projects/ProjectTasksTab';
 import { ProjectApprovalCard } from '@/components/projects/ProjectApprovalCard';
 import { ProjectEventsTab } from '@/components/projects/ProjectEventsTab';
 import { ProjectTeamTab } from '@/components/projects/ProjectTeamTab';
@@ -479,11 +479,11 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           </TabsContent>
 
           <TabsContent value="tasks" className="space-y-6">
-            {/* Gamification Progress */}
-            <ProjectTaskProgress projectId={id as Id<"projects">} />
-            
-            {/* Task Management */}
-            <ProjectTaskManager projectId={id as Id<"projects">} />
+            <ProjectTasksTab 
+              projectId={id as Id<"projects">} 
+              project={project}
+              currentUser={currentUser}
+            />
           </TabsContent>
 
           <TabsContent value="documents" className="space-y-6">

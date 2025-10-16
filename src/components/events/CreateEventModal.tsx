@@ -19,7 +19,7 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    type: "community" as "meeting" | "community" | "project" | "emergency",
+    type: "community" as "meeting" | "community" | "project" | "emergency" | "milestone",
     startDate: "",
     startTime: "",
     endDate: "",
@@ -31,6 +31,7 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
     isPublic: true,
     requiresApproval: false,
     allowPublicRSVP: false,
+    milestoneTaskCount: 0,
   });
   
   // Fetch projects from Convex
@@ -60,6 +61,7 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
     { value: "meeting" as const, label: "Meeting", icon: MessageSquare, color: "bg-blue-600" },
     { value: "community" as const, label: "Community", icon: Users, color: "bg-emerald-600" },
     { value: "project" as const, label: "Project", icon: Briefcase, color: "bg-purple-600" },
+    { value: "milestone" as const, label: "🎯 Milestone", icon: Briefcase, color: "bg-purple-600" },
     { value: "emergency" as const, label: "Emergency", icon: AlertTriangle, color: "bg-red-600" },
   ];
 
@@ -132,6 +134,7 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
         isPublic: formData.isPublic,
         requiresApproval: formData.requiresApproval,
         allowPublicRSVP: formData.allowPublicRSVP,
+        milestoneTaskCount: formData.type === 'milestone' ? formData.milestoneTaskCount : undefined,
       });
 
       onClose();
@@ -295,6 +298,31 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
             </div>
             <p className="text-xs text-gray-500 mt-1">Connect this event to a specific project</p>
           </div>
+
+          {/* Milestone Configuration */}
+          {formData.type === 'milestone' && (
+            <div className="bg-purple-900/20 border-2 border-purple-500/30 rounded-lg p-4">
+              <h4 className="text-purple-300 font-semibold mb-3 flex items-center gap-2">
+                🎯 Milestone Configuration
+              </h4>
+              <div>
+                <label className="block text-sm font-semibold text-gray-300 mb-2">
+                  Required Tasks to Complete
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.milestoneTaskCount}
+                  onChange={(e) => setFormData({ ...formData, milestoneTaskCount: parseInt(e.target.value) || 0 })}
+                  placeholder="e.g., 10"
+                  className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Number of tasks that must be completed to achieve this milestone
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Event Image Upload */}
           <div>

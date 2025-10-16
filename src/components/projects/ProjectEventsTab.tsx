@@ -27,26 +27,32 @@ interface ProjectEventsTabProps {
 
 export function ProjectEventsTab({ projectId, project }: ProjectEventsTabProps) {
   const [isCreating, setIsCreating] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<any>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    type: 'project' as 'emergency' | 'meeting' | 'community' | 'project',
+    type: 'project' as 'emergency' | 'meeting' | 'community' | 'project' | 'milestone',
     startDate: '',
     endDate: '',
     location: '',
     maxAttendees: 0,
     requiresApproval: false,
+    milestoneTaskCount: 0, // Number of tasks to complete for this milestone
   });
 
   const events = useQuery(api.events.getProjectEvents, { projectId });
+  const projectTasks = useQuery(api.gamifiedTasks.getProjectTasks, { projectId });
   const createEvent = useMutation(api.events.createEvent);
+
+  // Calculate completed tasks for milestone progress
+  const completedTasksCount = projectTasks?.filter(t => t.status === 'completed').length || 0;
 
   const handleCreateEvent = async () => {
     try {
       const startDate = new Date(formData.startDate).getTime();
       const endDate = new Date(formData.endDate).getTime();
 
-      await createEvent({
+      const eventId = await createEvent({
         title: `[${project.title}] ${formData.title}`,
         description: formData.description,
         type: formData.type,
@@ -57,7 +63,10 @@ export function ProjectEventsTab({ projectId, project }: ProjectEventsTabProps) 
         isPublic: false,
         requiresApproval: formData.requiresApproval,
         projectId,
+        milestoneTaskCount: formData.type === 'milestone' ? formData.milestoneTaskCount : undefined,
       });
+
+      console.log(`✅ Event created and linked to project ${projectId}`);
 
       // Reset form
       setFormData({
@@ -69,6 +78,7 @@ export function ProjectEventsTab({ projectId, project }: ProjectEventsTabProps) 
         location: '',
         maxAttendees: 0,
         requiresApproval: false,
+        milestoneTaskCount: 0,
       });
       setIsCreating(false);
     } catch (error) {
@@ -83,8 +93,9 @@ export function ProjectEventsTab({ projectId, project }: ProjectEventsTabProps) 
     switch (type) {
       case 'milestone': return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
       case 'meeting': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
-      case 'deadline': return 'bg-red-500/10 text-red-400 border-red-500/20';
-      default: return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+      case 'emergency': return 'bg-red-500/10 text-red-400 border-red-500/20';
+      case 'community': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+      default: return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
     }
   };
 
@@ -96,19 +107,55 @@ export function ProjectEventsTab({ projectId, project }: ProjectEventsTabProps) 
     }
   };
 
+  const upcomingEvents = events?.filter((e: any) => e.startDate > Date.now()) || [];
+  const pastEvents = events?.filter((e: any) => e.startDate <= Date.now()) || [];
+
   return (
     <div className="space-y-6">
+      {/* Stats Overview */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card className="bg-gray-800/50 border-gray-700/50">
+          <CardContent className="p-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-white">{events?.length || 0}</div>
+              <div className="text-xs text-gray-400 mt-1">Total Events</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gray-800/50 border-gray-700/50">
+          <CardContent className="p-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-300">{upcomingEvents.length}</div>
+              <div className="text-xs text-blue-400 mt-1">Upcoming</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gray-800/50 border-gray-700/50">
+          <CardContent className="p-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-gray-300">{pastEvents.length}</div>
+              <div className="text-xs text-gray-400 mt-1">Past</div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Info Banner */}
       <div className="p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
         <div className="flex items-start gap-3">
           <Calendar className="w-5 h-5 text-blue-400 mt-0.5" />
           <div className="flex-1">
             <h4 className="text-blue-400 font-medium text-sm mb-1">
-              Project Events for: {project.title}
+              📁 Project-Specific Events: {project.title}
             </h4>
-            <p className="text-blue-400/70 text-xs">
-              Events created here are automatically linked to this project and will appear in the main Events page with a project label.
+            <p className="text-blue-400/70 text-xs mb-2">
+              This tab shows all events linked to this project:
             </p>
+            <ul className="text-blue-400/70 text-xs space-y-1 ml-4">
+              <li>• Events created directly in this tab</li>
+              <li>• Events created in the main Events page with this project selected</li>
+              <li>• Public events will show a 🌐 badge</li>
+            </ul>
           </div>
         </div>
       </div>
@@ -177,11 +224,39 @@ export function ProjectEventsTab({ projectId, project }: ProjectEventsTabProps) 
                   className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700 rounded-md text-white"
                 >
                   <option value="project" className="bg-gray-900 text-white">Project Event</option>
+                  <option value="milestone" className="bg-gray-900 text-white">🎯 Milestone</option>
                   <option value="meeting" className="bg-gray-900 text-white">Team Meeting</option>
                   <option value="community" className="bg-gray-900 text-white">Community Event</option>
                   <option value="emergency" className="bg-gray-900 text-white">Emergency</option>
                 </select>
               </div>
+
+              {/* Milestone-specific fields */}
+              {formData.type === 'milestone' && (
+                <div className="col-span-2 p-4 bg-purple-900/20 border border-purple-500/30 rounded-lg">
+                  <h4 className="text-purple-300 font-medium mb-3 flex items-center gap-2">
+                    🎯 Milestone Configuration
+                  </h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Required Tasks to Complete
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={formData.milestoneTaskCount}
+                        onChange={(e) => setFormData({ ...formData, milestoneTaskCount: parseInt(e.target.value) || 0 })}
+                        placeholder="e.g., 10"
+                        className="bg-gray-900/50 border-gray-700 text-white"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">
+                        Number of tasks that must be completed to achieve this milestone
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -274,18 +349,60 @@ export function ProjectEventsTab({ projectId, project }: ProjectEventsTabProps) 
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
+                    <div className="flex items-center gap-3 mb-3 flex-wrap">
                       {getStatusIcon(event.status)}
                       <h3 className="text-lg font-semibold text-white">{event.title}</h3>
-                      <Badge className="bg-blue-600 text-white">
-                        📁 {project.title}
-                      </Badge>
                       <Badge className={`${getEventTypeColor(event.type)} capitalize`}>
                         {event.type}
                       </Badge>
+                      {event.requiresApproval && (
+                        <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30">
+                          Requires Approval
+                        </Badge>
+                      )}
+                      {event.isPublic && (
+                        <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
+                          🌐 Public Event
+                        </Badge>
+                      )}
                     </div>
 
                     <p className="text-gray-400 mb-4">{event.description}</p>
+
+                    {/* Milestone Progress */}
+                    {event.type === 'milestone' && event.milestoneTaskCount && (
+                      <div className="mb-4 p-4 bg-purple-900/20 border border-purple-500/30 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-purple-300">🎯 Milestone Progress</span>
+                          <span className="text-sm font-bold text-purple-200">
+                            {completedTasksCount} / {event.milestoneTaskCount} Tasks
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                          <div
+                            className={`h-full transition-all duration-500 ${
+                              completedTasksCount >= event.milestoneTaskCount
+                                ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+                                : 'bg-gradient-to-r from-purple-500 to-purple-400'
+                            }`}
+                            style={{
+                              width: `${Math.min((completedTasksCount / event.milestoneTaskCount) * 100, 100)}%`
+                            }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-xs text-gray-400">
+                            {Math.round((completedTasksCount / event.milestoneTaskCount) * 100)}% Complete
+                          </span>
+                          {completedTasksCount >= event.milestoneTaskCount && (
+                            <span className="text-xs font-medium text-emerald-400 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" />
+                              Milestone Achieved!
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div className="flex items-center gap-2 text-gray-400">
@@ -348,8 +465,17 @@ export function ProjectEventsTab({ projectId, project }: ProjectEventsTabProps) 
           <Card className="bg-gray-800/50 border-gray-700/50">
             <CardContent className="p-12 text-center">
               <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-              <p className="text-gray-400">No events yet for this project</p>
-              <p className="text-sm text-gray-500 mt-2">Create your first event to get started</p>
+              <p className="text-gray-400 font-medium">No events for "{project.title}"</p>
+              <p className="text-sm text-gray-500 mt-2">
+                Create project-specific events like meetings, milestones, or deadlines
+              </p>
+              <Button
+                onClick={() => setIsCreating(true)}
+                className="mt-4 bg-emerald-600 hover:bg-emerald-700"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create First Event
+              </Button>
             </CardContent>
           </Card>
         )}

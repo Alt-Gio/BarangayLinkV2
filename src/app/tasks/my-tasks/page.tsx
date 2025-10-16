@@ -4,70 +4,50 @@ import { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Plus,
-  Check,
-  X,
-  Flame,
-  Trophy,
-  Star,
-  Zap,
-  Calendar,
-  Repeat,
   CheckCircle2,
   Circle,
+  Clock,
+  AlertCircle,
+  Menu,
+  Flag,
+  Trophy,
+  Zap,
+  Calendar,
+  Star,
+  MoreVertical,
+  Filter,
+  Search,
+  Plus,
   Target,
-  TrendingUp,
-  Award,
-  Sparkles,
-  CheckSquare,
-  Menu
+  Flame
 } from 'lucide-react';
 import { Id } from '../../../../convex/_generated/dataModel';
 
 export default function MyTasksPage() {
-  const [activeTab, setActiveTab] = useState('todos');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showCreateTask, setShowCreateTask] = useState(false);
-  const [newTask, setNewTask] = useState({
-    title: '',
-    description: '',
-    type: 'todo' as 'todo' | 'daily' | 'milestone',
-    difficulty: 'medium' as 'trivial' | 'easy' | 'medium' | 'hard',
-    projectId: '', // Required
-    dueDate: '',
-  });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterPriority, setFilterPriority] = useState<string>('all');
+  const [filterProject, setFilterProject] = useState<string>('all');
 
   // Get current user
   const currentUser = useQuery(api.users.getCurrentUser);
   
-  // Get user's tasks
-  const myTasks = useQuery(api.tasks.getMyTasks);
+  // Get user's tasks from all projects
+  const myProjectTasks = useQuery(api.gamifiedTasks.getMyProjectTasks);
   
-  // Get user's projects for linking
+  // Get user's projects
   const myProjects = useQuery(api.productivity.getProjects, { limit: 100 });
   
-  // Get user stats (streak, level, XP)
-  const userStats = useQuery(api.tasks.getUserStats);
+  // Get user stats
+  const userStats = useQuery(api.gamifiedTasks.getUserStats, {});
 
   // Mutations
-  const createTask = useMutation(api.tasks.createTask);
-  const completeTask = useMutation(api.tasks.completeTask);
-  const uncompleteTask = useMutation(api.tasks.uncompleteTask);
-  const deleteTask = useMutation(api.tasks.deleteTask);
+  const updateTaskStatus = useMutation(api.gamifiedTasks.updateTaskStatus);
 
   if (!currentUser) {
     return (
@@ -80,91 +60,126 @@ export default function MyTasksPage() {
     );
   }
 
-  const handleCreateTask = async () => {
-    if (!newTask.title || !newTask.projectId) {
-      alert('Please fill in task title and select a project');
-      return;
-    }
-    
-    try {
-      await createTask({
-        title: newTask.title,
-        description: newTask.description,
-        type: newTask.type,
-        difficulty: newTask.difficulty,
-        projectId: newTask.projectId as Id<"projects">,
-        dueDate: newTask.dueDate ? new Date(newTask.dueDate).getTime() : undefined,
-      });
-      
-      setNewTask({
-        title: '',
-        description: '',
-        type: 'todo',
-        difficulty: 'medium',
-        projectId: '',
-        dueDate: '',
-      });
-      setShowCreateTask(false);
-    } catch (error) {
-      console.error('Failed to create task:', error);
-    }
+  // Flatten project tasks into a single array
+  const allProjectTasks = myProjectTasks ? Object.values(myProjectTasks).flatMap((group: any) => group.tasks) : [];
+  
+  // Remove duplicates based on task._id
+  const uniqueTasks = Array.from(new Map(allProjectTasks.map((task: any) => [task._id, task])).values());
+  
+  // Apply filters
+  let filteredTasks = uniqueTasks;
+  
+  if (searchQuery) {
+    filteredTasks = filteredTasks.filter((task: any) =>
+      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      task.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }
+  
+  if (filterPriority !== 'all') {
+    filteredTasks = filteredTasks.filter((task: any) => task.priority === filterPriority);
+  }
+  
+  if (filterProject !== 'all') {
+    filteredTasks = filteredTasks.filter((task: any) => task.projectId === filterProject);
+  }
+  
+  // Group tasks by status (Kanban columns)
+  const tasksByStatus = {
+    todo: filteredTasks.filter((t: any) => t.status === 'todo'),
+    in_progress: filteredTasks.filter((t: any) => t.status === 'in_progress'),
+    review: filteredTasks.filter((t: any) => t.status === 'review'),
+    completed: filteredTasks.filter((t: any) => t.status === 'completed'),
   };
+  
+  // Stats
+  const totalTasks = uniqueTasks.length;
+  const completedTasks = tasksByStatus.completed.length;
+  const inProgressTasks = tasksByStatus.in_progress.length;
+  const todoTasks = tasksByStatus.todo.length;
+  const reviewTasks = tasksByStatus.review.length;
 
-  const handleCompleteTask = async (taskId: Id<"tasks">) => {
-    try {
-      await completeTask({ taskId });
-    } catch (error) {
-      console.error('Failed to complete task:', error);
-    }
-  };
-
-  const handleUncompleteTask = async (taskId: Id<"tasks">) => {
-    try {
-      await uncompleteTask({ taskId });
-    } catch (error) {
-      console.error('Failed to uncomplete task:', error);
-    }
-  };
-
-  // Filter tasks by type
-  const todos = myTasks?.filter(t => t.type === 'todo') || [];
-  const dailies = myTasks?.filter(t => t.type === 'daily') || [];
-  const milestones = myTasks?.filter(t => t.type === 'milestone') || [];
-
-  // Calculate stats
-  const level = userStats?.level || 1;
-  const xp = userStats?.xp || 0;
-  const xpToNextLevel = level * 100;
+  // User stats
+  const level = userStats?.user?.level || 1;
+  const xp = userStats?.user?.experience || 0;
+  const xpToNextLevel = userStats?.nextLevelXP || (level * 100);
   const xpProgress = (xp / xpToNextLevel) * 100;
-  const streak = userStats?.streak || 0;
-  const gold = userStats?.gold || 0;
+  const streak = userStats?.user?.streakCount || 0;
+  const gold = userStats?.user?.gold || 0;
+
+  const handleStatusChange = async (taskId: Id<"tasks">, newStatus: string) => {
+    try {
+      await updateTaskStatus({ 
+        taskId, 
+        status: newStatus as "todo" | "in_progress" | "review" | "completed" | "cancelled"
+      });
+    } catch (error) {
+      console.error('Failed to update status:', error);
+    }
+  };
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
-      case 'trivial': return 'bg-gray-500';
-      case 'easy': return 'bg-green-500';
-      case 'medium': return 'bg-yellow-500';
-      case 'hard': return 'bg-red-500';
-      default: return 'bg-gray-500';
+      case "trivial": return "bg-gray-500/20 text-gray-300";
+      case "easy": return "bg-green-500/20 text-green-300";
+      case "medium": return "bg-yellow-500/20 text-yellow-300";
+      case "hard": return "bg-red-500/20 text-red-300";
+      default: return "bg-gray-500/20 text-gray-300";
     }
   };
 
-  const getDifficultyReward = (difficulty: string) => {
-    switch (difficulty) {
-      case 'trivial': return { xp: 5, gold: 1 };
-      case 'easy': return { xp: 10, gold: 2 };
-      case 'medium': return { xp: 20, gold: 5 };
-      case 'hard': return { xp: 50, gold: 10 };
-      default: return { xp: 10, gold: 2 };
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "low": return "text-gray-400";
+      case "medium": return "text-blue-400";
+      case "high": return "text-orange-400";
+      case "urgent": return "text-red-400";
+      default: return "text-gray-400";
     }
   };
+
+  // Status columns configuration
+  const statusColumns = [
+    { 
+      id: "todo", 
+      label: "To Do", 
+      icon: Circle, 
+      color: "text-gray-400",
+      bgColor: "bg-gray-500/20",
+      borderColor: "border-gray-500/30"
+    },
+    { 
+      id: "in_progress", 
+      label: "In Progress", 
+      icon: Clock, 
+      color: "text-blue-400",
+      bgColor: "bg-blue-500/20",
+      borderColor: "border-blue-500/30"
+    },
+    { 
+      id: "review", 
+      label: "Review", 
+      icon: AlertCircle, 
+      color: "text-yellow-400",
+      bgColor: "bg-yellow-500/20",
+      borderColor: "border-yellow-500/30"
+    },
+    { 
+      id: "completed", 
+      label: "Completed", 
+      icon: CheckCircle2, 
+      color: "text-emerald-400",
+      bgColor: "bg-emerald-500/20",
+      borderColor: "border-emerald-500/30"
+    },
+  ];
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900">
       <Sidebar 
         userRole={currentUser?.userLevel?.name || "WORKER"}
-        dashboardTitle="Tasks"
-        dashboardSubtitle="Manage your gamified tasks"
+        dashboardTitle="My Tasks"
+        dashboardSubtitle="Manage your tasks"
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
       />
@@ -181,450 +196,299 @@ export default function MyTasksPage() {
           <div className="w-9" />
         </div>
 
-        <div className="p-6">
-          <div className="max-w-7xl mx-auto space-y-6">
-        
-        {/* Header with Stats */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-2 sm:gap-3">
-              <CheckSquare className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-400" />
-              My Tasks
-            </h1>
-            <p className="text-sm sm:text-base text-gray-400 mt-1">Track and manage your project tasks</p>
-          </div>
-          
-          <Button
-            onClick={() => setShowCreateTask(!showCreateTask)}
-            className="w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-sm sm:text-base"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Task
-          </Button>
-        </div>
-
-        {/* Player Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          <Card className="bg-gray-800/50 border-gray-700/50">
-            <CardContent className="p-3 sm:p-6">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="p-2 sm:p-3 bg-purple-500/20 rounded-lg">
-                  <Star className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400" />
-                </div>
-                <div>
-                  <div className="text-xs sm:text-sm text-gray-400">Level</div>
-                  <div className="text-xl sm:text-2xl font-bold text-white">{level}</div>
-                </div>
+        <div className="p-6 space-y-6">
+          <div className="max-w-[1920px] mx-auto">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+              <div>
+                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                  <Target className="w-8 h-8 text-emerald-400" />
+                  My Tasks
+                </h1>
+                <p className="text-gray-400 mt-1">Track and manage all your assigned tasks</p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          <Card className="bg-gray-800/50 border-gray-700/50">
-            <CardContent className="p-3 sm:p-6">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="p-2 sm:p-3 bg-blue-500/20 rounded-lg">
-                  <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" />
-                </div>
-                <div className="flex-1">
-                  <div className="text-xs sm:text-sm text-gray-400">Experience</div>
-                  <div className="text-lg font-bold text-white">{xp} / {xpToNextLevel} XP</div>
-                  <div className="w-full bg-gray-700 rounded-full h-2 mt-1">
-                    <div 
-                      className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${xpProgress}%` }}
-                    />
+            {/* Player Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <Card className="bg-gray-800/50 border-gray-700/50">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-purple-500/20 rounded-lg">
+                      <Star className="w-6 h-6 text-purple-400" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-400">Level</div>
+                      <div className="text-2xl font-bold text-white">{level}</div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
 
-          <Card className="bg-gray-800/50 border-gray-700/50">
-            <CardContent className="p-3 sm:p-6">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="p-2 sm:p-3 bg-orange-500/20 rounded-lg">
-                  <Flame className="w-5 h-5 sm:w-6 sm:h-6 text-orange-400" />
-                </div>
-                <div>
-                  <div className="text-xs sm:text-sm text-gray-400">Streak</div>
-                  <div className="text-xl sm:text-2xl font-bold text-white">{streak} days</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              <Card className="bg-gray-800/50 border-gray-700/50">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-blue-500/20 rounded-lg">
+                      <Zap className="w-6 h-6 text-blue-400" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-xs text-gray-400">Experience</div>
+                      <div className="text-sm font-bold text-white">{xp} / {xpToNextLevel} XP</div>
+                      <div className="w-full bg-gray-700 rounded-full h-2 mt-1">
+                        <div 
+                          className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${xpProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card className="bg-gray-800/50 border-gray-700/50">
-            <CardContent className="p-3 sm:p-6">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="p-2 sm:p-3 bg-yellow-500/20 rounded-lg">
-                  <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-400" />
-                </div>
-                <div>
-                  <div className="text-xs sm:text-sm text-gray-400">Gold</div>
-                  <div className="text-xl sm:text-2xl font-bold text-white">{gold}</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              <Card className="bg-gray-800/50 border-gray-700/50">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-orange-500/20 rounded-lg">
+                      <Flame className="w-6 h-6 text-orange-400" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-400">Streak</div>
+                      <div className="text-2xl font-bold text-white">{streak} days</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-        {/* Create Task Form */}
-        {showCreateTask && (
-          <Card className="bg-gray-800/50 border-gray-700/50">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Target className="w-5 h-5" />
-                Create New Task
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm text-gray-400">Task Title *</label>
-                  <Input
-                    value={newTask.title}
-                    onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                    placeholder="Enter task title"
-                    className="bg-gray-900 border-gray-700 text-white"
-                  />
-                </div>
+              <Card className="bg-gray-800/50 border-gray-700/50">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-yellow-500/20 rounded-lg">
+                      <Trophy className="w-6 h-6 text-yellow-400" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-400">Gold</div>
+                      <div className="text-2xl font-bold text-white">{gold}</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm text-gray-400">Project *</label>
-                  <Select value={newTask.projectId} onValueChange={(v) => setNewTask({ ...newTask, projectId: v })} required>
-                    <SelectTrigger className="bg-gray-900 border-gray-700 text-white">
-                      <SelectValue placeholder="Select project" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {myProjects?.map((project) => (
-                        <SelectItem key={project._id} value={project._id}>
-                          {project.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+            {/* Stats Overview */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+              <Card className="bg-gray-800/50 border-gray-700/50">
+                <CardContent className="p-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-white">{totalTasks}</div>
+                    <div className="text-xs text-gray-400 mt-1">Total Tasks</div>
+                  </div>
+                </CardContent>
+              </Card>
 
-              <div className="space-y-2">
-                <label className="text-sm text-gray-400">Description</label>
-                <Textarea
-                  value={newTask.description}
-                  onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                  placeholder="Add more details..."
-                  rows={3}
-                  className="bg-gray-900 border-gray-700 text-white"
-                />
-              </div>
+              <Card className="bg-gray-800/50 border-gray-700/50">
+                <CardContent className="p-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-300">{todoTasks}</div>
+                    <div className="text-xs text-gray-400 mt-1">To Do</div>
+                  </div>
+                </CardContent>
+              </Card>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm text-gray-400">Task Type *</label>
-                  <Select value={newTask.type} onValueChange={(v: any) => setNewTask({ ...newTask, type: v })}>
-                    <SelectTrigger className="bg-gray-900 border-gray-700 text-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todo">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4" />
-                          Todo
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="daily">
-                        <div className="flex items-center gap-2">
-                          <Repeat className="w-4 h-4" />
-                          Daily
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="milestone">
-                        <div className="flex items-center gap-2">
-                          <Target className="w-4 h-4" />
-                          Milestone
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <Card className="bg-gray-800/50 border-gray-700/50">
+                <CardContent className="p-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-300">{inProgressTasks}</div>
+                    <div className="text-xs text-blue-400 mt-1">In Progress</div>
+                  </div>
+                </CardContent>
+              </Card>
 
-                <div className="space-y-2">
-                  <label className="text-sm text-gray-400">Difficulty *</label>
-                  <Select value={newTask.difficulty} onValueChange={(v: any) => setNewTask({ ...newTask, difficulty: v })}>
-                    <SelectTrigger className="bg-gray-900 border-gray-700 text-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="trivial">Trivial (+5 XP, +1 Gold)</SelectItem>
-                      <SelectItem value="easy">Easy (+10 XP, +2 Gold)</SelectItem>
-                      <SelectItem value="medium">Medium (+20 XP, +5 Gold)</SelectItem>
-                      <SelectItem value="hard">Hard (+50 XP, +10 Gold)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <Card className="bg-gray-800/50 border-gray-700/50">
+                <CardContent className="p-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-yellow-300">{reviewTasks}</div>
+                    <div className="text-xs text-yellow-400 mt-1">Review</div>
+                  </div>
+                </CardContent>
+              </Card>
 
-                <div className="space-y-2">
-                  <label className="text-sm text-gray-400">Due Date</label>
-                  <Input
-                    type="date"
-                    value={newTask.dueDate}
-                    onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
-                    className="bg-gray-900 border-gray-700 text-white"
+              <Card className="bg-gray-800/50 border-gray-700/50">
+                <CardContent className="p-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-emerald-300">{completedTasks}</div>
+                    <div className="text-xs text-emerald-400 mt-1">Completed</div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-wrap gap-3 mb-6">
+              <div className="flex-1 min-w-[200px]">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search tasks..."
+                    className="w-full pl-10 pr-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowCreateTask(false)}
-                  className="border-gray-700 text-gray-300"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleCreateTask}
-                  className="bg-gradient-to-r from-emerald-600 to-blue-600"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Task
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              <select
+                value={filterPriority}
+                onChange={(e) => setFilterPriority(e.target.value)}
+                className="px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="all">All Priorities</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
 
-        {/* Task Lists */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3 bg-gray-800/50 border border-gray-700/50">
-            <TabsTrigger value="todos" className="data-[state=active]:bg-blue-600">
-              <CheckCircle2 className="w-4 h-4 mr-2" />
-              Todos ({todos.length})
-            </TabsTrigger>
-            <TabsTrigger value="dailies" className="data-[state=active]:bg-purple-600">
-              <Repeat className="w-4 h-4 mr-2" />
-              Dailies ({dailies.length})
-            </TabsTrigger>
-            <TabsTrigger value="milestones" className="data-[state=active]:bg-emerald-600">
-              <Target className="w-4 h-4 mr-2" />
-              Milestones ({(myTasks?.filter(t => t.type === 'milestone') || []).length})
-            </TabsTrigger>
-          </TabsList>
+              <select
+                value={filterProject}
+                onChange={(e) => setFilterProject(e.target.value)}
+                className="px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="all">All Projects</option>
+                {myProjects?.map((project: any) => (
+                  <option key={project._id} value={project._id}>
+                    {project.title}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          {/* Todos Tab */}
-          <TabsContent value="todos" className="space-y-3 mt-6">
-            {todos.length === 0 ? (
-              <Card className="bg-gray-800/50 border-gray-700/50">
-                <CardContent className="p-12 text-center">
-                  <CheckCircle2 className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">No todos yet. Create your first task!</p>
-                </CardContent>
-              </Card>
-            ) : (
-              todos.map((task) => {
-                const reward = getDifficultyReward(task.difficulty);
-                const project = myProjects?.find(p => p._id === task.projectId);
-                
+            {/* Kanban Board */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {statusColumns.map((column) => {
+                const Icon = column.icon;
+                const columnTasks = tasksByStatus[column.id as keyof typeof tasksByStatus];
+
                 return (
-                  <Card key={task._id} className={`bg-gray-800/50 border-gray-700/50 transition-all hover:border-blue-500/50 ${task.completed ? 'opacity-60' : ''}`}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-4">
-                        <button
-                          onClick={() => task.completed ? handleUncompleteTask(task._id) : handleCompleteTask(task._id)}
-                          className={`mt-1 ${task.completed ? 'text-emerald-500' : 'text-gray-600 hover:text-blue-500'}`}
-                        >
-                          {task.completed ? (
-                            <CheckCircle2 className="w-6 h-6" />
-                          ) : (
-                            <Circle className="w-6 h-6" />
-                          )}
-                        </button>
+                  <div key={column.id} className="space-y-3">
+                    {/* Column Header */}
+                    <div className={`${column.bgColor} ${column.borderColor} border rounded-lg p-3`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Icon className={`w-4 h-4 ${column.color}`} />
+                          <span className={`font-semibold ${column.color}`}>{column.label}</span>
+                        </div>
+                        <Badge className="bg-gray-700/50 text-white">{columnTasks.length}</Badge>
+                      </div>
+                    </div>
 
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h3 className={`font-semibold ${task.completed ? 'line-through text-gray-500' : 'text-white'}`}>
-                              {task.title}
-                            </h3>
-                            <div className={`w-2 h-2 rounded-full ${getDifficultyColor(task.difficulty)}`} />
-                            {project && (
-                              <Badge variant="outline" className="text-xs">
-                                {project.title}
-                              </Badge>
-                            )}
-                          </div>
-                          
-                          {task.description && (
-                            <p className="text-sm text-gray-400 mb-2">{task.description}</p>
-                          )}
+                    {/* Tasks */}
+                    <div className="space-y-2 min-h-[200px]">
+                      {columnTasks.map((task: any) => {
+                        const project = myProjects?.find((p: any) => p._id === task.projectId);
+                        
+                        return (
+                          <Card 
+                            key={task._id} 
+                            className="bg-gray-800/70 border-gray-700/50 hover:border-emerald-500/30 transition-all cursor-pointer"
+                          >
+                            <CardContent className="p-4">
+                              <div className="space-y-3">
+                                {/* Task Title */}
+                                <div className="flex items-start justify-between gap-2">
+                                  <h4 className="font-medium text-white text-sm line-clamp-2">{task.title}</h4>
+                                  <button className="text-gray-400 hover:text-white">
+                                    <MoreVertical className="w-4 h-4" />
+                                  </button>
+                                </div>
 
-                          <div className="flex items-center gap-4 text-xs">
-                            <div className="flex items-center gap-1 text-blue-400">
-                              <Zap className="w-3 h-3" />
-                              {reward.xp} XP
-                            </div>
-                            <div className="flex items-center gap-1 text-yellow-400">
-                              <Sparkles className="w-3 h-3" />
-                              {reward.gold} Gold
-                            </div>
-                            {task.dueDate && (
-                              <div className="flex items-center gap-1 text-gray-400">
-                                <Calendar className="w-3 h-3" />
-                                {new Date(task.dueDate).toLocaleDateString()}
+                                {/* Project Badge */}
+                                {project && (
+                                  <Badge className="bg-purple-500/20 text-purple-300 text-xs">
+                                    📁 {project.title}
+                                  </Badge>
+                                )}
+
+                                {/* Task Meta */}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Badge className={getDifficultyColor(task.difficulty)}>
+                                    <Trophy className="w-3 h-3 mr-1" />
+                                    {task.difficulty}
+                                  </Badge>
+
+                                  {task.priority && (
+                                    <Badge className={`${getPriorityColor(task.priority)} bg-gray-700/30`}>
+                                      <Flag className="w-3 h-3 mr-1" />
+                                      {task.priority}
+                                    </Badge>
+                                  )}
+
+                                  {task.experienceReward && (
+                                    <Badge className="bg-purple-500/20 text-purple-300">
+                                      <Zap className="w-3 h-3 mr-1" />
+                                      {task.experienceReward} XP
+                                    </Badge>
+                                  )}
+                                </div>
+
+                                {/* Assignees */}
+                                {task.assignees && task.assignees.length > 0 && (
+                                  <div className="flex items-center gap-1">
+                                    {task.assignees.slice(0, 3).map((assignee: any) => (
+                                      <Avatar key={assignee._id} className="w-6 h-6">
+                                        <AvatarImage src={assignee.imageUrl} />
+                                        <AvatarFallback className="bg-emerald-600 text-white text-xs">
+                                          {assignee.name?.charAt(0)}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                    ))}
+                                    {task.assignees.length > 3 && (
+                                      <span className="text-xs text-gray-400 ml-1">
+                                        +{task.assignees.length - 3}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Due Date */}
+                                {task.dueDate && (
+                                  <div className="flex items-center gap-1 text-xs text-gray-400">
+                                    <Calendar className="w-3 h-3" />
+                                    {new Date(task.dueDate).toLocaleDateString()}
+                                  </div>
+                                )}
+
+                                {/* Status Actions */}
+                                <div className="flex gap-1 flex-wrap">
+                                  {statusColumns
+                                    .filter(s => s.id !== column.id)
+                                    .map((targetStatus) => (
+                                      <button
+                                        key={targetStatus.id}
+                                        onClick={() => handleStatusChange(task._id, targetStatus.id)}
+                                        className={`text-xs px-2 py-1 rounded ${targetStatus.bgColor} ${targetStatus.color} hover:opacity-80 transition-opacity`}
+                                        title={`Move to ${targetStatus.label}`}
+                                      >
+                                        {targetStatus.label}
+                                      </button>
+                                    ))}
+                                </div>
                               </div>
-                            )}
-                          </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+
+                      {columnTasks.length === 0 && (
+                        <div className="text-center py-8 text-gray-500 text-sm">
+                          No tasks in {column.label.toLowerCase()}
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      )}
+                    </div>
+                  </div>
                 );
-              })
-            )}
-          </TabsContent>
-
-          {/* Dailies Tab */}
-          <TabsContent value="dailies" className="space-y-3 mt-6">
-            {dailies.length === 0 ? (
-              <Card className="bg-gray-800/50 border-gray-700/50">
-                <CardContent className="p-12 text-center">
-                  <Repeat className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">No daily quests. Build good habits!</p>
-                </CardContent>
-              </Card>
-            ) : (
-              dailies.map((task) => {
-                const reward = getDifficultyReward(task.difficulty);
-                const project = myProjects?.find(p => p._id === task.projectId);
-                
-                return (
-                  <Card key={task._id} className={`bg-gray-800/50 border-gray-700/50 transition-all hover:border-purple-500/50 ${task.completed ? 'opacity-60' : ''}`}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-4">
-                        <button
-                          onClick={() => task.completed ? handleUncompleteTask(task._id) : handleCompleteTask(task._id)}
-                          className={`mt-1 ${task.completed ? 'text-purple-500' : 'text-gray-600 hover:text-purple-500'}`}
-                        >
-                          {task.completed ? (
-                            <CheckCircle2 className="w-6 h-6" />
-                          ) : (
-                            <Circle className="w-6 h-6" />
-                          )}
-                        </button>
-
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Repeat className="w-4 h-4 text-purple-400" />
-                            <h3 className={`font-semibold ${task.completed ? 'line-through text-gray-500' : 'text-white'}`}>
-                              {task.title}
-                            </h3>
-                            <div className={`w-2 h-2 rounded-full ${getDifficultyColor(task.difficulty)}`} />
-                            {project && (
-                              <Badge variant="outline" className="text-xs">
-                                {project.title}
-                              </Badge>
-                            )}
-                          </div>
-                          
-                          {task.description && (
-                            <p className="text-sm text-gray-400 mb-2">{task.description}</p>
-                          )}
-
-                          <div className="flex items-center gap-4 text-xs">
-                            <div className="flex items-center gap-1 text-blue-400">
-                              <Zap className="w-3 h-3" />
-                              {reward.xp} XP
-                            </div>
-                            <div className="flex items-center gap-1 text-yellow-400">
-                              <Sparkles className="w-3 h-3" />
-                              {reward.gold} Gold
-                            </div>
-                            <Badge variant="secondary" className="text-xs">
-                              Daily
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })
-            )}
-          </TabsContent>
-
-          {/* Milestones Tab */}
-          <TabsContent value="milestones" className="space-y-3 mt-6">
-            {milestones.length === 0 ? (
-              <Card className="bg-gray-800/50 border-gray-700/50">
-                <CardContent className="p-12 text-center">
-                  <Target className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">No milestones yet. Create your first milestone!</p>
-                </CardContent>
-              </Card>
-            ) : (
-              milestones.map((task) => {
-                const reward = getDifficultyReward(task.difficulty);
-                const project = myProjects?.find(p => p._id === task.projectId);
-                
-                return (
-                  <Card key={task._id} className={`bg-gray-800/50 border-gray-700/50 transition-all hover:border-emerald-500/50 ${task.completed ? 'opacity-60' : ''}`}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-4">
-                        <button
-                          onClick={() => task.completed ? handleUncompleteTask(task._id) : handleCompleteTask(task._id)}
-                          className={`mt-1 ${task.completed ? 'text-emerald-500' : 'text-gray-600 hover:text-emerald-500'}`}
-                        >
-                          {task.completed ? (
-                            <CheckCircle2 className="w-6 h-6" />
-                          ) : (
-                            <Circle className="w-6 h-6" />
-                          )}
-                        </button>
-
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Target className="w-4 h-4 text-emerald-400" />
-                            <h3 className={`font-semibold ${task.completed ? 'line-through text-gray-500' : 'text-white'}`}>
-                              {task.title}
-                            </h3>
-                            <div className={`w-2 h-2 rounded-full ${getDifficultyColor(task.difficulty)}`} />
-                            {project && (
-                              <Badge variant="outline" className="text-xs">
-                                {project.title}
-                              </Badge>
-                            )}
-                          </div>
-                          
-                          {task.description && (
-                            <p className="text-sm text-gray-400 mb-2">{task.description}</p>
-                          )}
-
-                          <div className="flex items-center gap-4 text-xs">
-                            <div className="flex items-center gap-1 text-blue-400">
-                              <Zap className="w-3 h-3" />
-                              {reward.xp} XP
-                            </div>
-                            <div className="flex items-center gap-1 text-yellow-400">
-                              <Sparkles className="w-3 h-3" />
-                              {reward.gold} Gold
-                            </div>
-                            {task.dueDate && (
-                              <div className="flex items-center gap-1 text-gray-400">
-                                <Calendar className="w-3 h-3" />
-                                {new Date(task.dueDate).toLocaleDateString()}
-                              </div>
-                            )}
-                            <Badge variant="secondary" className="text-xs">
-                              Milestone
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })
-            )}
-          </TabsContent>
-        </Tabs>
+              })}
+            </div>
           </div>
         </div>
       </div>

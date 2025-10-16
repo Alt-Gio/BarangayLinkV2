@@ -1008,6 +1008,9 @@ export const createUserInvitation = mutation({
 
     const now = Date.now();
 
+    // Generate unique invitation token
+    const invitationToken = `inv_${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}${now}`;
+
     // Create user invitation record
     const invitationId = await ctx.db.insert("userInvitations", {
       email: args.email,
@@ -1018,12 +1021,27 @@ export const createUserInvitation = mutation({
       phone: args.phone,
       userLevelId: args.userLevelId,
       invitedBy: currentUser._id,
+      invitationToken,
       status: "pending",
       assignInitialTasks: args.assignInitialTasks || false,
       sendWelcomeMessage: args.sendWelcomeMessage || true,
       createdAt: now,
       expiresAt: now + (7 * 24 * 60 * 60 * 1000), // 7 days
     });
+
+    // Send invitation email
+    try {
+      await ctx.scheduler.runAfter(0, "emails:sendInvitationEmail" as any, {
+        to: args.email,
+        firstName: args.firstName,
+        lastName: args.lastName,
+        invitationToken,
+        invitedByName: currentUser.name,
+      });
+    } catch (error) {
+      console.error("Failed to send invitation email:", error);
+      // Don't fail the whole invitation if email fails
+    }
 
     // Create audit trail
     try {

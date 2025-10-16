@@ -34,7 +34,9 @@ import {
   X,
   Mail,
   Network,
-  MessageCircle
+  MessageCircle,
+  Target,
+  TrendingUp
 } from 'lucide-react';
 import { GlobalSearch } from '@/components/search/GlobalSearch';
 
@@ -161,6 +163,13 @@ export function Sidebar({
           roles: ['WORKER', 'BUILDER', 'MANAGER', 'ADMIN']
         },
         {
+          id: 'habits',
+          label: 'Habits',
+          icon: <Target className="w-4 h-4" />,
+          path: '/tasks/habits',
+          roles: ['WORKER', 'BUILDER', 'MANAGER', 'ADMIN']
+        },
+        {
           id: 'team-tasks',
           label: 'Team Tasks',
           icon: <Users className="w-4 h-4" />,
@@ -180,6 +189,13 @@ export function Sidebar({
           icon: <CalendarDays className="w-4 h-4" />,
           path: '/events',
           roles: ['WORKER', 'BUILDER', 'MANAGER', 'ADMIN']
+        },
+        {
+          id: 'sprint-board',
+          label: 'Sprint Board',
+          icon: <TrendingUp className="w-4 h-4" />,
+          path: '/events/sprints',
+          roles: ['BUILDER', 'MANAGER', 'ADMIN']
         }
       ]
     },

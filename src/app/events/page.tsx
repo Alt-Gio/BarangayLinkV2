@@ -479,6 +479,12 @@ export default function EventsPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="text-sm font-semibold text-white truncate">{event.title}</h4>
+                          {(event as any).projectName && (
+                            <p className="text-xs text-purple-400 flex items-center gap-1 mt-1">
+                              <Briefcase className="w-3 h-3" />
+                              {(event as any).projectName}
+                            </p>
+                          )}
                           <p className="text-xs text-gray-400 flex items-center gap-1 mt-1">
                             <Clock className="w-3 h-3" />
                             {new Date(event.startDate).toLocaleDateString()}

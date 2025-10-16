@@ -293,43 +293,57 @@ export const getProjects = query({
     let query = ctx.db.query("projects");
     
     // Apply role-based filtering
+    // NOTE: assignedTo is now an array, so we need to filter in JS
+    const allProjects = await query.collect();
+    
+    let filteredProjects = allProjects;
+    
     switch(userLevel) {
       case "ADMIN":
         // ADMIN can see all projects
         break;
         
       case "MANAGER":
-        // MANAGER can see all projects in their department
-        query = query.filter((q) => q.eq(q.field("department"), currentUser.department));
+        // MANAGER can see department projects OR projects they're assigned to
+        filteredProjects = allProjects.filter(project => 
+          project.department === currentUser.department || 
+          project.assignedTo.includes(currentUser._id)
+        );
         break;
         
       case "BUILDER":
-        // BUILDER can see projects they created
-        query = query.filter((q) => q.eq(q.field("createdBy"), currentUser._id));
+        // BUILDER can see projects they created OR are assigned to
+        filteredProjects = allProjects.filter(project => 
+          project.createdBy === currentUser._id || 
+          project.assignedTo.includes(currentUser._id)
+        );
         break;
         
       case "WORKER":
         // WORKER can see projects they're assigned to
-        query = query.filter((q) => q.eq(q.field("assignedTo"), currentUser._id));
+        filteredProjects = allProjects.filter(project => 
+          project.assignedTo.includes(currentUser._id)
+        );
         break;
         
       default:
         return [];
     }
 
-    // Apply additional filters
+    // Apply additional filters on filteredProjects
     if (args.department && userLevel === "ADMIN") {
-      query = query.filter((q) => q.eq(q.field("department"), args.department));
+      filteredProjects = filteredProjects.filter(p => p.department === args.department);
     }
     if (args.status) {
-      query = query.filter((q) => q.eq(q.field("status"), args.status));
+      filteredProjects = filteredProjects.filter(p => p.status === args.status);
     }
 
-    const projects = await query
-      .order("desc")
-      .take(args.limit || 50);
+    // Sort by creation time (newest first) and apply limit
+    const sortedProjects = filteredProjects
+      .sort((a, b) => b._creationTime - a._creationTime)
+      .slice(0, args.limit || 50);
 
-    return projects;
+    return sortedProjects;
   },
 });
 

@@ -28,24 +28,20 @@ export const getAllProjects = query({
         // ADMIN can see all projects
         return await ctx.db.query("projects").order("desc").collect();
       } else if (currentUser.userLevel.name === "MANAGER") {
-        // MANAGER can see department projects
-        return await ctx.db
-          .query("projects")
-          .filter((q) => q.eq(q.field("department"), currentUser.department))
-          .order("desc")
-          .collect();
+        // MANAGER can see department projects + projects they're assigned to
+        const allProjects = await ctx.db.query("projects").order("desc").collect();
+        return allProjects.filter(project => 
+          project.department === currentUser.department || 
+          project.assignedTo.includes(currentUser._id)
+        );
       } else {
-        // BUILDER/WORKER can see assigned projects only
-        return await ctx.db
-          .query("projects")
-          .filter((q) => q.or(
-            q.eq(q.field("createdBy"), currentUser._id),
-            // Check if user is in assignedTo array
-            // Note: This is a simplified check - in production you'd want a more robust solution
-            q.eq(q.field("isPublic"), true)
-          ))
-          .order("desc")
-          .collect();
+        // BUILDER/WORKER can see assigned projects + created projects + public projects
+        const allProjects = await ctx.db.query("projects").order("desc").collect();
+        return allProjects.filter(project => 
+          project.createdBy === currentUser._id ||
+          project.assignedTo.includes(currentUser._id) ||
+          project.isPublic === true
+        );
       }
     } catch (error) {
       // If no user is authenticated, return only public projects

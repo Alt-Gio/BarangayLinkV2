@@ -137,6 +137,25 @@ export function ProjectTeamTab({ projectId, project, currentUser }: ProjectTeamT
     }
   };
 
+  const getRoleBadgeStyle = (levelName: string) => {
+    switch (levelName) {
+      case 'ADMIN': return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40';
+      case 'MANAGER': return 'bg-blue-500/20 text-blue-300 border-blue-500/40';
+      case 'BUILDER': return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
+      default: return 'bg-gray-500/20 text-gray-300 border-gray-500/40';
+    }
+  };
+
+  const getRoleTitle = (levelName: string) => {
+    switch (levelName) {
+      case 'ADMIN': return 'Administrator';
+      case 'MANAGER': return 'Manager';
+      case 'BUILDER': return 'Builder';
+      case 'WORKER': return 'Worker';
+      default: return 'Member';
+    }
+  };
+
   const canManageTeam = currentUser?.userLevel?.name === 'ADMIN' || 
                         currentUser?.userLevel?.name === 'MANAGER' ||
                         project.createdBy === currentUser?._id;
@@ -169,11 +188,11 @@ export function ProjectTeamTab({ projectId, project, currentUser }: ProjectTeamT
               </div>
               <div>
                 <div className="text-2xl font-bold text-white">
-                  {teamStats?.filter((s: any) => 
-                    s.stats.completed > 0
-                  ).length || 0}
+                  {teamStats?.reduce((acc: number, s: any) => 
+                    acc + s.stats.completed, 0
+                  ) || 0}
                 </div>
-                <div className="text-sm text-gray-400">Active Contributors</div>
+                <div className="text-sm text-gray-400">Completed Tasks</div>
               </div>
             </div>
           </CardContent>
@@ -381,11 +400,26 @@ export function ProjectTeamTab({ projectId, project, currentUser }: ProjectTeamT
             {teamStats && teamStats.length > 0 ? (
               teamStats
                 .sort((a, b) => {
-                  // Project lead first
+                  // 1. Project lead first
                   if (a.isLead) return -1;
                   if (b.isLead) return 1;
-                  // Then by completion rate
-                  return b.stats.completionRate - a.stats.completionRate;
+                  
+                  // 2. Then by user level hierarchy (ADMIN > MANAGER > BUILDER > WORKER)
+                  const roleOrder: Record<string, number> = {
+                    'ADMIN': 1,
+                    'MANAGER': 2,
+                    'BUILDER': 3,
+                    'WORKER': 4
+                  };
+                  const aRole = roleOrder[a.user.userLevel?.name || 'WORKER'] || 5;
+                  const bRole = roleOrder[b.user.userLevel?.name || 'WORKER'] || 5;
+                  
+                  if (aRole !== bRole) {
+                    return aRole - bRole;
+                  }
+                  
+                  // 3. Then alphabetically by name
+                  return a.user.name.localeCompare(b.user.name);
                 })
                 .map((memberData: any) => {
                 const member = memberData.user;
@@ -410,7 +444,7 @@ export function ProjectTeamTab({ projectId, project, currentUser }: ProjectTeamT
                       </Avatar>
 
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-center gap-2 mb-1">
                           <span className="font-semibold text-white text-lg">{member.name}</span>
                           {isProjectCreator && (
                             <Badge className="bg-yellow-500/20 text-yellow-300 border-yellow-500/40 font-semibold">
@@ -418,9 +452,12 @@ export function ProjectTeamTab({ projectId, project, currentUser }: ProjectTeamT
                               Project Lead
                             </Badge>
                           )}
-                          <Badge className="bg-gray-700/50 text-gray-300 border-gray-600/20 flex items-center gap-1">
+                        </div>
+                        
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge className={`${getRoleBadgeStyle(member.userLevel?.name)} font-semibold flex items-center gap-1`}>
                             {getRoleIcon(member.userLevel?.name)}
-                            {member.userLevel?.name}
+                            {getRoleTitle(member.userLevel?.name)}
                           </Badge>
                         </div>
 
@@ -461,11 +498,11 @@ export function ProjectTeamTab({ projectId, project, currentUser }: ProjectTeamT
                         <div className="mt-3">
                           <div className="flex justify-between items-center mb-1.5">
                             <span className="text-xs font-medium text-gray-400">Completion Rate</span>
-                            <span className="text-sm font-bold ${
+                            <span className={`text-sm font-bold ${
                               stats.completionRate >= 80 ? 'text-emerald-400' :
                               stats.completionRate >= 50 ? 'text-yellow-400' :
                               'text-gray-400'
-                            }">
+                            }`}>
                               {stats.completionRate.toFixed(0)}%
                             </span>
                           </div>

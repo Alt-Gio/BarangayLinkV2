@@ -1,5 +1,42 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
+
+// Check and handle level up
+async function checkLevelUp(ctx: any, userId: Id<"users">) {
+  const user = await ctx.db.get(userId);
+  if (!user) return;
+
+  const currentLevel = user.level || 1;
+  const currentXP = user.experience || 0;
+  
+  // XP required for next level (100 * level)
+  let xpToNextLevel = currentLevel * 100;
+  
+  // Check if user has enough XP to level up
+  if (currentXP >= xpToNextLevel) {
+    let newLevel = currentLevel;
+    let remainingXP = currentXP;
+    
+    // Handle multiple level ups
+    while (remainingXP >= xpToNextLevel) {
+      remainingXP -= xpToNextLevel;
+      newLevel++;
+      xpToNextLevel = newLevel * 100;
+    }
+    
+    // Update user with new level and remaining XP
+    await ctx.db.patch(userId, {
+      level: newLevel,
+      experience: remainingXP,
+      gold: (user.gold || 0) + ((newLevel - currentLevel) * 50), // Bonus gold per level
+    });
+    
+    return newLevel - currentLevel; // Return number of levels gained
+  }
+  
+  return 0;
+}
 
 // Calculate XP and Gold rewards based on difficulty and hours
 const calculateRewards = (difficulty: string, hours: number) => {
@@ -145,6 +182,9 @@ export const logHours = mutation({
     await ctx.db.patch(user._id, {
       experience: user.experience + partialXP,
     });
+    
+    // Check for level up
+    await checkLevelUp(ctx, user._id);
 
     return { success: true, hoursLogged: args.hours, xpGained: partialXP };
   },
@@ -299,9 +339,10 @@ const updateProjectProgress = async (ctx: any, projectId: any) => {
     for (const userId of participants) {
       const user = await ctx.db.get(userId);
       if (user) {
+        const successRate = await calculateSuccessRate(user._id, ctx);
         await ctx.db.patch(userId, {
           experience: user.experience + 50, // Project completion bonus
-          projectSuccessRate: calculateSuccessRate(user._id, ctx),
+          projectSuccessRate: successRate,
         });
       }
     }
@@ -667,6 +708,68 @@ export const updateTaskDifficulty = mutation({
     }
 
     return { taskId: args.taskId, newXP: xp, newGold: gold };
+  },
+});
+
+// Update task status
+export const updateTaskStatus = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    status: v.union(
+      v.literal("todo"),
+      v.literal("in_progress"),
+      v.literal("review"),
+      v.literal("completed"),
+      v.literal("cancelled")
+    ),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+
+    // If completing task, award XP and Gold
+    if (args.status === "completed" && task.status !== "completed") {
+      const user = await ctx.db
+        .query("users")
+        .filter((q) => q.eq(q.field("clerkId"), identity.subject))
+        .first();
+
+      if (user) {
+        // Award XP and Gold to all assigned users
+        for (const userId of task.assignedTo) {
+          const assignedUser = await ctx.db.get(userId);
+          if (assignedUser) {
+            await ctx.db.patch(userId, {
+              experience: (assignedUser.experience || 0) + task.experienceReward,
+              gold: (assignedUser.gold || 0) + task.goldReward,
+            });
+            
+            // Check for level up
+            await checkLevelUp(ctx, userId);
+          }
+        }
+      }
+
+      // Mark completion time
+      await ctx.db.patch(args.taskId, {
+        status: args.status,
+        completedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.patch(args.taskId, {
+        status: args.status,
+      });
+    }
+
+    // Update project progress if linked
+    if (task.projectId) {
+      await updateProjectProgress(ctx, task.projectId);
+    }
+
+    return args.taskId;
   },
 });
 

@@ -12,6 +12,7 @@ import { PageTransition } from '@/components/common/PageTransition'
 import { SidebarProvider } from '@/contexts/SidebarContext'
 import { OfflineSyncProvider } from '@/providers/OfflineSyncProvider'
 import { OfflineIndicator } from '@/components/ui/OfflineIndicator'
+import { ServiceWorkerRegistration } from '@/components/common/ServiceWorkerRegistration'
 import { env } from '@/config/env'
 
 const geistSans = Geist({
@@ -60,6 +61,7 @@ export default function RootLayout({
                 <SidebarProvider>
                   <PageTransition />
                   <SessionTracker />
+                  <ServiceWorkerRegistration />
                   <DatabaseStatusIndicator />
                   <OfflineIndicator />
                   <div className="pb-16 md:pb-0">

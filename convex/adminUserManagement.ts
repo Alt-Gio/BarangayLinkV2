@@ -193,6 +193,9 @@ export const sendInvitation = mutation({
       throw new Error("Pending invitation already exists for this email");
     }
 
+    // Generate unique invitation token
+    const invitationToken = `inv_${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}${Date.now()}`;
+
     // Create invitation (expires in 7 days)
     const invitationId = await ctx.db.insert("userInvitations", {
       email: args.email,
@@ -203,12 +206,28 @@ export const sendInvitation = mutation({
       phone: args.phone,
       userLevelId: args.userLevelId,
       invitedBy: currentUser._id,
+      invitationToken,
       status: "pending",
       assignInitialTasks: args.assignInitialTasks,
       sendWelcomeMessage: args.sendWelcomeMessage,
       createdAt: Date.now(),
       expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days
     });
+
+    // Send invitation email
+    try {
+      await ctx.scheduler.runAfter(0, "emails:sendInvitationEmail" as any, {
+        to: args.email,
+        firstName: args.firstName,
+        lastName: args.lastName,
+        invitationToken,
+        invitedByName: currentUser.name,
+        customMessage: args.customMessage,
+      });
+    } catch (error) {
+      console.error("Failed to send invitation email:", error);
+      // Don't fail the whole invitation if email fails
+    }
 
     // Send notification to admin
     await ctx.db.insert("notifications", {
@@ -333,6 +352,20 @@ export const resendInvitation = mutation({
       status: "pending",
       expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000),
     });
+
+    // Resend invitation email
+    try {
+      await ctx.scheduler.runAfter(0, "emails:sendInvitationEmail" as any, {
+        to: invitation.email,
+        firstName: invitation.firstName,
+        lastName: invitation.lastName,
+        invitationToken: invitation.invitationToken,
+        invitedByName: currentUser.name,
+      });
+    } catch (error) {
+      console.error("Failed to resend invitation email:", error);
+      // Don't fail the whole operation if email fails
+    }
 
     return args.invitationId;
   },

@@ -239,7 +239,7 @@ export default defineSchema({
   events: defineTable({
     title: v.string(),
     description: v.string(),
-    type: v.union(v.literal("meeting"), v.literal("community"), v.literal("project"), v.literal("emergency")),
+    type: v.union(v.literal("meeting"), v.literal("community"), v.literal("project"), v.literal("emergency"), v.literal("milestone")),
     startDate: v.number(),
     endDate: v.number(),
     location: v.string(),
@@ -267,12 +267,58 @@ export default defineSchema({
     liveblocksRoom: v.optional(v.string()),
     archivedAt: v.optional(v.number()),
     archivedBy: v.optional(v.id("users")),
+    // Milestone-specific fields
+    milestoneTaskCount: v.optional(v.number()), // Required tasks to complete for milestone achievement
   })
   .index("by_start_date", ["startDate"])
   .index("by_organizer", ["organizer"])
   .index("by_type", ["type"])
   .index("by_status", ["status"])
   .index("by_project", ["projectId"]),
+
+  // Habits system (Habitica-inspired)
+  habits: defineTable({
+    userId: v.id("users"),
+    title: v.string(),
+    notes: v.optional(v.string()),
+    difficulty: v.union(v.literal("easy"), v.literal("medium"), v.literal("hard")),
+    positive: v.boolean(), // true for good habits, false for bad habits
+    streak: v.number(), // Current streak count
+    longestStreak: v.number(), // Record streak
+    lastCompleted: v.optional(v.number()), // Timestamp of last completion
+    frequency: v.union(v.literal("daily"), v.literal("weekly")), // How often
+    createdAt: v.number(),
+  })
+  .index("by_user", ["userId"])
+  .index("by_user_and_type", ["userId", "positive"]),
+
+  // Daily tasks (auto-reset daily)
+  dailies: defineTable({
+    userId: v.id("users"),
+    title: v.string(),
+    notes: v.optional(v.string()),
+    difficulty: v.union(v.literal("easy"), v.literal("medium"), v.literal("hard")),
+    completed: v.boolean(),
+    completedAt: v.optional(v.number()),
+    streak: v.number(), // Days in a row completed
+    lastResetDate: v.number(), // Last time it was reset (for tracking)
+    createdAt: v.number(),
+  })
+  .index("by_user", ["userId"])
+  .index("by_user_and_completed", ["userId", "completed"]),
+
+  // To-dos (one-time tasks)
+  todos: defineTable({
+    userId: v.id("users"),
+    title: v.string(),
+    notes: v.optional(v.string()),
+    difficulty: v.union(v.literal("easy"), v.literal("medium"), v.literal("hard")),
+    completed: v.boolean(),
+    completedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+  .index("by_user", ["userId"])
+  .index("by_user_and_completed", ["userId", "completed"]),
 
   // Document management
   documents: defineTable({
@@ -506,6 +552,7 @@ export default defineSchema({
     phone: v.optional(v.string()),
     userLevelId: v.id("userLevels"),
     invitedBy: v.id("users"),
+    invitationToken: v.string(), // Unique token for invitation link
     status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("expired"), v.literal("cancelled")),
     assignInitialTasks: v.boolean(),
     sendWelcomeMessage: v.boolean(),
@@ -517,7 +564,8 @@ export default defineSchema({
   .index("by_email", ["email"])
   .index("by_status", ["status"])
   .index("by_invited_by", ["invitedBy"])
-  .index("by_expires_at", ["expiresAt"]),
+  .index("by_expires_at", ["expiresAt"])
+  .index("by_token", ["invitationToken"]),
 
   // PRODUCTIVITY & PROJECT MANAGEMENT ENHANCEMENTS
 
