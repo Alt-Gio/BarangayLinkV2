@@ -743,11 +743,15 @@ export const getAllUsersWithLevels = query({
 export const updateUserProfile = mutation({
   args: {
     userId: v.optional(v.id("users")),
+    name: v.optional(v.string()),
+    email: v.optional(v.string()),
     department: v.optional(v.string()),
     position: v.optional(v.string()),
     phone: v.optional(v.string()),
+    address: v.optional(v.string()),
+    bio: v.optional(v.string()),
   },
-  handler: async (ctx, { userId, department, position, phone }) => {
+  handler: async (ctx, { userId, name, email, department, position, phone, address, bio }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
@@ -784,9 +788,13 @@ export const updateUserProfile = mutation({
     }
 
     const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
+    if (email !== undefined) updateData.email = email;
     if (department !== undefined) updateData.department = department;
     if (position !== undefined) updateData.position = position;
     if (phone !== undefined) updateData.phone = phone;
+    if (address !== undefined) updateData.address = address;
+    if (bio !== undefined) updateData.bio = bio;
 
     await ctx.db.patch(targetUserId, updateData);
 

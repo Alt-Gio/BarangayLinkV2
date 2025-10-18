@@ -37,9 +37,12 @@ import {
   MessageCircle,
   MessageSquare,
   Target,
-  TrendingUp
+  TrendingUp,
+  Bell
 } from 'lucide-react';
 import { GlobalSearch } from '@/components/search/GlobalSearch';
+import { SidebarNotificationPanel } from '@/components/notifications/SidebarNotificationPanel';
+import { SidebarProfilePanel } from '@/components/profile/SidebarProfilePanel';
 
 interface MenuItem {
   id: string;
@@ -219,6 +222,13 @@ export function Sidebar({
       label: 'Messages',
       icon: <MessageCircle className="w-4 h-4" />,
       path: '/messages',
+      roles: ['WORKER', 'BUILDER', 'MANAGER', 'CAPTAIN', 'ADMIN']
+    },
+    {
+      id: 'notifications',
+      label: 'Notifications',
+      icon: <Bell className="w-4 h-4" />,
+      path: '/notifications',
       roles: ['WORKER', 'BUILDER', 'MANAGER', 'CAPTAIN', 'ADMIN']
     },
     {
@@ -503,59 +513,11 @@ export function Sidebar({
         </div>
       )}
 
-      {/* User Info & Actions */}
-      <div className="border-t border-gray-700 p-4">
-        {user && (
-          <div className="space-y-3">
-            {/* User Profile */}
-            <div className="flex items-center space-x-3">
-              <img
-                src={user.imageUrl}
-                alt={user.fullName || 'User'}
-                className="w-8 h-8 rounded-full"
-              />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">
-                  {user.fullName || user.firstName}
-                </p>
-                <div className="flex items-center space-x-1">
-                  {getRoleIcon(userRole)}
-                  <p className={`text-xs ${getRoleColor(userRole)}`}>
-                    {userRole}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex items-center space-x-2">
-              {/* Clerk Profile Button - Opens Clerk Settings Modal */}
-              <div className="flex-1 flex items-center justify-center">
-                <UserButton 
-                  appearance={{
-                    elements: {
-                      avatarBox: "w-10 h-10",
-                      userButtonPopoverCard: "bg-gray-800 border border-gray-700",
-                      userButtonPopoverActions: "bg-gray-800",
-                      userButtonPopoverActionButton: "text-white hover:bg-gray-700",
-                      userButtonPopoverActionButtonText: "text-white",
-                      userButtonPopoverFooter: "hidden"
-                    }
-                  }}
-                  showName={false}
-                />
-              </div>
-              <button
-                onClick={handleSignOut}
-                className="flex-1 flex items-center justify-center space-x-1 px-3 py-2 text-xs bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-              >
-                <LogOut className="w-3 h-3" />
-                <span>Logout</span>
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Notifications Panel */}
+      <SidebarNotificationPanel />
+      
+      {/* User Profile Panel */}
+      <SidebarProfilePanel />
     </div>
     </>
   );

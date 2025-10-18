@@ -15,6 +15,9 @@ import { OfflineIndicator } from '@/components/ui/OfflineIndicator'
 import { ServiceWorkerRegistration } from '@/components/common/ServiceWorkerRegistration'
 import { env } from '@/config/env'
 import { Toaster } from 'sonner'
+import { PresenceTracker } from '@/components/common/PresenceTracker'
+import { NotificationPermissionPrompt } from '@/components/notifications/NotificationPermissionPrompt'
+import { NotificationListener } from '@/components/notifications/NotificationListener'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -61,14 +64,17 @@ export default function RootLayout({
               <OfflineSyncProvider>
                 <SidebarProvider>
                   <PageTransition />
+                  <PresenceTracker />
                   <SessionTracker />
                   <ServiceWorkerRegistration />
-                  <DatabaseStatusIndicator />
-                  <OfflineIndicator />
-                  <Toaster position="top-right" richColors />
+                  <NotificationPermissionPrompt />
+                  <NotificationListener />
                   <div className="pb-16 md:pb-0">
                     {children}
                   </div>
+                  <Toaster position="top-right" richColors />
+                  <DatabaseStatusIndicator />
+                  <OfflineIndicator />
                   <BottomNav />
                   <InstallPrompt />
                 </SidebarProvider>

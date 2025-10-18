@@ -104,6 +104,37 @@ export const clockIn = mutation({
       });
     }
 
+    // UPDATE CURRENT ACTIVITY - Show in sidebar profile with event details
+    const metadata = (user.metadata as any) || {};
+    
+    // Get event details if task has an eventId
+    let eventInfo = null;
+    if (task.eventId) {
+      const event = await ctx.db.get(task.eventId);
+      if (event) {
+        eventInfo = {
+          id: event._id,
+          title: event.title,
+          type: event.type,
+        };
+      }
+    }
+    
+    await ctx.db.patch(user._id, {
+      metadata: {
+        ...metadata,
+        currentActivity: {
+          type: 'task',
+          id: args.taskId,
+          name: task.title || 'Event Task',
+          description: task.description,
+          priority: task.priority,
+          eventInfo: eventInfo,
+          startedAt: startTime,
+        },
+      } as any,
+    });
+
     return { timeEntryId, startTime };
   },
 });
@@ -168,6 +199,38 @@ export const clockOut = mutation({
       duration,
       description: args.description,
       isRunning: false,
+    });
+
+    // UPDATE ACTIVITY STATS & CLEAR CURRENT ACTIVITY
+    const metadata = (user.metadata as any) || {};
+    const stats = metadata.activityStats || {
+      totalMinutes: 0,
+      taskMinutes: 0,
+      projectMinutes: 0,
+      sessionsCount: 0,
+      longestSession: 0,
+    };
+
+    // Update stats with this session's duration
+    stats.totalMinutes += duration;
+    stats.taskMinutes += duration;
+    stats.sessionsCount += 1;
+    if (duration > stats.longestSession) {
+      stats.longestSession = duration;
+    }
+
+    // Clear current activity and update stats
+    await ctx.db.patch(user._id, {
+      metadata: {
+        ...metadata,
+        currentActivity: {
+          type: 'none',
+          id: undefined,
+          name: undefined,
+          startedAt: undefined,
+        },
+        activityStats: stats,
+      } as any,
     });
 
     // Update task's actual hours

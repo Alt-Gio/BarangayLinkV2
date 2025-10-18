@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 
 // ============================================
 // CHAT ROOMS
@@ -327,10 +328,61 @@ export const sendMessage = mutation({
     });
 
     // Update room's last message
+    const now = Date.now();
     await ctx.db.patch(args.roomId, {
       lastMessage: args.content.substring(0, 100),
-      lastMessageAt: Date.now(),
+      lastMessageAt: now,
     });
+
+    // Get room details to notify participants
+    const room = await ctx.db.get(args.roomId);
+    if (room) {
+      // Notify all participants except the sender
+      for (const participantId of room.participants) {
+        if (participantId !== user._id) {
+          // Create in-app notification
+          await ctx.db.insert("notifications", {
+            userId: participantId,
+            title: room.type === "direct" ? `New Message from ${user.name}` : `New Message in ${room.name}`,
+            message: args.content.substring(0, 100),
+            type: "info",
+            category: "message",
+            relatedId: args.roomId,
+            relatedType: "chatRoom",
+            isRead: false,
+            createdAt: now,
+            actionUrl: "/messages",
+            metadata: {
+              priority: "medium",
+              category: "message",
+              relatedId: args.roomId,
+              data: {
+                roomId: args.roomId,
+                roomName: room.name,
+                roomType: room.type,
+                senderName: user.name,
+                senderId: user._id,
+                messagePreview: args.content.substring(0, 100),
+              }
+            }
+          });
+
+          // 💬 Send push notification
+          await ctx.scheduler.runAfter(
+            0,
+            internal.pushNotifications.sendPushNotification,
+            {
+              userId: participantId,
+              title: `💬 ${user.name}`,
+              body: args.content.substring(0, 100),
+              url: `/messages`,
+              icon: user.imageUrl || "/icon-192x192.png",
+              tag: `message-${args.roomId}`,
+            }
+          );
+        }
+      }
+    }
 
     return messageId;
   },
@@ -579,14 +631,21 @@ export const setTyping = mutation({
 
     // Update user's metadata with typing status
     const currentMetadata = user.metadata || {};
+    
+    // Build new metadata - only include typing fields if actively typing
+    const newMetadata: any = { ...currentMetadata };
+    
+    if (isTyping) {
+      newMetadata.typingInRoom = roomId;
+      newMetadata.typingAt = Date.now();
+    } else {
+      // Remove typing fields when not typing
+      delete newMetadata.typingInRoom;
+      delete newMetadata.typingAt;
+    }
+    
     await ctx.db.patch(user._id, {
-      metadata: {
-        ...currentMetadata,
-        ...(isTyping 
-          ? { typingInRoom: roomId as any, typingAt: Date.now() as any }
-          : { typingInRoom: null as any, typingAt: null as any }
-        ),
-      } as any,
+      metadata: newMetadata,
     });
   },
 });

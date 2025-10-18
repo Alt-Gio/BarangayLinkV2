@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 
 /**
  * Assign users to a task - Each gets their own progress tracking
@@ -42,6 +43,31 @@ export const assignUsersToTask = mutation({
         
         // Log removal
         const user = await ctx.db.get(assignment.userId);
+        
+        // Send notification to removed user
+        await ctx.db.insert("notifications", {
+          userId: assignment.userId,
+          type: "info",
+          title: "Removed from Task",
+          message: `You've been removed from "${task.title}"`,
+          category: "task_removed",
+          relatedId: args.taskId,
+          relatedType: "eventTask",
+          isRead: false,
+          createdAt: now,
+          metadata: {
+            priority: "medium",
+            category: "task_removed",
+            relatedId: args.taskId,
+            data: {
+              taskId: args.taskId,
+              taskTitle: task.title,
+              removedBy: assignedBy.name,
+              removedById: assignedBy._id,
+            }
+          }
+        });
+        
         await ctx.db.insert("eventTaskComments", {
           taskId: args.taskId,
           userId: assignedBy._id,
@@ -91,17 +117,44 @@ export const assignUsersToTask = mutation({
       // Get user details for notification
       const user = await ctx.db.get(userId);
       if (user) {
-        // Create notification
+        // Create in-app notification
         await ctx.db.insert("notifications", {
           userId,
           type: "task_assigned",
           title: "New Task Assignment",
           message: `You've been assigned to "${task.title}" by ${assignedBy.name}`,
+          category: "task_assigned",
           relatedId: args.taskId,
           relatedType: "eventTask",
           isRead: false,
           createdAt: now,
+          actionUrl: "/tasks/my-duties",
+          metadata: {
+            priority: "medium",
+            category: "task_assigned",
+            relatedId: args.taskId,
+            data: {
+              taskId: args.taskId,
+              taskTitle: task.title,
+              assignedByName: assignedBy.name,
+              assignedById: assignedBy._id,
+            }
+          }
         });
+
+        // 🔔 Send push notification
+        await ctx.scheduler.runAfter(
+          0,
+          internal.pushNotifications.sendPushNotification,
+          {
+            userId,
+            title: "📋 New Task Assigned",
+            body: `${assignedBy.name} assigned you: "${task.title}"`,
+            url: `/tasks/my-duties`,
+            icon: "/icon-192x192.png",
+            tag: `task-${args.taskId}`,
+          }
+        );
       }
 
       // Log assignment activity

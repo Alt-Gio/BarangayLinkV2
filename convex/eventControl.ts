@@ -319,17 +319,35 @@ export const updateTaskStatus = mutation({
       isEdited: false,
     });
 
-    // Notify assigned users of status change
-    for (const userId of task.assignedTo) {
+    // Notify assigned users and creator of status change
+    const notifyUsers = new Set([...task.assignedTo, task.createdBy]);
+    
+    for (const userId of notifyUsers) {
       if (userId !== currentUser._id) {
         await ctx.db.insert("notifications", {
           userId,
-          title: "Task Status Updated",
-          message: `${task.title} status changed to ${args.newStatus}`,
-          type: "info",
-          category: "task",
+          title: args.newStatus === "done" ? "Task Completed!" : "Task Status Updated",
+          message: `"${task.title}" status changed to ${args.newStatus.replace(/_/g, ' ')} by ${currentUser.name}`,
+          type: args.newStatus === "done" ? "success" : args.newStatus === "blocked" ? "warning" : "info",
+          category: args.newStatus === "done" ? "task_completed" : "task_updated",
+          relatedId: args.taskId,
+          relatedType: "eventTask",
           isRead: false,
           createdAt: now,
+          actionUrl: "/tasks/my-duties",
+          metadata: {
+            priority: args.newStatus === "done" ? "high" : args.newStatus === "blocked" ? "high" : "medium",
+            category: args.newStatus === "done" ? "task_completed" : "task_updated",
+            relatedId: args.taskId,
+            data: {
+              taskId: args.taskId,
+              taskTitle: task.title,
+              oldStatus: oldStatus,
+              newStatus: args.newStatus,
+              changedBy: currentUser.name,
+              changedById: currentUser._id,
+            }
+          }
         });
       }
     }
@@ -436,10 +454,52 @@ export const updateTask = mutation({
     }
 
     const { taskId, ...updates } = args;
+    const now = Date.now();
+    
     await ctx.db.patch(taskId, {
       ...updates,
-      updatedAt: Date.now(),
+      updatedAt: now,
     });
+
+    // Notify assigned users and creator of significant changes
+    const hasSignificantChange = updates.priority || updates.dueDate || updates.title;
+    
+    if (hasSignificantChange) {
+      const notifyUsers = new Set([...task.assignedTo, task.createdBy]);
+      notifyUsers.delete(currentUser._id); // Don't notify the updater
+      
+      let changeDescription = [];
+      if (updates.priority) changeDescription.push(`priority changed to ${updates.priority}`);
+      if (updates.dueDate) changeDescription.push(`due date updated`);
+      if (updates.title) changeDescription.push(`title changed`);
+      
+      for (const userId of notifyUsers) {
+        await ctx.db.insert("notifications", {
+          userId,
+          title: "Task Updated",
+          message: `"${task.title}" was updated by ${currentUser.name}: ${changeDescription.join(', ')}`,
+          type: updates.priority === "critical" || updates.priority === "high" ? "warning" : "info",
+          category: "task_updated",
+          relatedId: taskId,
+          relatedType: "eventTask",
+          isRead: false,
+          createdAt: now,
+          actionUrl: "/tasks/my-duties",
+          metadata: {
+            priority: updates.priority === "critical" ? "urgent" : updates.priority === "high" ? "high" : "medium",
+            category: "task_updated",
+            relatedId: taskId,
+            data: {
+              taskId: taskId,
+              taskTitle: task.title,
+              updatedBy: currentUser.name,
+              updatedById: currentUser._id,
+              changes: updates,
+            }
+          }
+        });
+      }
+    }
 
     return { success: true };
   },
@@ -499,17 +559,63 @@ export const addTaskComment = mutation({
       isEdited: false,
     });
 
-    // Notify mentioned users
+    // Notify task owner and assigned users (except commenter)
+    const notifyUsers = new Set([task.createdBy, ...task.assignedTo]);
+    notifyUsers.delete(currentUser._id); // Don't notify the commenter
+    
+    for (const userId of notifyUsers) {
+      await ctx.db.insert("notifications", {
+        userId,
+        title: "New Comment on Task",
+        message: `${currentUser.name} commented on "${task.title}"`,
+        type: "info",
+        category: "task_comment",
+        relatedId: args.taskId,
+        relatedType: "eventTask",
+        isRead: false,
+        createdAt: now,
+        actionUrl: "/tasks/my-duties",
+        metadata: {
+          priority: "medium",
+          category: "task_comment",
+          relatedId: args.taskId,
+          data: {
+            taskId: args.taskId,
+            taskTitle: task.title,
+            commenterName: currentUser.name,
+            commenterId: currentUser._id,
+            commentPreview: args.comment.substring(0, 100),
+          }
+        }
+      });
+    }
+
+    // Notify mentioned users with higher priority
     if (args.mentions && args.mentions.length > 0) {
       for (const userId of args.mentions) {
         await ctx.db.insert("notifications", {
           userId,
-          title: "Mentioned in Task",
-          message: `${currentUser.name} mentioned you in: ${task.title}`,
+          title: "You Were Mentioned!",
+          message: `${currentUser.name} mentioned you in "${task.title}"`,
           type: "info",
           category: "mention",
+          relatedId: args.taskId,
+          relatedType: "eventTask",
           isRead: false,
           createdAt: now,
+          actionUrl: "/tasks/my-duties",
+          metadata: {
+            priority: "high",
+            category: "mention",
+            relatedId: args.taskId,
+            data: {
+              taskId: args.taskId,
+              taskTitle: task.title,
+              mentionedBy: currentUser.name,
+              mentionedById: currentUser._id,
+              commentPreview: args.comment.substring(0, 100),
+            }
+          }
         });
       }
     }

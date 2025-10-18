@@ -72,6 +72,32 @@ export default defineSchema({
       typingInRoom: v.optional(v.any()),
       typingAt: v.optional(v.number()),
       notificationPreferences: v.optional(v.any()),
+      // Activity tracking for sidebar display
+      currentActivity: v.optional(v.object({
+        type: v.union(v.literal("task"), v.literal("project"), v.literal("none")),
+        id: v.optional(v.string()),
+        name: v.optional(v.string()),
+        description: v.optional(v.string()),
+        priority: v.optional(v.string()),
+        eventInfo: v.optional(v.object({
+          id: v.string(),
+          title: v.string(),
+          type: v.string(),
+        })),
+        startedAt: v.optional(v.number()),
+      })),
+      // Activity statistics for achievements
+      activityStats: v.optional(v.object({
+        totalMinutes: v.number(),
+        taskMinutes: v.number(),
+        projectMinutes: v.number(),
+        sessionsCount: v.number(),
+        longestSession: v.number(),
+      })),
+      // Daily streak tracking
+      currentStreak: v.optional(v.number()),
+      longestStreak: v.optional(v.number()),
+      lastActivityDate: v.optional(v.number()),
     })),
   })
   .index("by_clerk_id", ["clerkId"])
@@ -968,4 +994,18 @@ export default defineSchema({
   .index("by_task_user", ["taskId", "userId"])
   .index("by_status", ["status"])
   .index("by_assigned_by", ["assignedBy"]),
+
+  // Push Notification Subscriptions (FCM tokens)
+  pushSubscriptions: defineTable({
+    userId: v.id("users"),
+    token: v.string(), // FCM token
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    deviceInfo: v.optional(v.object({
+      userAgent: v.optional(v.string()),
+      platform: v.optional(v.string()),
+    })),
+  })
+  .index("by_user", ["userId"])
+  .index("by_token", ["token"]),
 });

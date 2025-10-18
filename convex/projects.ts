@@ -674,7 +674,49 @@ export const updateProject = mutation({
     
     if (!canEdit) throw new Error("You don't have permission to edit this project");
 
+    const now = Date.now();
     await ctx.db.patch(args.projectId, args.updates);
+    
+    // Notify team members of significant changes
+    const hasSignificantChange = args.updates.priority || args.updates.urgency || args.updates.endDate || args.updates.budget;
+    
+    if (hasSignificantChange && project.assignedTo && project.assignedTo.length > 0) {
+      let changeDescription = [];
+      if (args.updates.priority) changeDescription.push(`priority changed to ${args.updates.priority}`);
+      if (args.updates.urgency) changeDescription.push(`urgency changed to ${args.updates.urgency}`);
+      if (args.updates.endDate) changeDescription.push(`deadline updated`);
+      if (args.updates.budget) changeDescription.push(`budget updated`);
+      
+      for (const userId of project.assignedTo) {
+        if (userId !== currentUser._id) {
+          await ctx.db.insert("notifications", {
+            userId,
+            title: "Project Updated",
+            message: `"${project.title}" was updated: ${changeDescription.join(', ')}`,
+            type: args.updates.urgency === "emergency" || args.updates.priority === "critical" ? "warning" : "info",
+            category: "project_updated",
+            relatedId: args.projectId,
+            relatedType: "project",
+            isRead: false,
+            createdAt: now,
+            actionUrl: `/projects/${args.projectId}`,
+            metadata: {
+              priority: args.updates.urgency === "emergency" ? "urgent" : args.updates.priority === "critical" ? "urgent" : args.updates.priority === "high" ? "high" : "medium",
+              category: "project_updated",
+              relatedId: args.projectId,
+              data: {
+                projectId: args.projectId,
+                projectTitle: project.title,
+                updatedBy: currentUser.name,
+                updatedById: currentUser._id,
+                changes: args.updates,
+              }
+            }
+          });
+        }
+      }
+    }
+    
     return args.projectId;
   },
 });
@@ -691,11 +733,46 @@ export const completeMilestone = mutation({
     
     if (!project) throw new Error("Project not found");
     
+    const now = Date.now();
+    const milestone = project.milestones.find((m: any) => m.id === args.milestoneId);
+    
     const updatedMilestones = project.milestones.map((m: any) =>
-      m.id === args.milestoneId ? { ...m, completed: true, completedAt: Date.now(), completedBy: currentUser._id } : m
+      m.id === args.milestoneId ? { ...m, completed: true, completedAt: now, completedBy: currentUser._id } : m
     );
 
     await ctx.db.patch(args.projectId, { milestones: updatedMilestones });
+    
+    // Notify all team members of milestone completion
+    if (project.assignedTo && project.assignedTo.length > 0) {
+      for (const userId of project.assignedTo) {
+        await ctx.db.insert("notifications", {
+          userId,
+          title: "Milestone Completed! 🎉",
+          message: `${currentUser.name} completed milestone "${milestone?.title || 'Milestone'}" in project "${project.title}"`,
+          type: "success",
+          category: "project_milestone",
+          relatedId: args.projectId,
+          relatedType: "project",
+          isRead: false,
+          createdAt: now,
+          actionUrl: `/projects/${args.projectId}`,
+          metadata: {
+            priority: "high",
+            category: "project_milestone",
+            relatedId: args.projectId,
+            data: {
+              projectId: args.projectId,
+              projectTitle: project.title,
+              milestoneId: args.milestoneId,
+              milestoneTitle: milestone?.title,
+              completedBy: currentUser.name,
+              completedById: currentUser._id,
+            }
+          }
+        });
+      }
+    }
+    
     return args.projectId;
   },
 });
@@ -709,6 +786,8 @@ export const completeProject = mutation({
     
     if (!project) throw new Error("Project not found");
 
+    const now = Date.now();
+    
     await ctx.db.patch(args.projectId, {
       status: "completed",
       progress: 100,
@@ -717,11 +796,40 @@ export const completeProject = mutation({
         {
           status: "completed",
           changedBy: currentUser._id,
-          changedAt: Date.now(),
+          changedAt: now,
           notes: "Project completed",
         },
       ],
     });
+
+    // Notify all team members of project completion
+    if (project.assignedTo && project.assignedTo.length > 0) {
+      for (const userId of project.assignedTo) {
+        await ctx.db.insert("notifications", {
+          userId,
+          title: "Project Completed! 🎊",
+          message: `Project "${project.title}" has been completed by ${currentUser.name}!`,
+          type: "success",
+          category: "project_completed",
+          relatedId: args.projectId,
+          relatedType: "project",
+          isRead: false,
+          createdAt: now,
+          actionUrl: `/projects/${args.projectId}`,
+          metadata: {
+            priority: "high",
+            category: "project_completed",
+            relatedId: args.projectId,
+            data: {
+              projectId: args.projectId,
+              projectTitle: project.title,
+              completedBy: currentUser.name,
+              completedById: currentUser._id,
+            }
+          }
+        });
+      }
+    }
 
     return args.projectId;
   },

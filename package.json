@@ -45,6 +45,8 @@
     "clsx": "^2.1.1",
     "convex": "^1.27.0",
     "date-fns": "^4.1.0",
+    "firebase": "^12.4.0",
+    "firebase-admin": "^13.5.0",
     "gsap": "^3.13.0",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",

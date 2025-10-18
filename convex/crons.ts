@@ -32,4 +32,25 @@ crons.hourly(
   internal.auditSystem.cleanupStaleSessions
 );
 
+// Check for upcoming task deadlines every hour
+crons.hourly(
+  "check task deadlines",
+  { minuteUTC: 0 }, // Run at the top of every hour
+  internal.deadlineReminderActions.checkTaskDeadlines
+);
+
+// Check for upcoming project deadlines daily at 9 AM
+crons.daily(
+  "check project deadlines",
+  { hourUTC: 9, minuteUTC: 0 }, // 9:00 AM UTC
+  internal.deadlineReminderActions.checkProjectDeadlines
+);
+
+// Send daily digest to all users at 8 AM Philippine Time (midnight UTC)
+crons.daily(
+  "send daily digest",
+  { hourUTC: 0, minuteUTC: 0 }, // 8:00 AM PHT = 0:00 UTC (next day)
+  internal.dailyDigest.sendDailyDigestToAll
+);
+
 export default crons;

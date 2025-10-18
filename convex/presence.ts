@@ -73,6 +73,22 @@ export const getOnlineUsers = query({
           if (!user) return null;
 
           const userLevel = await ctx.db.get(user.userLevel);
+          
+          // Generate achievement badges based on stats
+          const metadata = (user.metadata as any) || {};
+          const stats = metadata.activityStats || {};
+          const mockAchievements = [];
+          
+          if (user.level && user.level >= 2) {
+            mockAchievements.push({ title: "Level " + user.level, icon: "⭐" });
+          }
+          if (user.experience && user.experience >= 100) {
+            mockAchievements.push({ title: user.experience + " XP", icon: "🏆" });
+          }
+          // Add time-based achievements
+          if (stats.totalMinutes >= 60) {
+            mockAchievements.push({ title: Math.floor(stats.totalMinutes / 60) + "h Worked", icon: "⏰" });
+          }
 
           return {
             _id: user._id,
@@ -86,6 +102,8 @@ export const getOnlineUsers = query({
             status: presence.status,
             lastSeen: presence.lastSeen,
             currentPage: presence.currentPage,
+            currentActivity: metadata.currentActivity || null,
+            achievements: mockAchievements.slice(0, 3),
           };
         })
     );
