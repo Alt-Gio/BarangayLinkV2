@@ -14,6 +14,7 @@ import { OfflineSyncProvider } from '@/providers/OfflineSyncProvider'
 import { OfflineIndicator } from '@/components/ui/OfflineIndicator'
 import { ServiceWorkerRegistration } from '@/components/common/ServiceWorkerRegistration'
 import { env } from '@/config/env'
+import { Toaster } from 'sonner'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -64,6 +65,7 @@ export default function RootLayout({
                   <ServiceWorkerRegistration />
                   <DatabaseStatusIndicator />
                   <OfflineIndicator />
+                  <Toaster position="top-right" richColors />
                   <div className="pb-16 md:pb-0">
                     {children}
                   </div>

@@ -40,6 +40,9 @@ export default function MyTasksPage() {
   // Get user's tasks from all projects
   const myProjectTasks = useQuery(api.gamifiedTasks.getMyProjectTasks);
   
+  // Get user's event tasks (NEW!)
+  const myEventTasks = useQuery(api.eventControl.getMyEventTasks);
+  
   // Get user's projects
   const myProjects = useQuery(api.productivity.getProjects, { limit: 100 });
   
@@ -489,6 +492,153 @@ export default function MyTasksPage() {
                 );
               })}
             </div>
+
+            {/* Event Tasks Section */}
+            {myEventTasks && myEventTasks.length > 0 && (
+              <div className="mt-12">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-3 bg-emerald-500/20 rounded-lg">
+                    <Calendar className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Event Duties</h2>
+                    <p className="text-sm text-gray-400">Tasks assigned to you from events</p>
+                  </div>
+                  <Badge className="bg-emerald-500/20 text-emerald-300 ml-auto">
+                    {myEventTasks.length} tasks
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {myEventTasks.map((task: any) => {
+                    const isPastDue = task.dueDate && task.dueDate < Date.now() && task.status !== 'done';
+                    const isEventSoon = task.event?.startDate && task.event.startDate < Date.now() + (7 * 24 * 60 * 60 * 1000);
+
+                    return (
+                      <Card 
+                        key={task._id} 
+                        className={`bg-gradient-to-br from-gray-800/90 to-gray-900/90 border-gray-700/50 hover:border-emerald-500/50 transition-all cursor-pointer ${isPastDue ? 'border-red-500/50' : ''}`}
+                        onClick={() => window.location.href = `/events/${task.event._id}/control`}
+                      >
+                        <CardContent className="p-4">
+                          <div className="space-y-3">
+                            {/* Event Badge */}
+                            <div className="flex items-center gap-2 pb-2 border-b border-gray-700/50">
+                              <Calendar className="w-4 h-4 text-emerald-400" />
+                              <span className="text-sm font-semibold text-emerald-400 truncate">
+                                {task.event?.title}
+                              </span>
+                              {isEventSoon && (
+                                <Badge className="bg-orange-500/20 text-orange-300 text-xs ml-auto">
+                                  Soon
+                                </Badge>
+                              )}
+                            </div>
+
+                            {/* Task Title */}
+                            <h4 className="font-semibold text-white line-clamp-2">{task.title}</h4>
+
+                            {/* Task Description */}
+                            {task.description && (
+                              <p className="text-sm text-gray-400 line-clamp-2">{task.description}</p>
+                            )}
+
+                            {/* Task Meta */}
+                            <div className="flex flex-wrap gap-2">
+                              <Badge className={`text-xs ${
+                                task.priority === 'critical' ? 'bg-red-500/20 text-red-300' :
+                                task.priority === 'high' ? 'bg-orange-500/20 text-orange-300' :
+                                task.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
+                                'bg-blue-500/20 text-blue-300'
+                              }`}>
+                                <Flag className="w-3 h-3 mr-1" />
+                                {task.priority}
+                              </Badge>
+
+                              <Badge className={`text-xs ${
+                                task.status === 'done' ? 'bg-emerald-500/20 text-emerald-300' :
+                                task.status === 'in_progress' ? 'bg-blue-500/20 text-blue-300' :
+                                task.status === 'blocked' ? 'bg-red-500/20 text-red-300' :
+                                'bg-gray-500/20 text-gray-300'
+                              }`}>
+                                {task.status === 'done' && <CheckCircle2 className="w-3 h-3 mr-1" />}
+                                {task.status === 'in_progress' && <Clock className="w-3 h-3 mr-1" />}
+                                {task.status === 'blocked' && <AlertCircle className="w-3 h-3 mr-1" />}
+                                {task.status === 'todo' && <Circle className="w-3 h-3 mr-1" />}
+                                {task.status.replace('_', ' ')}
+                              </Badge>
+
+                              {task.estimatedHours && (
+                                <Badge className="bg-purple-500/20 text-purple-300 text-xs">
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  {task.estimatedHours}h
+                                </Badge>
+                              )}
+                            </div>
+
+                            {/* Event Details */}
+                            <div className="pt-2 border-t border-gray-700/50 space-y-1">
+                              <div className="flex items-center gap-2 text-xs text-gray-400">
+                                <Calendar className="w-3 h-3" />
+                                <span>Event: {new Date(task.event.startDate).toLocaleDateString()}</span>
+                              </div>
+                              
+                              {task.dueDate && (
+                                <div className={`flex items-center gap-2 text-xs ${isPastDue ? 'text-red-400' : 'text-gray-400'}`}>
+                                  <Clock className="w-3 h-3" />
+                                  <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                                  {isPastDue && <AlertCircle className="w-3 h-3 ml-auto" />}
+                                </div>
+                              )}
+
+                              {task.creator && (
+                                <div className="flex items-center gap-2 text-xs text-gray-400">
+                                  <Avatar className="w-4 h-4">
+                                    <AvatarImage src={task.creator.imageUrl} />
+                                    <AvatarFallback className="bg-emerald-600 text-white text-xs">
+                                      {task.creator.name?.charAt(0)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span>Assigned by {task.creator.name}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Progress Bar */}
+                            {task.progress > 0 && (
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-xs text-gray-400">
+                                  <span>Progress</span>
+                                  <span>{task.progress}%</span>
+                                </div>
+                                <div className="w-full bg-gray-700 rounded-full h-2">
+                                  <div
+                                    className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-2 rounded-full transition-all duration-300"
+                                    style={{ width: `${task.progress}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Action Button */}
+                            <Button 
+                              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.location.href = `/events/${task.event._id}/control`;
+                              }}
+                            >
+                              <Target className="w-4 h-4 mr-2" />
+                              Go to Event Board
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

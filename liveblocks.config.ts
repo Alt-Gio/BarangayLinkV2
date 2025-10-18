@@ -42,7 +42,16 @@ declare global {
 
     // Custom metadata set on threads, for useThreads, useCreateThread, etc.
     ThreadMetadata: {
-      // Add thread metadata as needed
+      resolved?: boolean;
+      projectId?: string;
+      taskId?: string;
+      resourceType?: 'project' | 'task' | 'event' | 'sprint' | 'document';
+      resourceId?: string;
+      priority?: 'low' | 'medium' | 'high';
+      category?: 'question' | 'feedback' | 'bug' | 'feature' | 'general';
+      assignedTo?: string[];
+      tags?: string[];
+      createdAt?: number;
     };
 
     // Custom room info set with resolveRoomsInfo, for useRoomInfo

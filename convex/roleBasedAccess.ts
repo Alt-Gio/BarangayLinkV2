@@ -13,8 +13,37 @@ export const getCurrentUser = async (ctx: any) => {
 
   if (!user) throw new Error("User not found in database");
 
+  // Check user status
+  if (user.status === "pending") {
+    throw new Error("Your account is pending admin approval. Please wait for approval.");
+  }
+
+  if (user.status === "rejected") {
+    const reason = user.rejectionReason || "No reason provided";
+    throw new Error(`Your account has been rejected. Reason: ${reason}`);
+  }
+
   const userLevel = await ctx.db.get(user.userLevel);
-  if (!userLevel) throw new Error("User level not found");
+  
+  // Handle missing user level (in case role was deleted)
+  if (!userLevel) {
+    // Try to find WORKER level as default
+    const defaultLevel = await ctx.db
+      .query("userLevels")
+      .filter((q: any) => q.eq(q.field("name"), "WORKER"))
+      .first();
+    
+    if (!defaultLevel) {
+      throw new Error("User level not found and no default level available. Please contact administrator.");
+    }
+    
+    // Return user with default level
+    return {
+      ...user,
+      userLevel: defaultLevel,
+      _needsUserLevelUpdate: true, // Flag that this user needs their level updated
+    };
+  }
 
   return {
     ...user,
@@ -37,8 +66,8 @@ export const checkPermission = async (ctx: any, requiredLevel: string[]) => {
 export const checkDepartmentAccess = (currentUser: any, targetDepartment: string) => {
   const userLevel = currentUser.userLevel.name;
   
-  // ADMIN can access all departments
-  if (userLevel === "ADMIN") return true;
+  // ADMIN and CAPTAIN can access all departments
+  if (userLevel === "ADMIN" || userLevel === "CAPTAIN") return true;
   
   // Others can only access their own department
   if (currentUser.department !== targetDepartment) {
@@ -48,7 +77,7 @@ export const checkDepartmentAccess = (currentUser: any, targetDepartment: string
   return true;
 };
 
-// ===== ADMIN ROLE FUNCTIONS (Level 4) =====
+// ===== ADMIN ROLE FUNCTIONS (Level 5) =====
 
 // Create new user levels (ADMIN only)
 export const createUserLevel = mutation({
@@ -199,9 +228,14 @@ export const getSystemAnalytics = query({
   }
 });
 
+// ===== CAPTAIN ROLE FUNCTIONS (Level 4) =====
+
+// Captain has most MANAGER permissions but with broader authority
+// Most CAPTAIN-specific functions will use checkPermission with ["CAPTAIN", "ADMIN"]
+
 // ===== MANAGER ROLE FUNCTIONS (Level 3) =====
 
-// Approve or reject projects (MANAGER + ADMIN)
+// Approve or reject projects (MANAGER + CAPTAIN + ADMIN)
 export const approveProject = mutation({
   args: { 
     projectId: v.id("projects"), 
@@ -209,12 +243,12 @@ export const approveProject = mutation({
     comments: v.optional(v.string())
   },
   handler: async (ctx, args) => {
-    const currentUser = await checkPermission(ctx, ["MANAGER", "ADMIN"]);
+    const currentUser = await checkPermission(ctx, ["MANAGER", "CAPTAIN", "ADMIN"]);
     
     const project = await ctx.db.get(args.projectId);
     if (!project) throw new Error("Project not found");
     
-    // Managers can only approve projects in their department
+    // Managers can only approve projects in their department (CAPTAIN and ADMIN have all access)
     if (currentUser.userLevel.name === "MANAGER") {
       checkDepartmentAccess(currentUser, project.department);
     }
@@ -251,7 +285,7 @@ export const approveProject = mutation({
   }
 });
 
-// Create events (MANAGER + ADMIN)
+// Create events (MANAGER + CAPTAIN + ADMIN)
 export const createEvent = mutation({
   args: {
     title: v.string(),
@@ -264,9 +298,9 @@ export const createEvent = mutation({
     department: v.string()
   },
   handler: async (ctx, args) => {
-    const currentUser = await checkPermission(ctx, ["MANAGER", "ADMIN"]);
+    const currentUser = await checkPermission(ctx, ["MANAGER", "CAPTAIN", "ADMIN"]);
     
-    // Managers can only create events in their department
+    // Managers can only create events in their department (CAPTAIN and ADMIN have all access)
     if (currentUser.userLevel.name === "MANAGER") {
       checkDepartmentAccess(currentUser, args.department);
     }
@@ -292,14 +326,14 @@ export const createEvent = mutation({
   }
 });
 
-// Assign users to projects (MANAGER + ADMIN)
+// Assign users to projects (MANAGER + CAPTAIN + ADMIN)
 export const assignUserToProject = mutation({
   args: {
     projectId: v.id("projects"),
     userId: v.id("users")
   },
   handler: async (ctx, args) => {
-    const currentUser = await checkPermission(ctx, ["MANAGER", "ADMIN"]);
+    const currentUser = await checkPermission(ctx, ["MANAGER", "CAPTAIN", "ADMIN"]);
     
     const project = await ctx.db.get(args.projectId);
     if (!project) throw new Error("Project not found");
@@ -307,7 +341,7 @@ export const assignUserToProject = mutation({
     const targetUser = await ctx.db.get(args.userId);
     if (!targetUser) throw new Error("User not found");
     
-    // Managers can only assign users from their department
+    // Managers can only assign users from their department (CAPTAIN and ADMIN have all access)
     if (currentUser.userLevel.name === "MANAGER") {
       checkDepartmentAccess(currentUser, project.department);
       checkDepartmentAccess(currentUser, targetUser.department || "");
@@ -346,7 +380,7 @@ export const assignUserToProject = mutation({
 
 // ===== BUILDER ROLE FUNCTIONS (Level 2) =====
 
-// Create project (BUILDER + MANAGER + ADMIN) - Enhanced version
+// Create project (BUILDER + MANAGER + CAPTAIN + ADMIN) - Enhanced version
 export const createProjectWithApproval = mutation({
   args: {
     title: v.string(),
@@ -357,7 +391,7 @@ export const createProjectWithApproval = mutation({
     budget: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const currentUser = await checkPermission(ctx, ["BUILDER", "MANAGER", "ADMIN"]);
+    const currentUser = await checkPermission(ctx, ["BUILDER", "MANAGER", "CAPTAIN", "ADMIN"]);
     
     // BUILDERs can only create projects in their department
     if (currentUser.userLevel.name === "BUILDER") {
@@ -441,14 +475,14 @@ export const createProjectWithApproval = mutation({
   }
 });
 
-// Assign task to worker (BUILDER + MANAGER + ADMIN)
+// Assign task to worker (BUILDER + MANAGER + CAPTAIN + ADMIN)
 export const assignTaskToWorker = mutation({
   args: {
     taskId: v.id("tasks"),
     workerId: v.id("users")
   },
   handler: async (ctx, args) => {
-    const currentUser = await checkPermission(ctx, ["BUILDER", "MANAGER", "ADMIN"]);
+    const currentUser = await checkPermission(ctx, ["BUILDER", "MANAGER", "CAPTAIN", "ADMIN"]);
     
     const task = await ctx.db.get(args.taskId);
     if (!task) throw new Error("Task not found");
@@ -464,7 +498,7 @@ export const assignTaskToWorker = mutation({
       throw new Error("Can only assign tasks to WORKER role users");
     }
     
-    // Check department access for BUILDER and MANAGER
+    // Check department access for BUILDER and MANAGER (CAPTAIN and ADMIN have all access)
     if (["BUILDER", "MANAGER"].includes(currentUser.userLevel.name)) {
       checkDepartmentAccess(currentUser, worker.department || "");
     }
@@ -521,7 +555,7 @@ export const updateMyTaskStatus = mutation({
     // Others can update tasks they created or manage
     if (currentUser.userLevel.name !== "WORKER" && task.createdBy !== currentUser._id) {
       // Check if they have permission to manage this task
-      if (!["ADMIN"].includes(currentUser.userLevel.name)) {
+      if (!["ADMIN", "CAPTAIN"].includes(currentUser.userLevel.name)) {
         const project = task.projectId ? await ctx.db.get(task.projectId) : null;
         if (project && currentUser.userLevel.name === "MANAGER") {
           checkDepartmentAccess(currentUser, project.department);

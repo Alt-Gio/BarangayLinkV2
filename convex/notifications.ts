@@ -335,3 +335,63 @@ export const deleteNotification = mutation({
     await ctx.db.delete(args.notificationId);
   },
 });
+
+// Get user notifications by userId (for LiveNotifications component)
+export const getUserNotifications = query({
+  args: {
+    userId: v.id("users"),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const notifications = await ctx.db
+      .query("notifications")
+      .filter((q) => q.eq(q.field("userId"), args.userId))
+      .order("desc")
+      .take(args.limit || 50);
+
+    return notifications;
+  },
+});
+
+// Mark notification as read (alias for LiveNotifications)
+export const markAsRead = mutation({
+  args: {
+    notificationId: v.id("notifications"),
+  },
+  handler: async (ctx, args) => {
+    const notification = await ctx.db.get(args.notificationId);
+    if (!notification) throw new Error("Notification not found");
+
+    await ctx.db.patch(args.notificationId, {
+      isRead: true,
+    });
+
+    return args.notificationId;
+  },
+});
+
+// Mark all notifications as read for a user (with userId param)
+export const markAllAsRead = mutation({
+  args: {
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const unreadNotifications = await ctx.db
+      .query("notifications")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("userId"), args.userId),
+          q.eq(q.field("isRead"), false)
+        )
+      )
+      .collect();
+
+    for (const notification of unreadNotifications) {
+      await ctx.db.patch(notification._id, {
+        isRead: true,
+      });
+    }
+
+    return unreadNotifications.length;
+  },
+});

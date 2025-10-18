@@ -50,6 +50,22 @@ export const getAllUsers = query({
     const enrichedUsers = await Promise.all(
       users.map(async (user) => {
         const userLevel = await ctx.db.get(user.userLevel);
+        
+        // Handle missing user levels (in case of deleted roles)
+        if (!userLevel) {
+          // Find a default WORKER level
+          const defaultLevel = await ctx.db
+            .query("userLevels")
+            .filter(q => q.eq(q.field("name"), "WORKER"))
+            .first();
+          
+          return {
+            ...user,
+            userLevelDetails: defaultLevel || { name: "UNKNOWN", level: 0, description: "Unknown level" },
+            _hasInvalidUserLevel: true, // Flag for admin to fix
+          };
+        }
+        
         return {
           ...user,
           userLevelDetails: userLevel,
@@ -75,6 +91,20 @@ export const getUserById = query({
     if (!user) throw new Error("User not found");
 
     const userLevel = await ctx.db.get(user.userLevel);
+    
+    // Handle missing user level
+    if (!userLevel) {
+      const defaultLevel = await ctx.db
+        .query("userLevels")
+        .filter(q => q.eq(q.field("name"), "WORKER"))
+        .first();
+      
+      return {
+        ...user,
+        userLevelDetails: defaultLevel || { name: "UNKNOWN", level: 0, description: "Unknown level" },
+        _hasInvalidUserLevel: true,
+      };
+    }
     
     return {
       ...user,

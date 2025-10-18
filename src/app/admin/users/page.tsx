@@ -130,6 +130,7 @@ export default function AdminUsersPage() {
 
   const userLevelColors: Record<string, string> = {
     ADMIN: "bg-red-600",
+    CAPTAIN: "bg-orange-600",
     MANAGER: "bg-purple-600",
     BUILDER: "bg-blue-600",
     WORKER: "bg-emerald-600",

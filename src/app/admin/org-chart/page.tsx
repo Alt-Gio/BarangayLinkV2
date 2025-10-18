@@ -17,6 +17,7 @@ import {
   ZoomOut,
   Download,
   Menu,
+  Crown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +66,9 @@ export default function OrganizationalChartPage() {
   const admins = allUsers.filter((u: any) => 
     u.userLevel?.name === "ADMIN" || u.userLevelDetails?.name === "ADMIN"
   );
+  const captains = allUsers.filter((u: any) => 
+    u.userLevel?.name === "CAPTAIN" || u.userLevelDetails?.name === "CAPTAIN"
+  );
   const managers = allUsers.filter((u: any) => 
     u.userLevel?.name === "MANAGER" || u.userLevelDetails?.name === "MANAGER"
   );
@@ -77,11 +81,23 @@ export default function OrganizationalChartPage() {
 
   // Group by department
   const departments = [...new Set(allUsers.map((u: OrgUser) => u.department).filter(Boolean))];
+  
+  // Group users by department
+  const usersByDepartment = departments.map(dept => ({
+    name: dept,
+    admins: admins.filter((u: OrgUser) => u.department === dept),
+    captains: captains.filter((u: OrgUser) => u.department === dept),
+    managers: managers.filter((u: OrgUser) => u.department === dept),
+    builders: builders.filter((u: OrgUser) => u.department === dept),
+    workers: workers.filter((u: OrgUser) => u.department === dept),
+  }));
 
   const getRoleIcon = (role: string) => {
     switch (role) {
       case "ADMIN":
         return <Shield className="w-4 h-4" />;
+      case "CAPTAIN":
+        return <Crown className="w-4 h-4" />;
       case "MANAGER":
         return <Briefcase className="w-4 h-4" />;
       case "BUILDER":
@@ -95,6 +111,8 @@ export default function OrganizationalChartPage() {
     switch (role) {
       case "ADMIN":
         return "bg-red-600";
+      case "CAPTAIN":
+        return "bg-orange-600";
       case "MANAGER":
         return "bg-purple-600";
       case "BUILDER":
@@ -207,10 +225,14 @@ export default function OrganizationalChartPage() {
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
                   <div className="bg-red-600/20 border border-red-500/30 rounded-lg p-3">
                     <p className="text-red-400 text-xs font-medium">ADMIN</p>
                     <p className="text-2xl font-bold text-white">{admins.length}</p>
+                  </div>
+                  <div className="bg-orange-600/20 border border-orange-500/30 rounded-lg p-3">
+                    <p className="text-orange-400 text-xs font-medium">CAPTAIN</p>
+                    <p className="text-2xl font-bold text-white">{captains.length}</p>
                   </div>
                   <div className="bg-purple-600/20 border border-purple-500/30 rounded-lg p-3">
                     <p className="text-purple-400 text-xs font-medium">MANAGERS</p>
@@ -228,122 +250,134 @@ export default function OrganizationalChartPage() {
               </div>
             </div>
 
-            {/* Organizational Chart */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              <div
-                style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
-                className="transition-transform duration-200"
-              >
-                {/* Level 1: Admins */}
-                <div className="flex flex-col items-center mb-12">
-                  <div className="text-center mb-4">
-                    <Badge className="bg-red-600 text-white px-4 py-2 text-sm">
-                      <Shield className="w-4 h-4 mr-2" />
-                      ADMINISTRATORS
-                    </Badge>
-                  </div>
-                  <div className="flex flex-wrap justify-center gap-4">
-                    {admins.map((admin: OrgUser) => (
-                      <UserCard key={admin._id} user={admin} size="large" />
-                    ))}
-                  </div>
-                  {/* Connecting line */}
-                  {managers.length > 0 && (
-                    <div className="w-0.5 h-12 bg-gradient-to-b from-white/50 to-transparent mt-4"></div>
+            {/* Organizational Chart - Horizontal Departments */}
+            <div className="px-4 sm:px-6 lg:px-8 py-8">
+              {/* Top Level: Admin & Captain */}
+              <div className="mb-12">
+                <div className="flex justify-center gap-8 flex-wrap">
+                  {/* Admins */}
+                  {admins.length > 0 && (
+                    <div className="flex flex-col items-center">
+                      <Badge className="bg-red-600 text-white px-4 py-2 mb-4">
+                        <Shield className="w-4 h-4 mr-2" />
+                        ADMIN
+                      </Badge>
+                      <div className="flex gap-4">
+                        {admins.map((admin: OrgUser) => (
+                          <UserCard key={admin._id} user={admin} size="large" />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Captains */}
+                  {captains.length > 0 && (
+                    <div className="flex flex-col items-center">
+                      <Badge className="bg-orange-600 text-white px-4 py-2 mb-4">
+                        <Crown className="w-4 h-4 mr-2" />
+                        CAPTAIN
+                      </Badge>
+                      <div className="flex gap-4">
+                        {captains.map((captain: OrgUser) => (
+                          <UserCard key={captain._id} user={captain} size="large" />
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
+                <div className="w-0.5 h-12 bg-gradient-to-b from-white/50 to-transparent mx-auto mt-8"></div>
+              </div>
 
-                {/* Level 2: Managers by Department */}
-                {departments.map((dept) => {
-                  const deptManagers = managers.filter((m: OrgUser) => m.department === dept);
-                  const deptBuilders = builders.filter((b: OrgUser) => b.department === dept);
-                  const deptWorkers = workers.filter((w: OrgUser) => w.department === dept);
+              {/* Departments - Horizontal Scroll */}
+              <div className="relative">
+                <div className="overflow-x-auto pb-4">
+                  <div className="flex gap-6 min-w-max px-4">
+                    {usersByDepartment.map((dept) => (
+                      <div key={dept.name} className="flex-shrink-0 w-80">
+                        {/* Department Card */}
+                        <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-md border border-white/10 rounded-2xl p-6 h-full">
+                          {/* Department Header */}
+                          <div className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/30 rounded-xl p-4 mb-6">
+                            <div className="flex items-center gap-3">
+                              <Building className="w-5 h-5 text-purple-400" />
+                              <h2 className="text-lg font-bold text-white">{dept.name}</h2>
+                            </div>
+                          </div>
 
-                  if (deptManagers.length === 0 && deptBuilders.length === 0 && deptWorkers.length === 0) return null;
+                          {/* Department Users */}
+                          <div className="space-y-6">
+                            {/* Managers */}
+                            {dept.managers.length > 0 && (
+                              <div>
+                                <Badge className="bg-purple-600 text-white px-2 py-1 text-xs mb-3">
+                                  <Briefcase className="w-3 h-3 mr-1" />
+                                  MANAGER
+                                </Badge>
+                                <div className="space-y-2">
+                                  {dept.managers.map((user: OrgUser) => (
+                                    <UserCard key={user._id} user={user} size="small" />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
 
-                  return (
-                    <div key={dept} className="mb-12">
-                      {/* Department Header */}
-                      <div className="flex flex-col items-center mb-6">
-                        <div className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/30 rounded-xl p-4 mb-6">
-                          <div className="flex items-center gap-3">
-                            <Building className="w-6 h-6 text-purple-400" />
-                            <h2 className="text-xl font-bold text-white">{dept}</h2>
+                            {/* Builders */}
+                            {dept.builders.length > 0 && (
+                              <div>
+                                <Badge className="bg-blue-600 text-white px-2 py-1 text-xs mb-3">
+                                  <Wrench className="w-3 h-3 mr-1" />
+                                  BUILDER
+                                </Badge>
+                                <div className="space-y-2">
+                                  {dept.builders.map((user: OrgUser) => (
+                                    <UserCard key={user._id} user={user} size="small" />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Workers */}
+                            {dept.workers.length > 0 && (
+                              <div>
+                                <Badge className="bg-emerald-600 text-white px-2 py-1 text-xs mb-3">
+                                  <UserIcon className="w-3 h-3 mr-1" />
+                                  WORKER
+                                </Badge>
+                                <div className="space-y-2">
+                                  {dept.workers.map((user: OrgUser) => (
+                                    <UserCard key={user._id} user={user} size="small" />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
-
-                        {/* Managers */}
-                        {deptManagers.length > 0 && (
-                          <div className="mb-8">
-                            <Badge className="bg-purple-600 text-white px-3 py-1 text-xs mb-4">
-                              <Briefcase className="w-3 h-3 mr-1" />
-                              MANAGERS
-                            </Badge>
-                            <div className="flex flex-wrap justify-center gap-4 mt-4">
-                              {deptManagers.map((manager: OrgUser) => (
-                                <UserCard key={manager._id} user={manager} size="normal" />
-                              ))}
-                            </div>
-                            {deptBuilders.length > 0 && (
-                              <div className="w-0.5 h-8 bg-gradient-to-b from-white/50 to-transparent mx-auto mt-4"></div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Builders */}
-                        {deptBuilders.length > 0 && (
-                          <div className="mb-8">
-                            <Badge className="bg-blue-600 text-white px-3 py-1 text-xs mb-4">
-                              <Wrench className="w-3 h-3 mr-1" />
-                              BUILDERS
-                            </Badge>
-                            <div className="flex flex-wrap justify-center gap-3 mt-4 max-w-5xl">
-                              {deptBuilders.map((builder: OrgUser) => (
-                                <UserCard key={builder._id} user={builder} size="small" />
-                              ))}
-                            </div>
-                            {deptWorkers.length > 0 && (
-                              <div className="w-0.5 h-8 bg-gradient-to-b from-white/50 to-transparent mx-auto mt-4"></div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Workers */}
-                        {deptWorkers.length > 0 && (
-                          <div>
-                            <Badge className="bg-emerald-600 text-white px-3 py-1 text-xs mb-4">
-                              <UserIcon className="w-3 h-3 mr-1" />
-                              WORKERS
-                            </Badge>
-                            <div className="flex flex-wrap justify-center gap-3 mt-4 max-w-6xl">
-                              {deptWorkers.map((worker: OrgUser) => (
-                                <UserCard key={worker._id} user={worker} size="small" />
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
-                    </div>
-                  );
-                })}
+                    ))}
 
-                {/* Users without department */}
-                {allUsers.filter((u: OrgUser) => !u.department).length > 0 && (
-                  <div className="mt-12">
-                    <div className="flex flex-col items-center">
-                      <div className="bg-gray-700/50 border border-gray-600 rounded-xl p-4 mb-6">
-                        <h2 className="text-xl font-bold text-white">Unassigned</h2>
+                    {/* Unassigned Users */}
+                    {allUsers.filter((u: OrgUser) => !u.department).length > 0 && (
+                      <div className="flex-shrink-0 w-80">
+                        <div className="bg-gradient-to-br from-gray-700/50 to-gray-800/50 backdrop-blur-md border border-gray-600 rounded-2xl p-6 h-full">
+                          <div className="bg-gray-700/50 border border-gray-600 rounded-xl p-4 mb-6">
+                            <h2 className="text-lg font-bold text-white">Unassigned</h2>
+                          </div>
+                          <div className="space-y-2">
+                            {allUsers
+                              .filter((u: OrgUser) => !u.department)
+                              .map((user: OrgUser) => (
+                                <UserCard key={user._id} user={user} size="small" />
+                              ))}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex flex-wrap justify-center gap-3 max-w-6xl">
-                        {allUsers
-                          .filter((u: OrgUser) => !u.department)
-                          .map((user: OrgUser) => (
-                            <UserCard key={user._id} user={user} size="small" />
-                          ))}
-                      </div>
-                    </div>
+                    )}
                   </div>
-                )}
+                </div>
+                
+                {/* Scroll Hint */}
+                <div className="text-center mt-4">
+                  <p className="text-gray-400 text-sm">← Scroll horizontally to view all departments →</p>
+                </div>
               </div>
             </div>
 
@@ -351,12 +385,18 @@ export default function OrganizationalChartPage() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
               <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-6">
                 <h3 className="text-white font-semibold mb-4">Legend</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center">
                       <Shield className="w-4 h-4 text-white" />
                     </div>
                     <span className="text-gray-300 text-sm">Administrator</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-orange-600 rounded-full flex items-center justify-center">
+                      <Crown className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-gray-300 text-sm">Captain</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">

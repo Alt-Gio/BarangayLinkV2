@@ -37,6 +37,15 @@ export default defineSchema({
     position: v.string(),
     phone: v.optional(v.string()),
     isActive: v.boolean(),
+    // Registration approval system
+    status: v.union(v.literal("pending"), v.literal("active"), v.literal("rejected")),
+    registeredViaInvitation: v.optional(v.boolean()),
+    invitationId: v.optional(v.id("userInvitations")),
+    approvedBy: v.optional(v.id("users")),
+    approvedAt: v.optional(v.number()),
+    rejectedBy: v.optional(v.id("users")),
+    rejectedAt: v.optional(v.number()),
+    rejectionReason: v.optional(v.string()),
     // Gamification stats (Habitica-style)
     level: v.number(),
     experience: v.number(),
@@ -68,7 +77,9 @@ export default defineSchema({
   .index("by_clerk_id", ["clerkId"])
   .index("by_user_level", ["userLevel"])
   .index("by_department", ["department"])
-  .index("by_level", ["level"]),
+  .index("by_level", ["level"])
+  .index("by_status", ["status"])
+  .index("by_email", ["email"]),
 
   // Projects with real-time collaboration
   projects: defineTable({
@@ -397,10 +408,22 @@ export default defineSchema({
     userId: v.id("users"),
     title: v.string(),
     message: v.string(),
-    type: v.union(v.literal("info"), v.literal("success"), v.literal("warning"), v.literal("error"), v.literal("welcome")),
-    category: v.string(),
+    type: v.union(
+      v.literal("info"), 
+      v.literal("success"), 
+      v.literal("warning"), 
+      v.literal("error"), 
+      v.literal("welcome"),
+      v.literal("task_assigned"),
+      v.literal("task_completed"),
+      v.literal("task_verified"),
+      v.literal("task_rejected")
+    ),
+    category: v.optional(v.string()),
     isRead: v.boolean(),
     actionUrl: v.optional(v.string()),
+    relatedId: v.optional(v.string()),
+    relatedType: v.optional(v.string()),
     metadata: v.optional(v.object({
       priority: v.optional(v.string()),
       category: v.optional(v.string()),
@@ -771,4 +794,178 @@ export default defineSchema({
   .index("by_category", ["category"])
   .index("by_date", ["date"])
   .index("by_created_by", ["createdBy"]),
+
+  // Event Tasks (Jira/Monday.com-style task management)
+  eventTasks: defineTable({
+    eventId: v.id("events"),
+    title: v.string(),
+    description: v.string(),
+    
+    // Status workflow (Kanban columns)
+    status: v.union(
+      v.literal("backlog"),
+      v.literal("todo"),
+      v.literal("in_progress"),
+      v.literal("in_review"),
+      v.literal("done"),
+      v.literal("blocked")
+    ),
+    blockedReason: v.optional(v.string()), // Why task is blocked
+    verifiedBy: v.optional(v.id("users")), // Who verified/approved the task
+    
+    // Priority and effort
+    priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("critical")),
+    estimatedHours: v.optional(v.number()),
+    actualHours: v.optional(v.number()),
+    storyPoints: v.optional(v.number()), // Agile story points
+    
+    // Assignment and hierarchy
+    assignedTo: v.array(v.id("users")),
+    createdBy: v.id("users"),
+    assignedBy: v.optional(v.id("users")), // Who assigned this task
+    reportTo: v.optional(v.id("users")), // Task supervisor/reviewer
+    
+    // Dates and deadlines
+    startDate: v.optional(v.number()),
+    dueDate: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    
+    // Organization
+    category: v.optional(v.string()), // e.g., "Setup", "Logistics", "Marketing"
+    taskType: v.optional(v.string()), // e.g., "general", "setup", "logistics", "documentation"
+    location: v.optional(v.string()), // Physical location where task takes place
+    requirements: v.optional(v.string()), // Materials/resources needed
+    tags: v.array(v.string()),
+    orderIndex: v.number(), // For drag-and-drop ordering within columns
+    
+    // Dependencies
+    blockedBy: v.array(v.id("eventTasks")), // Tasks that must be completed first
+    blocking: v.array(v.id("eventTasks")), // Tasks that depend on this
+    
+    // Subtasks
+    parentTaskId: v.optional(v.id("eventTasks")),
+    hasSubtasks: v.boolean(),
+    subtaskCount: v.optional(v.number()),
+    completedSubtasks: v.optional(v.number()),
+    
+    // Progress
+    progress: v.number(), // 0-100
+    checklistItems: v.optional(v.array(v.object({
+      id: v.string(),
+      text: v.string(),
+      completed: v.boolean(),
+      completedAt: v.optional(v.number()),
+      completedBy: v.optional(v.id("users")),
+    }))),
+    
+    // Attachments and links
+    attachments: v.array(v.id("documents")),
+    links: v.optional(v.array(v.object({
+      url: v.string(),
+      title: v.string(),
+    }))),
+    
+    // Metadata
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    isArchived: v.boolean(),
+  })
+  .index("by_event", ["eventId"])
+  .index("by_status", ["status"])
+  .index("by_event_status", ["eventId", "status"])
+  .index("by_assigned", ["assignedTo"])
+  .index("by_created_by", ["createdBy"])
+  .index("by_parent", ["parentTaskId"])
+  .index("by_due_date", ["dueDate"])
+  .index("by_priority", ["priority"]),
+
+  // Event Task Comments & Activity
+  eventTaskComments: defineTable({
+    taskId: v.id("eventTasks"),
+    userId: v.id("users"),
+    comment: v.string(),
+    
+    // Comment type
+    type: v.union(
+      v.literal("comment"),
+      v.literal("status_change"),
+      v.literal("assignment"),
+      v.literal("mention"),
+      v.literal("system")
+    ),
+    
+    // For status changes
+    oldStatus: v.optional(v.string()),
+    newStatus: v.optional(v.string()),
+    
+    // For assignments
+    assignedUser: v.optional(v.id("users")),
+    
+    // Mentions
+    mentions: v.array(v.id("users")),
+    
+    // Metadata
+    createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
+    isEdited: v.boolean(),
+    
+    // Reactions
+    reactions: v.optional(v.array(v.object({
+      emoji: v.string(),
+      userId: v.id("users"),
+    }))),
+  })
+  .index("by_task", ["taskId"])
+  .index("by_user", ["userId"])
+  .index("by_created_at", ["createdAt"]),
+
+  // Event Task Time Tracking
+  eventTaskTimeEntries: defineTable({
+    taskId: v.id("eventTasks"),
+    userId: v.id("users"),
+    startTime: v.number(),
+    endTime: v.optional(v.number()),
+    duration: v.optional(v.number()), // in minutes
+    description: v.optional(v.string()),
+    isRunning: v.boolean(),
+    createdAt: v.number(),
+  })
+  .index("by_task", ["taskId"])
+  .index("by_user", ["userId"])
+  .index("by_running", ["isRunning"]),
+
+  // Individual Task Assignments - Each user has their own progress
+  eventTaskAssignments: defineTable({
+    taskId: v.id("eventTasks"),
+    userId: v.id("users"),
+    assignedBy: v.id("users"),
+    
+    // Individual progress
+    status: v.union(
+      v.literal("assigned"),
+      v.literal("in_progress"),
+      v.literal("completed"),
+      v.literal("verified")
+    ),
+    progress: v.number(), // 0-100
+    
+    // Time tracking
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    verifiedAt: v.optional(v.number()),
+    verifiedBy: v.optional(v.id("users")),
+    
+    // Feedback
+    submissionNote: v.optional(v.string()),
+    verificationNote: v.optional(v.string()),
+    
+    // Metadata
+    assignedAt: v.number(),
+    isActive: v.boolean(), // Can be removed from assignment
+  })
+  .index("by_task", ["taskId"])
+  .index("by_user", ["userId"])
+  .index("by_task_user", ["taskId", "userId"])
+  .index("by_status", ["status"])
+  .index("by_assigned_by", ["assignedBy"]),
 });

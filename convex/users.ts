@@ -85,7 +85,8 @@ export const createOrUpdateUser = mutation({
         department: department || "General",
         position: jobTitle || "Community Member",
         phone: phone || undefined,
-        isActive: true,
+        isActive: false,
+        status: "pending",
         // Gamification stats
         level: 1,
         experience: 0,
@@ -193,7 +194,8 @@ export const createOrUpdateFromClerk = internalMutation({
       department: department || "General",
       position: jobTitle || "Community Member", // jobTitle → position (this is the Job Title they entered)
       phone: phone || user.phone_numbers?.[0]?.phone_number || undefined,
-      isActive: true,
+      isActive: false,
+      status: "pending" as const,
       level: 1,
       experience: 0,
       gold: 50,
@@ -318,7 +320,8 @@ export const syncUserFromClerk = mutation({
       department: args.department || "General",
       position: args.jobTitle || "Community Member", // jobTitle from form → position in database
       phone: args.phone || undefined,
-      isActive: true,
+      isActive: false,
+      status: "pending" as const,
       level: 1,
       experience: 0,
       gold: 50,
@@ -924,18 +927,49 @@ export const ensureUserExists = mutation({
       throw new Error("User level not found. Please seed user levels first.");
     }
     
+    // Check if user has an invitation
+    const invitation = await ctx.db
+      .query("userInvitations")
+      .withIndex("by_email", (q) => q.eq("email", identity.email || ""))
+      .filter((q) => q.eq(q.field("status"), "pending"))
+      .first();
+    
+    // Check for invitation code in metadata
+    const invitationCode = clerkMetadata.invitationCode;
+    let validInvitation = invitation;
+    
+    if (invitationCode && !validInvitation) {
+      validInvitation = await ctx.db
+        .query("userInvitations")
+        .withIndex("by_token", (q) => q.eq("invitationToken", invitationCode))
+        .filter((q) => q.eq(q.field("status"), "pending"))
+        .first();
+    }
+    
+    // ALWAYS set to pending - admin must approve ALL new users
+    const userStatus = "pending";
+    const isActive = false;
+    
+    // If invited, use invitation details
+    const finalDepartment = validInvitation?.department || department || "General";
+    const finalPosition = validInvitation?.position || jobTitle || "Community Member";
+    const finalUserLevel = validInvitation?.userLevelId || selectedUserLevel._id;
+    
     // Create new user with profile data from registration
     const userId = await ctx.db.insert("users", {
       clerkId: identity.subject,
       email: identity.email || `user-${identity.subject}@temp.com`,
       name: identity.name || identity.nickname || "New User",
-      userLevel: selectedUserLevel._id,
+      userLevel: finalUserLevel,
       // Use exact user selections from registration
-      department: department || "General",
-      position: jobTitle || "Community Member", // jobTitle → position
-      phone: phone || undefined,
+      department: finalDepartment,
+      position: finalPosition,
+      phone: phone || validInvitation?.phone || undefined,
       imageUrl: imageUrl || undefined,
-      isActive: true,
+      isActive: isActive,
+      status: userStatus,
+      registeredViaInvitation: validInvitation ? true : false,
+      invitationId: validInvitation?._id,
       level: 1,
       experience: 0,
       gold: 50,
@@ -950,6 +984,26 @@ export const ensureUserExists = mutation({
         lastLogin: now,
         preferences: {},
       },
+    });
+    
+    // If user registered with invitation, mark it as accepted
+    if (validInvitation) {
+      await ctx.db.patch(validInvitation._id, {
+        status: "accepted",
+        acceptedAt: now,
+        userId: userId,
+      });
+    }
+    
+    // Always create pending notification - ALL users need admin approval
+    await ctx.db.insert("notifications", {
+      userId: userId,
+      title: "Registration Submitted",
+      message: "Your registration is pending admin approval. You will be notified once approved.",
+      type: "info",
+      category: "account",
+      isRead: false,
+      createdAt: now,
     });
 
     return userId;
@@ -1250,5 +1304,34 @@ export const getAllActiveUsers = query({
     );
 
     return enrichedUsers.sort((a, b) => a.name.localeCompare(b.name));
+  },
+});
+
+// Get current user status without throwing errors (for status checking)
+export const getCurrentUserStatus = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return null;
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkId"), identity.subject))
+      .first();
+
+    if (!user) {
+      return null;
+    }
+
+    // Get user level details
+    const userLevel = await ctx.db.get(user.userLevel);
+
+    // Return user with level details - DO NOT throw errors for pending/rejected
+    return {
+      ...user,
+      userLevel: userLevel,
+    };
   },
 });

@@ -35,6 +35,7 @@ import {
   Mail,
   Network,
   MessageCircle,
+  MessageSquare,
   Target,
   TrendingUp
 } from 'lucide-react';
@@ -118,14 +119,14 @@ export function Sidebar({
           label: 'Main Dashboard',
           icon: <Home className="w-4 h-4" />,
           path: '/dashboard',
-          roles: ['WORKER', 'BUILDER', 'MANAGER', 'ADMIN']
+          roles: ['WORKER', 'BUILDER', 'MANAGER', 'CAPTAIN', 'ADMIN']
         },
         {
           id: 'analytics',
           label: 'Analytics',
           icon: <LayoutDashboard className="w-4 h-4" />,
           path: '/dashboard/analytics',
-          roles: ['MANAGER', 'ADMIN']
+          roles: ['MANAGER', 'CAPTAIN', 'ADMIN']
         }
       ]
     },
@@ -139,14 +140,14 @@ export function Sidebar({
           label: 'All Projects',
           icon: <FolderOpen className="w-4 h-4" />,
           path: '/projects',
-          roles: ['BUILDER', 'MANAGER', 'ADMIN']
+          roles: ['BUILDER', 'MANAGER', 'CAPTAIN', 'ADMIN']
         },
         {
           id: 'project-approval',
           label: 'Project Approval',
           icon: <UserCheck className="w-4 h-4" />,
           path: '/projects/approval',
-          roles: ['MANAGER', 'ADMIN']
+          roles: ['MANAGER', 'CAPTAIN', 'ADMIN']
         }
       ]
     },
@@ -160,21 +161,28 @@ export function Sidebar({
           label: 'My Tasks',
           icon: <CheckSquare className="w-4 h-4" />,
           path: '/tasks/my-tasks',
-          roles: ['WORKER', 'BUILDER', 'MANAGER', 'ADMIN']
+          roles: ['WORKER', 'BUILDER', 'MANAGER', 'CAPTAIN', 'ADMIN']
+        },
+        {
+          id: 'my-duties',
+          label: 'My Duties',
+          icon: <Briefcase className="w-4 h-4" />,
+          path: '/tasks/my-duties',
+          roles: ['WORKER', 'BUILDER', 'MANAGER', 'CAPTAIN', 'ADMIN']
         },
         {
           id: 'habits',
           label: 'Habits',
           icon: <Target className="w-4 h-4" />,
           path: '/tasks/habits',
-          roles: ['WORKER', 'BUILDER', 'MANAGER', 'ADMIN']
+          roles: ['WORKER', 'BUILDER', 'MANAGER', 'CAPTAIN', 'ADMIN']
         },
         {
           id: 'team-tasks',
           label: 'Team Tasks',
           icon: <Users className="w-4 h-4" />,
           path: '/tasks/team',
-          roles: ['BUILDER', 'MANAGER', 'ADMIN']
+          roles: ['BUILDER', 'MANAGER', 'CAPTAIN', 'ADMIN']
         }
       ]
     },
@@ -188,14 +196,14 @@ export function Sidebar({
           label: 'Event Calendar',
           icon: <CalendarDays className="w-4 h-4" />,
           path: '/events',
-          roles: ['WORKER', 'BUILDER', 'MANAGER', 'ADMIN']
+          roles: ['WORKER', 'BUILDER', 'MANAGER', 'CAPTAIN', 'ADMIN']
         },
         {
           id: 'sprint-board',
           label: 'Sprint Board',
           icon: <TrendingUp className="w-4 h-4" />,
           path: '/events/sprints',
-          roles: ['BUILDER', 'MANAGER', 'ADMIN']
+          roles: ['BUILDER', 'MANAGER', 'CAPTAIN', 'ADMIN']
         }
       ]
     },
@@ -204,14 +212,21 @@ export function Sidebar({
       label: 'Document Library',
       icon: <FolderOpen className="w-4 h-4" />,
       path: '/documents',
-      roles: ['WORKER', 'BUILDER', 'MANAGER', 'ADMIN']
+      roles: ['WORKER', 'BUILDER', 'MANAGER', 'CAPTAIN', 'ADMIN']
     },
     {
       id: 'messages',
       label: 'Messages',
       icon: <MessageCircle className="w-4 h-4" />,
       path: '/messages',
-      roles: ['WORKER', 'BUILDER', 'MANAGER', 'ADMIN']
+      roles: ['WORKER', 'BUILDER', 'MANAGER', 'CAPTAIN', 'ADMIN']
+    },
+    {
+      id: 'collaboration',
+      label: 'Collaboration',
+      icon: <MessageSquare className="w-4 h-4" />,
+      path: '/collaboration',
+      roles: ['WORKER', 'BUILDER', 'MANAGER', 'CAPTAIN', 'ADMIN']
     },
     {
       id: 'system',
@@ -224,6 +239,13 @@ export function Sidebar({
           icon: <Users className="w-4 h-4" />,
           path: '/admin/users',
           roles: ['ADMIN']
+        },
+        {
+          id: 'pending-approvals',
+          label: 'Pending Approvals',
+          icon: <UserCheck className="w-4 h-4" />,
+          path: '/admin/pending-approvals',
+          roles: ['CAPTAIN', 'ADMIN']
         },
         {
           id: 'invitations',
@@ -247,7 +269,7 @@ export function Sidebar({
           roles: ['ADMIN']
         }
       ],
-      roles: ['ADMIN']
+      roles: ['CAPTAIN', 'ADMIN']
     }
   ];
 

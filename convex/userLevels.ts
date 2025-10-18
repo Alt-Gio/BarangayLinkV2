@@ -5,10 +5,12 @@ import { v } from "convex/values";
 export const getAll = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db
+    const levels = await ctx.db
       .query("userLevels")
-      .order("desc")
       .collect();
+    
+    // Sort by level number in descending order (ADMIN first, WORKER last)
+    return levels.sort((a, b) => b.level - a.level);
   },
 });
 
@@ -16,10 +18,155 @@ export const getAll = query({
 export const getAllUserLevels = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db
+    const levels = await ctx.db
       .query("userLevels")
-      .order("asc")
       .collect();
+    
+    // Sort by level number in descending order (ADMIN first, WORKER last)
+    return levels.sort((a, b) => b.level - a.level);
+  },
+});
+
+// Add ADMIN role (Recovery function)
+export const addAdminRole = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const existingLevels = await ctx.db.query("userLevels").collect();
+    
+    // Check if ADMIN already exists
+    const adminExists = existingLevels.find(level => level.name === "ADMIN");
+    
+    if (adminExists) {
+      return { 
+        success: false,
+        message: "ADMIN role already exists",
+        adminId: adminExists._id
+      };
+    }
+    
+    // Add ADMIN role at level 5
+    const adminLevel = {
+      name: "ADMIN",
+      level: 5,
+      permissions: [
+        "tasks.read", "tasks.create", "tasks.update", "tasks.delete", "tasks.assign",
+        "projects.read", "projects.create", "projects.update", "projects.delete", 
+        "users.read", "users.create", "users.update", "users.delete", "users.assign_levels",
+        "departments.read", "departments.create", "departments.update", "departments.delete",
+        "analytics.read", "system.configure", "system.manage"
+      ],
+      description: "Full system administrator with all permissions",
+      isActive: true,
+    };
+    
+    const adminId = await ctx.db.insert("userLevels", adminLevel);
+    
+    return { 
+      success: true,
+      message: "✅ ADMIN role restored successfully!",
+      adminId,
+      totalLevels: existingLevels.length + 1
+    };
+  },
+});
+
+// Fix users with invalid user level references
+export const fixInvalidUserLevels = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const allUsers = await ctx.db.query("users").collect();
+    const allLevels = await ctx.db.query("userLevels").collect();
+    
+    let fixedCount = 0;
+    let errors = [];
+    
+    // Get valid level IDs
+    const validLevelIds = new Set(allLevels.map(l => l._id.toString()));
+    
+    // Get WORKER level as default
+    const workerLevel = allLevels.find(l => l.name === "WORKER");
+    if (!workerLevel) {
+      return {
+        success: false,
+        message: "WORKER level not found. Cannot fix user levels."
+      };
+    }
+    
+    for (const user of allUsers) {
+      // Check if user's level ID is valid
+      if (!validLevelIds.has(user.userLevel.toString())) {
+        try {
+          // Update user to WORKER level
+          await ctx.db.patch(user._id, {
+            userLevel: workerLevel._id
+          });
+          fixedCount++;
+        } catch (error: any) {
+          errors.push(`Failed to fix user ${user.email}: ${error.message}`);
+        }
+      }
+    }
+    
+    return {
+      success: true,
+      message: `✅ Fixed ${fixedCount} users with invalid user levels`,
+      fixedCount,
+      totalUsers: allUsers.length,
+      errors: errors.length > 0 ? errors : undefined
+    };
+  },
+});
+
+// Add CAPTAIN role to existing system (Migration function)
+export const addCaptainRole = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const existingLevels = await ctx.db.query("userLevels").collect();
+    
+    // Check if CAPTAIN already exists
+    const captainExists = existingLevels.find(level => level.name === "CAPTAIN");
+    
+    if (captainExists) {
+      return { 
+        success: false,
+        message: "CAPTAIN role already exists",
+        captainId: captainExists._id
+      };
+    }
+    
+    // Add CAPTAIN role at level 4
+    const captainLevel = {
+      name: "CAPTAIN",
+      level: 4,
+      permissions: [
+        "tasks.read", "tasks.create", "tasks.update", "tasks.delete", "tasks.assign",
+        "projects.read", "projects.create", "projects.update", "projects.delete",
+        "users.read", "users.create", "users.update", "users.assign_levels",
+        "departments.read", "departments.create", "departments.update",
+        "events.read", "events.create", "events.update", "events.delete",
+        "financials.read", "financials.approve",
+        "analytics.read",
+        "profile.read", "profile.update_own"
+      ],
+      description: "Barangay Captain with executive oversight and approval authority",
+      isActive: true,
+    };
+    
+    const captainId = await ctx.db.insert("userLevels", captainLevel);
+    
+    // Update ADMIN level from 4 to 5
+    const adminLevel = existingLevels.find(level => level.name === "ADMIN");
+    if (adminLevel && adminLevel.level === 4) {
+      await ctx.db.patch(adminLevel._id, { level: 5 });
+    }
+    
+    return { 
+      success: true,
+      message: "✅ CAPTAIN role added successfully!",
+      captainId,
+      totalLevels: existingLevels.length + 1,
+      adminUpdated: adminLevel ? true : false
+    };
   },
 });
 
@@ -29,8 +176,47 @@ export const seedUserLevels = mutation({
   handler: async (ctx) => {
     // Check if user levels already exist
     const existingLevels = await ctx.db.query("userLevels").collect();
-    if (existingLevels.length > 0) {
-      return { message: "User levels already exist", count: existingLevels.length };
+    
+    // Check if CAPTAIN already exists
+    const captainExists = existingLevels.find(level => level.name === "CAPTAIN");
+    
+    if (existingLevels.length >= 5 && captainExists) {
+      return { message: "All user levels including CAPTAIN already exist", count: existingLevels.length };
+    }
+    
+    // If we have old 4 levels but no CAPTAIN, we need to add it
+    if (existingLevels.length > 0 && !captainExists) {
+      // Add CAPTAIN role
+      const captainLevel = {
+        name: "CAPTAIN",
+        level: 4,
+        permissions: [
+          "tasks.read", "tasks.create", "tasks.update", "tasks.delete", "tasks.assign",
+          "projects.read", "projects.create", "projects.update", "projects.delete",
+          "users.read", "users.create", "users.update", "users.assign_levels",
+          "departments.read", "departments.create", "departments.update",
+          "events.read", "events.create", "events.update", "events.delete",
+          "financials.read", "financials.approve",
+          "analytics.read",
+          "profile.read", "profile.update_own"
+        ],
+        description: "Barangay Captain with executive oversight and approval authority",
+        isActive: true,
+      };
+      
+      const captainId = await ctx.db.insert("userLevels", captainLevel);
+      
+      // Update ADMIN level to 5 if it exists at level 4
+      const adminLevel = existingLevels.find(level => level.name === "ADMIN");
+      if (adminLevel && adminLevel.level === 4) {
+        await ctx.db.patch(adminLevel._id, { level: 5 });
+      }
+      
+      return { 
+        message: "CAPTAIN role added successfully", 
+        captainId,
+        totalLevels: existingLevels.length + 1
+      };
     }
 
     const userLevels = [
@@ -65,14 +251,30 @@ export const seedUserLevels = mutation({
         isActive: true,
       },
       {
-        name: "ADMIN",
+        name: "CAPTAIN",
         level: 4,
+        permissions: [
+          "tasks.read", "tasks.create", "tasks.update", "tasks.delete", "tasks.assign",
+          "projects.read", "projects.create", "projects.update", "projects.delete",
+          "users.read", "users.create", "users.update", "users.assign_levels",
+          "departments.read", "departments.create", "departments.update",
+          "events.read", "events.create", "events.update", "events.delete",
+          "financials.read", "financials.approve",
+          "analytics.read",
+          "profile.read", "profile.update_own"
+        ],
+        description: "Barangay Captain with executive oversight and approval authority",
+        isActive: true,
+      },
+      {
+        name: "ADMIN",
+        level: 5,
         permissions: [
           "tasks.read", "tasks.create", "tasks.update", "tasks.delete", "tasks.assign",
           "projects.read", "projects.create", "projects.update", "projects.delete", 
           "users.read", "users.create", "users.update", "users.delete", "users.assign_levels",
-          "departments.read", "departments.create", "departments.update",
-          "analytics.read", "system.configure"
+          "departments.read", "departments.create", "departments.update", "departments.delete",
+          "analytics.read", "system.configure", "system.manage"
         ],
         description: "Full system administrator with all permissions",
         isActive: true,

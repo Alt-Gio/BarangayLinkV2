@@ -220,6 +220,7 @@ export const seedSampleData = mutation({
           position: "Worker",
           phone: `+63912345678${i}`,
           isActive: true,
+          status: "active" as const,
           // Gamification stats
           level: 1,
           experience: 0,

@@ -123,14 +123,28 @@ export const syncAllClerkUsers = mutation({
             throw new Error("WORKER user level not found. Please initialize user levels first.");
           }
 
+          // Check for invitation
+          const invitation = await ctx.db
+            .query("userInvitations")
+            .withIndex("by_email", (q) => q.eq("email", userData.email))
+            .filter((q) => q.eq(q.field("status"), "pending"))
+            .first();
+
+          // ALWAYS set to pending - admin must approve ALL new users
+          const userStatus = "pending";
+          const isActive = false;
+
           const userId = await ctx.db.insert("users", {
             clerkId: userData.clerkId,
             email: userData.email,
             name: userData.name,
-            userLevel: workerLevel._id,
-            department: "General",
-            position: "Community Member",
-            isActive: true,
+            userLevel: invitation?.userLevelId || workerLevel._id,
+            department: invitation?.department || "General",
+            position: invitation?.position || "Community Member",
+            isActive: isActive,
+            status: userStatus,
+            registeredViaInvitation: invitation ? true : false,
+            invitationId: invitation?._id,
             level: 1,
             experience: 0,
             gold: 100,
@@ -151,14 +165,23 @@ export const syncAllClerkUsers = mutation({
             },
           });
 
-          // Create welcome notification
+          // Mark invitation as accepted if used
+          if (invitation) {
+            await ctx.db.patch(invitation._id, {
+              status: "accepted",
+              acceptedAt: Date.now(),
+              userId: userId,
+            });
+          }
+
+          // Create pending notification for ALL users
           try {
             await ctx.db.insert("notifications", {
               userId,
-              title: "Welcome to BarangayLink!",
-              message: "Welcome to our community management system. Start by exploring your dashboard and joining community activities.",
-              type: "welcome",
-              category: "system",
+              title: "Registration Submitted",
+              message: "Your registration is pending admin approval. You will be notified once approved.",
+              type: "info",
+              category: "account",
               isRead: false,
               createdAt: Date.now(),
             });

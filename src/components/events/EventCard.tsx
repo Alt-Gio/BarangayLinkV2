@@ -1,9 +1,11 @@
 "use client";
 
-import { Clock, MapPin, Users, User, AlertTriangle, Briefcase, MessageSquare, Edit, Archive, RotateCcw, Trash2, MoreVertical } from "lucide-react";
+import { Clock, MapPin, Users, User, AlertTriangle, Briefcase, MessageSquare, Edit, Archive, RotateCcw, Trash2, MoreVertical, Target, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -70,6 +72,9 @@ export function EventCard({
   const isArchived = event.status === "archived";
   const canManage = isOrganizer || isAdmin;
 
+  // Get event progress
+  const eventProgress = useQuery(api.eventControl.getEventProgress, { eventId: event._id });
+
   const handleAction = (e: React.MouseEvent, action: () => void) => {
     e.stopPropagation();
     action();
@@ -95,6 +100,15 @@ export function EventCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="bg-gray-900 border border-white/20 shadow-2xl">
+                {!isArchived && (
+                  <DropdownMenuItem
+                    onClick={(e: React.MouseEvent) => handleAction(e, () => window.location.href = `/events/${event._id}/control`)}
+                    className="text-emerald-400 hover:bg-emerald-600/20 cursor-pointer"
+                  >
+                    <Target className="w-4 h-4 mr-2" />
+                    Event Control
+                  </DropdownMenuItem>
+                )}
                 {onEdit && (
                   <DropdownMenuItem
                     onClick={(e: React.MouseEvent) => handleAction(e, () => onEdit(event))}
@@ -230,6 +244,46 @@ export function EventCard({
               <div className="text-xs text-gray-500">Organized by</div>
               <div className="text-sm text-gray-300 font-medium truncate">{event.organizerDetails.name}</div>
             </div>
+          </div>
+        )}
+
+        {/* Event Progress */}
+        {eventProgress && eventProgress.totalTasks > 0 && !isArchived && (
+          <div className="pt-3 border-t border-white/5">
+            <div className="flex items-center justify-between mb-2 text-xs">
+              <div className="flex items-center gap-1 text-emerald-400">
+                <TrendingUp className="w-3 h-3" />
+                <span className="font-medium">Event Progress</span>
+              </div>
+              <span className="text-gray-400">
+                {eventProgress.completedTasks}/{eventProgress.totalTasks} tasks
+              </span>
+            </div>
+            <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${eventProgress.progress}%` }}
+              />
+            </div>
+            <div className="text-right mt-1">
+              <span className="text-xs font-semibold text-emerald-400">{eventProgress.progress}%</span>
+            </div>
+          </div>
+        )}
+
+        {/* Event Control Button */}
+        {!isArchived && (
+          <div className="pt-3 border-t border-white/5">
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                window.location.href = `/events/${event._id}/control`;
+              }}
+              className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white shadow-lg"
+            >
+              <Target className="w-4 h-4 mr-2" />
+              Event Control Board
+            </Button>
           </div>
         )}
       </div>

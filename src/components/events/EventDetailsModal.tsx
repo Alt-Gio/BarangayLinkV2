@@ -19,7 +19,9 @@ import {
   UserPlus,
   UserMinus,
   Globe,
-  Lock
+  Lock,
+  Target,
+  TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +40,12 @@ export function EventDetailsModal({ event, isOpen, onClose }: EventDetailsModalP
   const imageUrl = useQuery(
     api.documents.getFileUrl,
     event?.imageUrl ? { storageId: event.imageUrl } : "skip"
+  );
+
+  // Get event progress
+  const eventProgress = useQuery(
+    api.eventControl.getEventProgress,
+    event?._id ? { eventId: event._id } : "skip"
   );
   
   const [isRsvping, setIsRsvping] = useState(false);
@@ -270,6 +278,48 @@ export function EventDetailsModal({ event, isOpen, onClose }: EventDetailsModalP
               </div>
             </div>
           )}
+
+          {/* Event Progress */}
+          {eventProgress && eventProgress.totalTasks > 0 && (
+            <div className="pt-4 border-t border-white/10">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2 text-emerald-400">
+                  <TrendingUp className="w-4 h-4" />
+                  <span className="font-semibold">Event Planning Progress</span>
+                </div>
+                <span className="text-sm text-gray-400">
+                  {eventProgress.completedTasks}/{eventProgress.totalTasks} tasks completed
+                </span>
+              </div>
+              <div className="space-y-2">
+                <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-emerald-500 via-emerald-600 to-emerald-500 h-3 rounded-full transition-all duration-500 relative overflow-hidden"
+                    style={{ width: `${eventProgress.progress}%` }}
+                  >
+                    <div className="absolute inset-0 bg-white/20 animate-pulse" />
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-500">Preparation Status</span>
+                  <span className="text-sm font-bold text-emerald-400">{eventProgress.progress}% Complete</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Event Control Button - Always visible */}
+          <div className="pt-4 border-t border-white/10">
+            <Button
+              onClick={() => {
+                window.location.href = `/events/${event._id}/control`;
+              }}
+              className="w-full px-6 py-4 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white rounded-lg font-bold text-lg transition-all shadow-lg hover:shadow-emerald-500/50 flex items-center justify-center gap-3"
+            >
+              <Target className="w-6 h-6" />
+              Open Event Control Board
+            </Button>
+          </div>
 
           {/* Actions */}
           <div className="flex gap-3 pt-4 border-t border-white/10">
