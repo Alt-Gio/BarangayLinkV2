@@ -1,10 +1,11 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../../../convex/_generated/api";
+import { useState, useEffect, use } from 'react';
+import { useQuery, useMutation } from 'convex/react';
+import { useParams, useRouter } from 'next/navigation';
+import { api } from '../../../../../convex/_generated/api';
+import { useOfflineData } from '@/contexts/OfflineDataContext';
 import { Id } from "../../../../../convex/_generated/dataModel";
-import { useState } from "react";
 import { 
   Plus, 
   Calendar, 
@@ -45,7 +46,6 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Toaster } from "sonner";
-import { useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -133,7 +133,9 @@ export default function EventControlPage() {
   const event = useQuery(api.events.getEventById, { eventId });
   const tasks = useQuery(api.eventControl.getEventTasks, { eventId });
   const dashboard = useQuery(api.eventControl.getEventDashboard, { eventId });
-  const currentUser = useQuery(api.users.getCurrentUserStatus);
+  // Get current user from offline context (cached, saves bandwidth)
+  const { currentUser, isOnline } = useOfflineData();
+  const currentUserStatus = useQuery(api.users.getCurrentUserStatus);
   const allUsers = useQuery(api.users.getAllActiveUsers);
   const activeTimeEntry = useQuery(api.eventTaskTimeTracking.getActiveTimeEntry, {});
   // Get all task assignments for the event (needed for validation)

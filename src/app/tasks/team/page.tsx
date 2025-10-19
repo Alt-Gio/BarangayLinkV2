@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from 'react';
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
+import { useOfflineData } from '@/contexts/OfflineDataContext';
 import { Id } from '../../../../convex/_generated/dataModel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -36,8 +37,8 @@ export default function TeamTasksPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Get current user
-  const currentUser = useQuery(api.users.getCurrentUser);
+  // Get current user from offline context (cached, saves bandwidth)
+  const { currentUser, isOnline } = useOfflineData();
   
   // Get all projects user has access to
   const projects = useQuery(api.projects.getAllProjects);

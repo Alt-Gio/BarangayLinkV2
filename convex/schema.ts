@@ -229,6 +229,9 @@ export default defineSchema({
     streak: v.optional(v.number()),
     lastCompleted: v.optional(v.number()),
     completionCount: v.number(),
+    // Story Points (JIRA integration)
+    storyPoints: v.optional(v.number()), // Fibonacci: 1,2,3,5,8,13,21
+    sprintId: v.optional(v.id("sprints")), // Link to active sprint
     // Additional fields
     tags: v.array(v.string()),
     attachments: v.array(v.id("documents")),
@@ -1008,4 +1011,82 @@ export default defineSchema({
   })
   .index("by_user", ["userId"])
   .index("by_token", ["token"]),
+
+  // ==================== SPRINT MANAGEMENT (JIRA-like) ====================
+
+  // Sprints - Time-boxed iterations for agile project management
+  sprints: defineTable({
+    name: v.string(), // e.g., "Sprint 1", "Q1 Planning Sprint"
+    goal: v.string(), // Sprint goal/objective
+    startDate: v.number(),
+    endDate: v.number(),
+    capacity: v.number(), // Total story points capacity
+    projectId: v.optional(v.id("projects")), // Link to project (optional)
+    
+    // Status management
+    status: v.union(
+      v.literal("planning"),  // Sprint being planned
+      v.literal("active"),    // Currently running
+      v.literal("completed"), // Finished
+      v.literal("cancelled")  // Cancelled
+    ),
+    
+    // Metadata
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    actualStartDate: v.optional(v.number()), // When sprint actually started
+    completedAt: v.optional(v.number()),    // When sprint was completed
+  })
+  .index("by_project", ["projectId"])
+  .index("by_status", ["status"])
+  .index("by_dates", ["startDate", "endDate"])
+  .index("by_creator", ["createdBy"]),
+
+  // Sprint Tasks - Junction table linking tasks to sprints with additional metadata
+  sprintTasks: defineTable({
+    sprintId: v.id("sprints"),
+    taskId: v.id("tasks"),
+    storyPoints: v.number(), // Estimated complexity (Fibonacci: 1,2,3,5,8,13,21)
+    
+    // Sprint-specific status (for Kanban board)
+    status: v.union(
+      v.literal("todo"),        // Backlog/To Do
+      v.literal("in_progress"), // Currently working
+      v.literal("in_review"),   // Under review/testing
+      v.literal("done")         // Completed
+    ),
+    
+    // Metadata
+    addedAt: v.number(),      // When task was added to sprint
+    updatedAt: v.optional(v.number()), // Last status update
+    movedToDone: v.optional(v.number()), // When task was completed
+  })
+  .index("by_sprint", ["sprintId"])
+  .index("by_task", ["taskId"])
+  .index("by_sprint_status", ["sprintId", "status"])
+  .index("by_status", ["status"]),
+
+  // Sprint Backlog - Prioritized list of tasks not yet in a sprint
+  // Note: Tasks not in sprintTasks table are considered backlog
+  // This table stores additional planning metadata
+  backlogItems: defineTable({
+    taskId: v.id("tasks"),
+    projectId: v.optional(v.id("projects")),
+    estimatedPoints: v.optional(v.number()), // Story point estimate
+    priority: v.number(), // Manual priority order (lower = higher priority)
+    
+    // Planning poker results
+    estimates: v.optional(v.array(v.object({
+      userId: v.id("users"),
+      points: v.number(),
+      estimatedAt: v.number(),
+    }))),
+    
+    // Metadata
+    addedToBacklog: v.number(),
+    lastUpdated: v.number(),
+  })
+  .index("by_task", ["taskId"])
+  .index("by_project", ["projectId"])
+  .index("by_priority", ["priority"]),
 });

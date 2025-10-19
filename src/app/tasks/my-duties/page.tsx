@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
+import { useOfflineData } from '@/contexts/OfflineDataContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -40,8 +41,8 @@ export default function MyDutiesPage() {
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Get current user
-  const currentUser = useQuery(api.users.getCurrentUser);
+  // Get current user from offline context (cached, saves bandwidth)
+  const { currentUser, isOnline } = useOfflineData();
   
   // Get user's event tasks
   const myEventTasks = useQuery(api.eventControl.getMyEventTasks);

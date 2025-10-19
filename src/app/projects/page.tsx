@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 
 // Force dynamic rendering for authenticated pages
 export const dynamic = 'force-dynamic';
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import { useOfflineData } from '@/contexts/OfflineDataContext';
 import { CreateProjectForm } from '@/components/projects/CreateProjectForm';
 import { ProjectsList } from '@/components/projects/ProjectsList';
 import { ProjectFilters } from '@/components/projects/ProjectFilters';
@@ -31,8 +32,8 @@ export default function ProjectsPage() {
     department: "all"
   });
 
-  // Get current user with role
-  const currentUser = useQuery(api.users.getCurrentUser);
+  // Get current user from offline context (cached, saves bandwidth)
+  const { currentUser, isOnline } = useOfflineData();
   
   // Use existing API (enhanced API will be available after running: npx convex dev)
   const projects = useQuery(api.productivity.getProjects, {

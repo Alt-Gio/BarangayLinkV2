@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
-import { ClerkProvider } from '@clerk/nextjs'
+import { ClerkOfflineProvider } from '@/components/providers/ClerkOfflineProvider'
 import ConvexClientProvider from '@/components/ConvexClientProvider'
 import SessionTracker from '@/components/SessionTracker'
 import { DatabaseConnectionProvider } from '@/components/common/DatabaseConnectionProvider'
@@ -10,8 +10,9 @@ import { BottomNav } from '@/components/mobile/BottomNav'
 import { InstallPrompt } from '@/components/mobile/InstallPrompt'
 import { PageTransition } from '@/components/common/PageTransition'
 import { SidebarProvider } from '@/contexts/SidebarContext'
-import { OfflineSyncProvider } from '@/providers/OfflineSyncProvider'
-import { OfflineIndicator } from '@/components/ui/OfflineIndicator'
+import { OfflineDataProvider } from '@/contexts/OfflineDataContext'
+import { OfflineIndicator } from '@/components/OfflineIndicator'
+import { OfflineDebugger } from '@/components/OfflineDebugger'
 import { ServiceWorkerRegistration } from '@/components/common/ServiceWorkerRegistration'
 import { env } from '@/config/env'
 import { Toaster } from 'sonner'
@@ -58,10 +59,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <ClerkProvider publishableKey={env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
+        <ClerkOfflineProvider publishableKey={env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
           <ConvexClientProvider>
             <DatabaseConnectionProvider>
-              <OfflineSyncProvider>
+              <OfflineDataProvider>
                 <SidebarProvider>
                   <PageTransition />
                   <PresenceTracker />
@@ -75,13 +76,14 @@ export default function RootLayout({
                   <Toaster position="top-right" richColors />
                   <DatabaseStatusIndicator />
                   <OfflineIndicator />
+                  <OfflineDebugger />
                   <BottomNav />
                   <InstallPrompt />
                 </SidebarProvider>
-              </OfflineSyncProvider>
+              </OfflineDataProvider>
             </DatabaseConnectionProvider>
           </ConvexClientProvider>
-        </ClerkProvider>
+        </ClerkOfflineProvider>
       </body>
     </html>
   )

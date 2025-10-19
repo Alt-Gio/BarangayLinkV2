@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../../convex/_generated/api';
+import { useOfflineData } from '@/contexts/OfflineDataContext';
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import {
@@ -48,7 +49,8 @@ export default function AdminUsersPage() {
   const [editingUser, setEditingUser] = useState<any>(null);
   const [viewingUser, setViewingUser] = useState<any>(null);
 
-  const currentUser = useQuery(api.users.getCurrentUser);
+  // Get current user from offline context (cached, saves bandwidth)
+  const { currentUser, isOnline } = useOfflineData();
 
   // Only fetch data when authenticated
   const users = useQuery(

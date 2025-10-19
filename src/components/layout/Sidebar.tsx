@@ -43,6 +43,7 @@ import {
 import { GlobalSearch } from '@/components/search/GlobalSearch';
 import { SidebarNotificationPanel } from '@/components/notifications/SidebarNotificationPanel';
 import { SidebarProfilePanel } from '@/components/profile/SidebarProfilePanel';
+import { SyncStatus } from '@/components/SyncStatus';
 
 interface MenuItem {
   id: string;
@@ -512,6 +513,11 @@ export function Sidebar({
           </div>
         </div>
       )}
+
+      {/* Sync Status */}
+      <div className="border-t border-gray-700 px-4 py-3">
+        <SyncStatus />
+      </div>
 
       {/* Notifications Panel */}
       <SidebarNotificationPanel />

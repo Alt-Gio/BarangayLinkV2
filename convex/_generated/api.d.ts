@@ -59,6 +59,8 @@ import type * as roleBasedAccess from "../roleBasedAccess.js";
 import type * as search from "../search.js";
 import type * as seedData from "../seedData.js";
 import type * as sprints from "../sprints.js";
+import type * as sprintsEnhanced from "../sprintsEnhanced.js";
+import type * as storyPointGamification from "../storyPointGamification.js";
 import type * as tasks from "../tasks.js";
 import type * as teamStats from "../teamStats.js";
 import type * as userApproval from "../userApproval.js";
@@ -122,6 +124,8 @@ declare const fullApi: ApiFromModules<{
   search: typeof search;
   seedData: typeof seedData;
   sprints: typeof sprints;
+  sprintsEnhanced: typeof sprintsEnhanced;
+  storyPointGamification: typeof storyPointGamification;
   tasks: typeof tasks;
   teamStats: typeof teamStats;
   userApproval: typeof userApproval;

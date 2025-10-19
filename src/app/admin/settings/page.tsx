@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation, useAction } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
+import { useState } from 'react';
+import { useQuery, useMutation, useAction } from 'convex/react';
+import { api } from '../../../../convex/_generated/api';
+import { useOfflineData } from '@/contexts/OfflineDataContext';
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import {
@@ -46,7 +47,8 @@ export default function SystemSettingsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
-  const currentUser = useQuery(api.users.getCurrentUser);
+  // Get current user from offline context (cached, saves bandwidth)
+  const { currentUser, isOnline } = useOfflineData();
   const departments = useQuery(api.departments.getAllDepartmentsWithStats);
   const userLevels = useQuery(api.departments.getAllUserLevels);
   const backups = useQuery(api.backup.getAllBackups);

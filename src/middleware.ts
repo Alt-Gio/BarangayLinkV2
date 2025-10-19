@@ -1,8 +1,26 @@
-import { clerkMiddleware } from '@clerk/nextjs/server';
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
-// Simple middleware that makes auth available without enforcing it
-// Individual routes/pages handle their own protection
-export default clerkMiddleware();
+// Define public routes that don't require authentication
+const isPublicRoute = createRouteMatcher([
+  '/',
+  '/login(.*)',
+  '/register(.*)',
+  '/api/test-email(.*)',
+  '/test-email(.*)',
+]);
+
+// Offline-aware middleware that doesn't enforce auth
+// This allows cached pages to work offline
+export default clerkMiddleware((auth, request) => {
+  // Don't protect public routes
+  if (isPublicRoute(request)) {
+    return;
+  }
+  
+  // For all other routes, auth is available but not enforced
+  // Individual pages handle their own auth checks
+  // This allows offline mode to work with cached data
+});
 
 export const config = {
   matcher: [

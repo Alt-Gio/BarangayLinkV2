@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import { useOfflineData } from '@/contexts/OfflineDataContext';
 
 interface TaskFormData {
   title: string;
@@ -27,13 +28,15 @@ export default function HabiticaTaskBoard() {
   const [hoursToLog, setHoursToLog] = useState('');
   const [hoursDescription, setHoursDescription] = useState('');
 
+  // Get current user from offline context (cached!)
+  const { currentUser, isOnline } = useOfflineData();
+  
   // Queries
   const userStats = useQuery(api.gamifiedTasks.getUserStats, {});
   const habits = useQuery(api.gamifiedTasks.getGamifiedTasks, { type: 'habit' });
   const dailies = useQuery(api.gamifiedTasks.getGamifiedTasks, { type: 'daily' });
   const todos = useQuery(api.gamifiedTasks.getGamifiedTasks, { type: 'todo', status: 'todo' });
   const rewards = useQuery(api.gamifiedTasks.getGamifiedTasks, { type: 'reward' });
-  const currentUser = useQuery(api.users.getCurrentUser, {});
 
   // Mutations
   const createTask = useMutation(api.gamifiedTasks.createTask);

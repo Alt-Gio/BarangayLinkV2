@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
+import { useOfflineData } from '@/contexts/OfflineDataContext';
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { 
@@ -34,7 +35,6 @@ import { CreateEventModal } from "@/components/events/CreateEventModal";
 import { EditEventModal } from "@/components/events/EditEventModal";
 import { EventDetailsModal } from "@/components/events/EventDetailsModal";
 import { EmergencyAlert, EmergencyBanner } from "@/components/events/EmergencyAlert";
-import { useEffect } from "react";
 
 export const dynamic = 'force-dynamic';
 
@@ -55,7 +55,8 @@ export default function EventsPage() {
   const [emergencyAlerts, setEmergencyAlerts] = useState<any[]>([]);
   const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
   
-  const currentUser = useQuery(api.users.getCurrentUser);
+  // Get current user from offline context (cached, saves bandwidth)
+  const { currentUser, isOnline } = useOfflineData();
   
   // Mutations for event actions
   const archiveEvent = useMutation(api.events.archiveEvent);

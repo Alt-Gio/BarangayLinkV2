@@ -25,14 +25,26 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[SW] Caching app shell');
-        return cache.addAll(urlsToCache);
+        console.log('[SW] Caching static assets only');
+        // Only cache static assets, not pages (Next.js handles pages dynamically)
+        const staticAssets = [
+          '/manifest.json',
+          '/icons/icon-192x192.png',
+          '/icons/icon-512x512.png',
+        ];
+        return cache.addAll(staticAssets);
       })
-      .then(() => self.skipWaiting())
+      .then(() => {
+        console.log('[SW] Installed successfully');
+        return self.skipWaiting();
+      })
+      .catch((error) => {
+        console.error('[SW] Install failed:', error);
+      })
   );
 });
 
-// Fetch event - Network First, then Cache strategy
+// Fetch event - Minimal interference, let Next.js and IndexedDB handle offline
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -42,89 +54,43 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // API requests - Network First with Cache Fallback
-  if (url.pathname.includes('/api/') || url.pathname.includes('convex')) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Clone the response
-          const responseToCache = response.clone();
-          
-          // Cache successful responses
-          if (response.status === 200) {
-            caches.open(CACHE_API).then((cache) => {
-              cache.put(request, responseToCache);
-            });
-          }
-          
-          return response;
-        })
-        .catch(() => {
-          // Return cached version if network fails
-          return caches.match(request).then((cachedResponse) => {
-            if (cachedResponse) {
-              console.log('[SW] Serving API from cache:', request.url);
-              return cachedResponse;
-            }
-            
-            // Return offline fallback
-            return new Response(JSON.stringify({ offline: true, message: 'You are offline' }), {
-              headers: { 'Content-Type': 'application/json' }
-            });
-          });
-        })
-    );
+  // Skip external domains (Clerk, Convex, etc)
+  if (url.origin !== location.origin) {
     return;
   }
 
-  // Page/Asset requests - Cache First, then Network
-  event.respondWith(
-    caches.match(request)
-      .then((cachedResponse) => {
-        if (cachedResponse) {
-          // Return cached version and update in background
-          fetch(request).then((response) => {
-            if (response.status === 200) {
-              caches.open(CACHE_DYNAMIC).then((cache) => {
-                cache.put(request, response);
-              });
-            }
-          }).catch(() => {});
+  // Skip API routes and Convex - let them fail gracefully
+  if (url.pathname.includes('/api/') || url.pathname.includes('convex') || url.pathname.includes('_next/')) {
+    return;
+  }
+
+  // Only handle static assets (images, manifest, etc)
+  if (url.pathname.match(/\.(png|jpg|jpeg|svg|gif|webp|ico|json|woff|woff2|ttf)$/)) {
+    event.respondWith(
+      caches.match(request)
+        .then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
           
-          return cachedResponse;
-        }
-
-        // Not in cache - fetch from network
-        return fetch(request)
-          .then((response) => {
-            // Don't cache non-successful responses
-            if (!response || response.status !== 200) {
-              return response;
-            }
-
-            // Clone the response
-            const responseToCache = response.clone();
-
-            // Cache the new resource
-            caches.open(CACHE_DYNAMIC).then((cache) => {
-              cache.put(request, responseToCache);
-            });
-
-            return response;
-          })
-          .catch(() => {
-            // Return offline page for navigation requests
-            if (request.mode === 'navigate') {
-              return caches.match('/offline.html').then((offlinePage) => {
-                return offlinePage || new Response('Offline - Please check your connection', {
-                  status: 503,
-                  statusText: 'Service Unavailable'
-                });
+          return fetch(request).then((response) => {
+            if (response && response.status === 200) {
+              const responseToCache = response.clone();
+              caches.open(CACHE_DYNAMIC).then((cache) => {
+                cache.put(request, responseToCache);
               });
             }
+            return response;
+          }).catch(() => {
+            console.log('[SW] Asset fetch failed (offline):', url.pathname);
+            return new Response('', { status: 503 });
           });
-      })
-  );
+        })
+    );
+  }
+  
+  // For everything else (pages), let Next.js handle it
+  // IndexedDB will provide offline data
 });
 
 // Activate event - clean up old caches

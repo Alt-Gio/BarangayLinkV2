@@ -3,13 +3,13 @@
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useUser } from '@clerk/nextjs';
+import { useOfflineData } from '@/contexts/OfflineDataContext';
 
 export function useDashboardData() {
   const { user: clerkUser } = useUser();
   
-  // Core user data
-  const currentUser = useQuery(api.users.getCurrentUser);
-  const userPermissions = useQuery(api.users.getUserPermissions);
+  // Core user data - NOW FROM OFFLINE CONTEXT (saves bandwidth!)
+  const { currentUser, userPermissions, isOnline } = useOfflineData();
   
   // Admin-specific data
   const allUsers = useQuery(

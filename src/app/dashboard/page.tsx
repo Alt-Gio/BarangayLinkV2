@@ -4,6 +4,7 @@ import { RoleBasedDashboard } from '../../components/dashboard/RoleBasedDashboar
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery } from 'convex/react';
+import { useOfflineData } from '@/contexts/OfflineDataContext';
 import { api } from '../../../convex/_generated/api';
 import { useEffect, useState } from 'react';
 import { errorHandler } from '@/lib/errorHandler';
@@ -21,8 +22,9 @@ export default function DashboardPage() {
   const initDb = useMutation(api.seedData.seedUserLevels);
   const ensureUserExists = useMutation(api.users.ensureUserExists);
   
-  // Get current user status (doesn't throw errors for pending/rejected)
-  const currentUser = useQuery(api.users.getCurrentUserStatus);
+  // Get current user from offline context (cached!)
+  const { currentUser, isOnline } = useOfflineData();
+  const currentUserStatus = useQuery(api.users.getCurrentUserStatus);
   
   // PRIORITY CHECK: Redirect pending/rejected users IMMEDIATELY
   useEffect(() => {

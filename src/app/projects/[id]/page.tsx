@@ -1,9 +1,9 @@
 "use client";
 
-import { use } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
-import { useState } from 'react';
+import { useOfflineData } from '@/contexts/OfflineDataContext';
 import { Id } from '../../../../convex/_generated/dataModel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,8 +63,8 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   const [editedData, setEditedData] = useState<any>({});
   const [showDocumentUpload, setShowDocumentUpload] = useState(false);
 
-  // Get current user with role
-  const currentUser = useQuery(api.users.getCurrentUser);
+  // Get current user from offline context (cached, saves bandwidth)
+  const { currentUser, isOnline } = useOfflineData();
   
   // Get project data
   const project = useQuery(api.productivity.getProjects, { limit: 100 })?.find(p => p._id === id);
