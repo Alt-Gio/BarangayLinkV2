@@ -33,7 +33,6 @@ import {
   EyeOff,
   Plus,
   X,
-  Milestone as MilestoneIcon,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -74,10 +73,7 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
     // Step 4: Success Criteria
     successCriteria: [] as Array<{ criterion: string; targetValue: string }>,
     
-    // Step 5: Milestones
-    milestones: [] as Array<{ title: string; description: string; dueDate: string }>,
-    
-    // Step 6: Visibility & Settings
+    // Step 5: Visibility & Settings
     isPublic: true,
     publicVisibility: "internal" as "public" | "internal" | "private",
     projectLevel: 5,
@@ -85,7 +81,6 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
   });
 
   const [currentCriterion, setCurrentCriterion] = useState({ criterion: "", targetValue: "" });
-  const [currentMilestone, setCurrentMilestone] = useState({ title: "", description: "", dueDate: "" });
   const [currentTag, setCurrentTag] = useState("");
 
   const departmentsFromDB = useQuery(api.departments.getAllDepartments);
@@ -122,23 +117,6 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
     setFormData({
       ...formData,
       successCriteria: formData.successCriteria.filter((_, i) => i !== index),
-    });
-  };
-
-  const addMilestone = () => {
-    if (currentMilestone.title.trim() && currentMilestone.dueDate) {
-      setFormData({
-        ...formData,
-        milestones: [...formData.milestones, currentMilestone],
-      });
-      setCurrentMilestone({ title: "", description: "", dueDate: "" });
-    }
-  };
-
-  const removeMilestone = (index: number) => {
-    setFormData({
-      ...formData,
-      milestones: formData.milestones.filter((_, i) => i !== index),
     });
   };
 
@@ -186,11 +164,6 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
         impactArea: formData.impactAreas,
         estimatedBeneficiaries: formData.estimatedBeneficiaries,
         successCriteria: formData.successCriteria,
-        milestones: formData.milestones.map((m, index) => ({
-          ...m,
-          dueDate: new Date(m.dueDate).getTime(),
-          order: index + 1,
-        })),
       });
       
       onComplete(String(projectId));
@@ -211,8 +184,6 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
       case 4:
         return formData.successCriteria.length > 0;
       case 5:
-        return formData.milestones.length > 0;
-      case 6:
         return true;
       default:
         return false;
@@ -234,8 +205,9 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
     <div className="max-w-4xl mx-auto p-6">
       {/* Progress Bar */}
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-2">
-          {[1, 2, 3, 4, 5, 6].map((s) => (
+        {/* Progress Indicator */}
+        <div className="flex justify-between mb-4">
+          {[1, 2, 3, 4, 5].map((s) => (
             <div
               key={s}
               className={`flex items-center justify-center w-10 h-10 rounded-full font-bold transition-all ${
@@ -253,7 +225,7 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
         <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-blue-600 to-emerald-600 transition-all duration-300"
-            style={{ width: `${(step / 6) * 100}%` }}
+            style={{ width: `${(step / 5) * 100}%` }}
           />
         </div>
       </div>
@@ -266,16 +238,14 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
             {step === 2 && "Timeline & Priority"}
             {step === 3 && "Budget & Impact"}
             {step === 4 && "Success Criteria"}
-            {step === 5 && "Milestones"}
-            {step === 6 && "Visibility & Settings"}
+            {step === 5 && "Visibility & Settings"}
           </CardTitle>
           <CardDescription className="text-gray-400">
             {step === 1 && "Let's start with the basics"}
             {step === 2 && "When will this project take place?"}
             {step === 3 && "Define the resources and impact"}
             {step === 4 && "What defines success?"}
-            {step === 5 && "Break it down into milestones"}
-            {step === 6 && "Final touches"}
+            {step === 5 && "Final touches"}
           </CardDescription>
         </CardHeader>
 
@@ -580,74 +550,8 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
             </>
           )}
 
-          {/* Step 5: Milestones */}
+          {/* Step 5: Visibility & Settings */}
           {step === 5 && (
-            <>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Input
-                    value={currentMilestone.title}
-                    onChange={(e) => setCurrentMilestone({ ...currentMilestone, title: e.target.value })}
-                    placeholder="Milestone title"
-                    className="bg-gray-800 border-gray-700 text-white"
-                  />
-                  <Textarea
-                    value={currentMilestone.description}
-                    onChange={(e) => setCurrentMilestone({ ...currentMilestone, description: e.target.value })}
-                    placeholder="Milestone description"
-                    rows={2}
-                    className="bg-gray-800 border-gray-700 text-white"
-                  />
-                  <div className="flex gap-2">
-                    <Input
-                      type="date"
-                      value={currentMilestone.dueDate}
-                      onChange={(e) => setCurrentMilestone({ ...currentMilestone, dueDate: e.target.value })}
-                      className="bg-gray-800 border-gray-700 text-white flex-1"
-                    />
-                    <Button onClick={addMilestone} className="bg-blue-600 hover:bg-blue-700">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  {formData.milestones.map((milestone, index) => (
-                    <div key={index} className="flex items-start justify-between p-4 bg-gray-800 rounded-lg border-l-4 border-blue-500">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <MilestoneIcon className="w-4 h-4 text-blue-400" />
-                          <p className="text-white font-semibold">{milestone.title}</p>
-                        </div>
-                        <p className="text-sm text-gray-400 mb-2">{milestone.description}</p>
-                        <Badge variant="outline" className="text-xs">
-                          {format(new Date(milestone.dueDate), "MMM d, yyyy")}
-                        </Badge>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeMilestone(index)}
-                        className="text-red-400 hover:text-red-300"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-
-                {formData.milestones.length === 0 && (
-                  <p className="text-center text-gray-500 py-8">
-                    Add at least one milestone to continue
-                  </p>
-                )}
-              </div>
-            </>
-          )}
-
-          {/* Step 6: Visibility & Settings */}
-          {step === 6 && (
             <>
               <div className="space-y-4">
                 <div className="space-y-2">

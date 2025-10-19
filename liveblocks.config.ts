@@ -49,8 +49,8 @@ declare global {
       resourceId?: string;
       priority?: 'low' | 'medium' | 'high';
       category?: 'question' | 'feedback' | 'bug' | 'feature' | 'general';
-      assignedTo?: string[];
-      tags?: string[];
+      assignedTo?: string; // Comma-separated user IDs
+      tags?: string; // Comma-separated tags
       createdAt?: number;
     };
 

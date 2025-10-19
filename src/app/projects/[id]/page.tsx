@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, use } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { useOfflineData } from '@/contexts/OfflineDataContext';
@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProjectTaskProgress } from '@/components/projects/ProjectTaskProgress';
 import { ProjectTasksTab } from '@/components/projects/ProjectTasksTab';
+import { MilestoneManager } from '@/components/projects/MilestoneManager';
 import { ProjectApprovalCard } from '@/components/projects/ProjectApprovalCard';
 import { ProjectEventsTab } from '@/components/projects/ProjectEventsTab';
 import { ProjectTeamTab } from '@/components/projects/ProjectTeamTab';
@@ -39,8 +40,17 @@ import {
   Repeat,
   Zap,
   Sparkles,
-  FolderOpen
+  FolderOpen,
+  LayoutDashboard,
+  Settings,
+  CalendarDays,
+  FileText,
+  Download,
+  BarChart3,
+  Award,
+  AlertCircle
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 // Force dynamic rendering for project pages
 export const dynamic = 'force-dynamic';
@@ -84,6 +94,373 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   // Task mutations
   const completeTask = useMutation(api.tasks.completeTask);
   const uncompleteTask = useMutation(api.tasks.uncompleteTask);
+
+  // Export comprehensive project report
+  const handleExportReport = () => {
+    if (!project || !tasks) {
+      toast.error('Please wait for data to load');
+      return;
+    }
+
+    // Calculate comprehensive statistics
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter((t: any) => t.status === 'completed').length;
+    const inProgressTasks = tasks.filter((t: any) => t.status === 'in_progress' || t.status === 'active').length;
+    const todoTasks = tasks.filter((t: any) => t.status === 'todo' || t.status === 'pending').length;
+    const completionRate = totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(1) : '0.0';
+
+    // Budget analysis
+    const budgetUsedRate = project.budget > 0 ? ((budgetUsed / project.budget) * 100).toFixed(1) : '0.0';
+    const budgetRemaining = project.budget - budgetUsed;
+
+    // Timeline analysis
+    const daysElapsed = Math.ceil((Date.now() - project.startDate) / (1000 * 60 * 60 * 24));
+    const totalProjectDays = Math.ceil((project.endDate - project.startDate) / (1000 * 60 * 60 * 24));
+    const timeProgress = totalProjectDays > 0 ? ((daysElapsed / totalProjectDays) * 100).toFixed(1) : '0.0';
+
+    // Team members
+    const totalMembers = teamMembers?.length || 0;
+
+    // Priority stats
+    const highPriority = tasks.filter((t: any) => t.priority === 'high' || t.priority === 'critical').length;
+
+    // Generate HTML report
+    const reportHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${project.title} - Project Report</title>
+        <style>
+          body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+          }
+          .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 50px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            border-radius: 20px;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 30px;
+            border-bottom: 3px solid #10b981;
+          }
+          h1 {
+            color: #10b981;
+            margin-bottom: 10px;
+            font-size: 36px;
+            font-weight: 700;
+          }
+          .subtitle {
+            color: #6b7280;
+            font-size: 16px;
+            margin-bottom: 5px;
+          }
+          .report-date {
+            color: #9ca3af;
+            font-size: 14px;
+          }
+          h2 {
+            color: #1f2937;
+            border-left: 5px solid #10b981;
+            padding-left: 15px;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 24px;
+          }
+          .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+          }
+          .kpi-card {
+            padding: 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            color: white;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+            transition: transform 0.3s ease;
+          }
+          .kpi-card:hover {
+            transform: translateY(-5px);
+          }
+          .kpi-label {
+            font-size: 12px;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+          }
+          .kpi-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+          }
+          .kpi-subtitle {
+            font-size: 12px;
+            opacity: 0.8;
+          }
+          .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            background: #f9fafb;
+            padding: 25px;
+            border-radius: 12px;
+            margin: 20px 0;
+          }
+          .info-item {
+            display: flex;
+            flex-direction: column;
+          }
+          .info-label {
+            color: #6b7280;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+          }
+          .info-value {
+            color: #1f2937;
+            font-size: 16px;
+            font-weight: 600;
+          }
+          .progress-bar-container {
+            background: #e5e7eb;
+            height: 30px;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+            position: relative;
+          }
+          .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            transition: width 0.3s ease;
+          }
+          .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .badge-success { background: #d1fae5; color: #065f46; }
+          .badge-warning { background: #fef3c7; color: #92400e; }
+          .badge-danger { background: #fee2e2; color: #991b1b; }
+          .badge-info { background: #dbeafe; color: #1e40af; }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+          }
+          thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+          }
+          th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+          }
+          td {
+            padding: 15px;
+            border-bottom: 1px solid #e5e7eb;
+          }
+          tbody tr:hover {
+            background: #f9fafb;
+          }
+          .summary-box {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            padding: 25px;
+            border-radius: 12px;
+            margin: 30px 0;
+            border-left: 5px solid #f59e0b;
+          }
+          .summary-box h3 {
+            color: #92400e;
+            margin-top: 0;
+            margin-bottom: 15px;
+          }
+          .summary-box p {
+            color: #78350f;
+            line-height: 1.6;
+            margin: 0;
+          }
+          .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 2px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 12px;
+          }
+          @media print {
+            body { background: white; padding: 0; }
+            .container { box-shadow: none; padding: 20px; }
+            .kpi-card:hover { transform: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>📊 ${project.title}</h1>
+            <div class="subtitle">${project.department} Department</div>
+            <div class="report-date">Report Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+          </div>
+
+          <h2>📈 Project Overview</h2>
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-label">Overall Progress</div>
+              <div class="kpi-value">${progress}%</div>
+              <div class="kpi-subtitle">${completedTasks} of ${totalTasks} tasks</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Budget Used</div>
+              <div class="kpi-value">₱${budgetUsed.toLocaleString()}</div>
+              <div class="kpi-subtitle">${budgetUsedRate}% of ₱${project.budget.toLocaleString()}</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Time Progress</div>
+              <div class="kpi-value">${timeProgress}%</div>
+              <div class="kpi-subtitle">${daysElapsed} of ${totalProjectDays} days</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Team Members</div>
+              <div class="kpi-value">${totalMembers}</div>
+              <div class="kpi-subtitle">Active collaborators</div>
+            </div>
+          </div>
+
+          <h2>📋 Project Details</h2>
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="info-label">Department</div>
+              <div class="info-value">${project.department}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Priority</div>
+              <div class="info-value">${project.priority?.toUpperCase() || 'MEDIUM'}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Start Date</div>
+              <div class="info-value">${new Date(project.startDate).toLocaleDateString()}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">End Date</div>
+              <div class="info-value">${new Date(project.endDate).toLocaleDateString()}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Days Remaining</div>
+              <div class="info-value">${daysRemaining} days</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Budget Remaining</div>
+              <div class="info-value">₱${budgetRemaining.toLocaleString()}</div>
+            </div>
+          </div>
+
+          <h2>✅ Task Status Breakdown</h2>
+          <div class="kpi-grid">
+            <div class="info-item" style="padding: 15px; background: #f9fafb; border-radius: 8px;">
+              <div class="info-label">Completed</div>
+              <div class="info-value" style="color: #10b981;">${completedTasks}</div>
+            </div>
+            <div class="info-item" style="padding: 15px; background: #f9fafb; border-radius: 8px;">
+              <div class="info-label">In Progress</div>
+              <div class="info-value" style="color: #f59e0b;">${inProgressTasks}</div>
+            </div>
+            <div class="info-item" style="padding: 15px; background: #f9fafb; border-radius: 8px;">
+              <div class="info-label">To Do</div>
+              <div class="info-value" style="color: #6b7280;">${todoTasks}</div>
+            </div>
+            <div class="info-item" style="padding: 15px; background: #f9fafb; border-radius: 8px;">
+              <div class="info-label">High Priority</div>
+              <div class="info-value" style="color: #ef4444;">${highPriority}</div>
+            </div>
+          </div>
+
+          <div class="progress-bar-container">
+            <div class="progress-bar" style="width: ${completionRate}%">
+              ${completionRate}% Complete
+            </div>
+          </div>
+
+          ${project.location ? `
+          <h2>📍 Location</h2>
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="info-label">Project Location</div>
+              <div class="info-value">${project.location}</div>
+            </div>
+          </div>
+          ` : ''}
+
+          <h2>📝 Description</h2>
+          <p style="line-height: 1.8; color: #4b5563; padding: 20px; background: #f9fafb; border-radius: 8px;">
+            ${project.description}
+          </p>
+
+          <div class="summary-box">
+            <h3>📊 Project Summary</h3>
+            <p>
+              The <strong>${project.title}</strong> project is currently at <strong>${progress}% completion</strong> with 
+              <strong>${completedTasks}</strong> out of <strong>${totalTasks}</strong> tasks completed. 
+              The project has <strong>${daysRemaining} days remaining</strong> until the target completion date of 
+              <strong>${new Date(project.endDate).toLocaleDateString()}</strong>. 
+              Budget utilization stands at <strong>₱${budgetUsed.toLocaleString()}</strong> (<strong>${budgetUsedRate}%</strong> of total budget), 
+              with <strong>₱${budgetRemaining.toLocaleString()}</strong> remaining. 
+              The project involves <strong>${totalMembers} team members</strong> working collaboratively under the 
+              <strong>${project.department}</strong> department.
+            </p>
+          </div>
+
+          <div class="footer">
+            <p><strong>Barangay Management System</strong></p>
+            <p>Generated on ${new Date().toLocaleString()}</p>
+            <p>This is an official project report</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Open report in new window and trigger print
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(reportHTML);
+      printWindow.document.close();
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
+      toast.success('Report generated! Print dialog opening...');
+    } else {
+      toast.error('Please allow popups to generate report');
+    }
+  };
 
   // NOW we can do conditional logic and early returns
   if (!currentUser) {
@@ -149,48 +526,61 @@ export default function ProjectPage({ params }: ProjectPageProps) {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900">
       <div className="max-w-7xl mx-auto p-6 space-y-6">
         
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <Button 
-            variant="ghost" 
-            onClick={() => window.history.back()}
-            className="text-gray-400 hover:text-white"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Projects
-          </Button>
-          
-          {canEdit && (
-            <div className="flex gap-2">
-              {isEditing ? (
+        {/* Enhanced Header */}
+        <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50 shadow-lg">
+          <div className="flex items-center justify-between">
+            <Button 
+              variant="ghost" 
+              onClick={() => window.history.back()}
+              className="text-gray-400 hover:text-white hover:bg-gray-700/50 transition-all"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Projects
+            </Button>
+            
+            <div className="flex gap-3">
+              {/* Export Report Button - Always visible */}
+              <Button
+                onClick={handleExportReport}
+                className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white shadow-lg shadow-teal-500/20 hover:shadow-teal-500/40 transition-all"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Export Report
+              </Button>
+
+              {canEdit && (
                 <>
-                  <Button
-                    variant="outline"
-                    onClick={handleCancel}
-                    className="border-gray-700 text-gray-300"
-                  >
-                    <X className="w-4 h-4 mr-2" />
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleSave}
-                    className="bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700"
-                  >
-                    <Save className="w-4 h-4 mr-2" />
-                    Save Changes
-                  </Button>
+                  {isEditing ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        onClick={handleCancel}
+                        className="border-gray-700 text-gray-300 hover:bg-gray-700/50"
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleSave}
+                        className="bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all"
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        Save Changes
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      onClick={() => setIsEditing(true)}
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 transition-all"
+                    >
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit Project
+                    </Button>
+                  )}
                 </>
-              ) : (
-                <Button
-                  onClick={() => setIsEditing(true)}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                >
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit Project
-                </Button>
               )}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Project Title & Status */}
@@ -274,52 +664,58 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-4 gap-4">
-          <Card className="bg-gray-800/50 border-gray-700/50">
+        {/* Enhanced Stats Cards */}
+        <div className="grid grid-cols-4 gap-6">
+          <Card className="bg-gradient-to-br from-emerald-600/10 to-blue-600/10 border-emerald-700/50 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 transition-all duration-300 hover:scale-105">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Total Tasks
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 text-emerald-400 text-sm mb-3 font-medium">
+                    <div className="p-2 bg-emerald-500/20 rounded-lg">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </div>
+                    <span>Total Tasks</span>
                   </div>
-                  <div className="text-3xl font-bold text-white">{totalTasks}</div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    {completedTasks} completed, {totalTasks - completedTasks} in progress
+                  <div className="text-4xl font-bold text-white mb-2">{totalTasks}</div>
+                  <div className="text-xs text-gray-400">
+                    {completedTasks} completed • {totalTasks - completedTasks} in progress
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gray-800/50 border-gray-700/50">
+          <Card className="bg-gradient-to-br from-blue-600/10 to-purple-600/10 border-blue-700/50 shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 transition-all duration-300 hover:scale-105">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
-                    <TrendingUp className="w-4 h-4" />
-                    Progress
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 text-blue-400 text-sm mb-3 font-medium">
+                    <div className="p-2 bg-blue-500/20 rounded-lg">
+                      <TrendingUp className="w-5 h-5" />
+                    </div>
+                    <span>Progress</span>
                   </div>
-                  <div className="text-3xl font-bold text-white">{progress}%</div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    {progress === 100 ? 'Completed!' : `${100 - progress}% remaining`}
+                  <div className="text-4xl font-bold text-white mb-2">{progress}%</div>
+                  <div className="text-xs text-gray-400">
+                    {progress === 100 ? '✅ Completed!' : `${100 - progress}% remaining`}
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gray-800/50 border-gray-700/50">
+          <Card className="bg-gradient-to-br from-yellow-600/10 to-orange-600/10 border-yellow-700/50 shadow-lg shadow-yellow-500/10 hover:shadow-yellow-500/20 transition-all duration-300 hover:scale-105">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
-                    <DollarSign className="w-4 h-4" />
-                    Budget Used
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 text-yellow-400 text-sm mb-3 font-medium">
+                    <div className="p-2 bg-yellow-500/20 rounded-lg">
+                      <DollarSign className="w-5 h-5" />
+                    </div>
+                    <span>Budget Used</span>
                   </div>
-                  <div className="text-3xl font-bold text-white">₱{budgetUsed.toLocaleString()}</div>
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-4xl font-bold text-white mb-2">₱{budgetUsed.toLocaleString()}</div>
+                  <div className="text-xs text-gray-400">
                     {Math.round((budgetUsed / budgetTotal) * 100)}% of ₱{budgetTotal.toLocaleString()}
                   </div>
                 </div>
@@ -327,16 +723,18 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             </CardContent>
           </Card>
 
-          <Card className="bg-gray-800/50 border-gray-700/50">
+          <Card className="bg-gradient-to-br from-purple-600/10 to-pink-600/10 border-purple-700/50 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/20 transition-all duration-300 hover:scale-105">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
-                    <Calendar className="w-4 h-4" />
-                    Days Remaining
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 text-purple-400 text-sm mb-3 font-medium">
+                    <div className="p-2 bg-purple-500/20 rounded-lg">
+                      <Calendar className="w-5 h-5" />
+                    </div>
+                    <span>Days Remaining</span>
                   </div>
-                  <div className="text-3xl font-bold text-white">{daysRemaining}</div>
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-4xl font-bold text-white mb-2">{daysRemaining}</div>
+                  <div className="text-xs text-gray-400">
                     Until {new Date(project.endDate).toLocaleDateString()}
                   </div>
                 </div>
@@ -347,14 +745,56 @@ export default function ProjectPage({ params }: ProjectPageProps) {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 bg-gray-800/50 border border-gray-700/50">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="tasks">Tasks</TabsTrigger>
-            <TabsTrigger value="documents">Documents</TabsTrigger>
-            <TabsTrigger value="events">Events</TabsTrigger>
-            <TabsTrigger value="team">Team</TabsTrigger>
-            <TabsTrigger value="budget">Budget</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-7 bg-gray-800/50 border border-gray-700/50 p-2 rounded-xl gap-2">
+            <TabsTrigger 
+              value="overview"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-gray-700/50 hover:scale-105 transition-all duration-200 cursor-pointer rounded-lg font-medium"
+            >
+              <LayoutDashboard className="w-4 h-4 mr-2" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger 
+              value="milestones"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-gray-700/50 hover:scale-105 transition-all duration-200 cursor-pointer rounded-lg font-medium"
+            >
+              <Target className="w-4 h-4 mr-2" />
+              Milestones
+            </TabsTrigger>
+            <TabsTrigger 
+              value="documents"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-gray-700/50 hover:scale-105 transition-all duration-200 cursor-pointer rounded-lg font-medium"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Documents
+            </TabsTrigger>
+            <TabsTrigger 
+              value="events"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-gray-700/50 hover:scale-105 transition-all duration-200 cursor-pointer rounded-lg font-medium"
+            >
+              <CalendarDays className="w-4 h-4 mr-2" />
+              Events
+            </TabsTrigger>
+            <TabsTrigger 
+              value="team"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-gray-700/50 hover:scale-105 transition-all duration-200 cursor-pointer rounded-lg font-medium"
+            >
+              <Users className="w-4 h-4 mr-2" />
+              Team
+            </TabsTrigger>
+            <TabsTrigger 
+              value="budget"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-gray-700/50 hover:scale-105 transition-all duration-200 cursor-pointer rounded-lg font-medium"
+            >
+              <DollarSign className="w-4 h-4 mr-2" />
+              Budget
+            </TabsTrigger>
+            <TabsTrigger 
+              value="settings"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-gray-700/50 hover:scale-105 transition-all duration-200 cursor-pointer rounded-lg font-medium"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Settings
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -478,12 +918,8 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             </Card>
           </TabsContent>
 
-          <TabsContent value="tasks" className="space-y-6">
-            <ProjectTasksTab 
-              projectId={id as Id<"projects">} 
-              project={project}
-              currentUser={currentUser}
-            />
+          <TabsContent value="milestones" className="space-y-6">
+            <MilestoneManager projectId={id as Id<"projects">} />
           </TabsContent>
 
           <TabsContent value="documents" className="space-y-6">

@@ -1,0 +1,371 @@
+/**
+ * Milestones Management
+ * Connects Projects to Sprint Tasks through goal-based milestones
+ */
+
+import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
+
+/**
+ * Get all milestones for a project
+ */
+export const getProjectMilestones = query({
+  args: {
+    projectId: v.id("projects"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const milestones = await ctx.db
+      .query("milestones")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .order("asc") // Order by creation
+      .collect();
+
+    // Get tasks for each milestone and calculate progress
+    const milestonesWithProgress = await Promise.all(
+      milestones.map(async (milestone) => {
+        const tasks = await ctx.db
+          .query("tasks")
+          .withIndex("by_milestone", (q) => q.eq("milestoneId", milestone._id))
+          .collect();
+
+        const totalTasks = tasks.length;
+        const completedTasks = tasks.filter(t => t.completed).length;
+        const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+        // Calculate total story points
+        const totalPoints = tasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
+        const completedPoints = tasks.filter(t => t.completed)
+          .reduce((sum, t) => sum + (t.storyPoints || 0), 0);
+
+        return {
+          ...milestone,
+          tasks,
+          totalTasks,
+          completedTasks,
+          progress,
+          totalPoints,
+          completedPoints,
+        };
+      })
+    );
+
+    // Sort by order
+    milestonesWithProgress.sort((a, b) => a.order - b.order);
+
+    return milestonesWithProgress;
+  },
+});
+
+/**
+ * Create a new milestone for a project
+ */
+export const createMilestone = mutation({
+  args: {
+    projectId: v.id("projects"),
+    title: v.string(),
+    description: v.string(),
+    targetDate: v.optional(v.number()),
+    isRequired: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!user) throw new Error("User not found");
+
+    // Get existing milestones to set order
+    const existingMilestones = await ctx.db
+      .query("milestones")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+
+    const nextOrder = existingMilestones.length + 1;
+
+    const milestoneId = await ctx.db.insert("milestones", {
+      projectId: args.projectId,
+      title: args.title,
+      description: args.description,
+      order: nextOrder,
+      targetDate: args.targetDate,
+      status: "not_started",
+      progress: 0,
+      createdBy: user._id,
+      createdAt: Date.now(),
+      isRequired: args.isRequired ?? true,
+      dependencies: [],
+    });
+
+    return milestoneId;
+  },
+});
+
+/**
+ * Update milestone
+ */
+export const updateMilestone = mutation({
+  args: {
+    milestoneId: v.id("milestones"),
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    targetDate: v.optional(v.number()),
+    status: v.optional(v.union(
+      v.literal("not_started"),
+      v.literal("in_progress"),
+      v.literal("completed"),
+      v.literal("blocked")
+    )),
+    blockedReason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const { milestoneId, ...updates } = args;
+
+    await ctx.db.patch(milestoneId, updates);
+
+    return milestoneId;
+  },
+});
+
+/**
+ * Delete milestone
+ */
+export const deleteMilestone = mutation({
+  args: {
+    milestoneId: v.id("milestones"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    // Check if milestone has tasks
+    const tasks = await ctx.db
+      .query("tasks")
+      .withIndex("by_milestone", (q) => q.eq("milestoneId", args.milestoneId))
+      .collect();
+
+    if (tasks.length > 0) {
+      throw new Error("Cannot delete milestone with existing tasks. Remove tasks first.");
+    }
+
+    await ctx.db.delete(args.milestoneId);
+
+    return { success: true };
+  },
+});
+
+/**
+ * Add sprint task to milestone
+ */
+export const addTaskToMilestone = mutation({
+  args: {
+    milestoneId: v.id("milestones"),
+    title: v.string(),
+    description: v.string(),
+    storyPoints: v.number(),
+    priority: v.optional(v.union(
+      v.literal("low"),
+      v.literal("medium"),
+      v.literal("high"),
+      v.literal("urgent")
+    )),
+    dueDate: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!user) throw new Error("User not found");
+
+    // Get milestone to link to project
+    const milestone = await ctx.db.get(args.milestoneId);
+    if (!milestone) throw new Error("Milestone not found");
+
+    // Calculate XP and Gold from story points
+    const STORY_POINT_TO_XP: Record<number, number> = {
+      1: 10, 2: 25, 3: 50, 5: 100, 8: 200, 13: 350, 21: 600
+    };
+    const STORY_POINT_TO_GOLD: Record<number, number> = {
+      1: 5, 2: 12, 3: 25, 5: 50, 8: 100, 13: 175, 21: 300
+    };
+
+    const xp = STORY_POINT_TO_XP[args.storyPoints] || args.storyPoints * 10;
+    const gold = STORY_POINT_TO_GOLD[args.storyPoints] || Math.round(args.storyPoints * 5);
+
+    const taskId = await ctx.db.insert("tasks", {
+      userId: user._id,
+      title: args.title,
+      description: args.description,
+      projectId: milestone.projectId,
+      milestoneId: args.milestoneId,
+      type: "todo",
+      difficulty: args.storyPoints <= 3 ? "easy" : args.storyPoints <= 5 ? "medium" : "hard",
+      status: "todo",
+      priority: args.priority || "medium",
+      completed: false,
+      dueDate: args.dueDate,
+      createdAt: Date.now(),
+      createdBy: user._id,
+      assignedTo: [],
+      storyPoints: args.storyPoints,
+      experienceReward: xp,
+      goldReward: gold,
+      completionCount: 0,
+      tags: [],
+      attachments: [],
+      dependencies: [],
+      subtasks: [],
+      loggedHours: [],
+      isBlocking: false,
+    });
+
+    // Update milestone status to in_progress if it was not_started
+    if (milestone.status === "not_started") {
+      await ctx.db.patch(args.milestoneId, {
+        status: "in_progress",
+      });
+    }
+
+    return taskId;
+  },
+});
+
+/**
+ * Update milestone progress when tasks change
+ * Call this after completing/uncompleting a task
+ */
+export const updateMilestoneProgress = mutation({
+  args: {
+    milestoneId: v.id("milestones"),
+  },
+  handler: async (ctx, args) => {
+    const tasks = await ctx.db
+      .query("tasks")
+      .withIndex("by_milestone", (q) => q.eq("milestoneId", args.milestoneId))
+      .collect();
+
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter(t => t.completed).length;
+    const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+    // Update status based on progress
+    let status: "not_started" | "in_progress" | "completed" | "blocked" = "not_started";
+    if (progress === 100) {
+      status = "completed";
+    } else if (progress > 0) {
+      status = "in_progress";
+    }
+
+    const milestone = await ctx.db.get(args.milestoneId);
+    if (milestone && milestone.status !== "blocked") {
+      await ctx.db.patch(args.milestoneId, {
+        progress,
+        status,
+        completedAt: status === "completed" ? Date.now() : undefined,
+      });
+    }
+
+    // Update project progress
+    if (milestone) {
+      await updateProjectProgress(ctx, milestone.projectId);
+    }
+
+    return { progress, status };
+  },
+});
+
+/**
+ * Helper function to update project progress based on milestones
+ */
+async function updateProjectProgress(ctx: any, projectId: Id<"projects">) {
+  const milestones = await ctx.db
+    .query("milestones")
+    .withIndex("by_project", (q: any) => q.eq("projectId", projectId))
+    .collect();
+
+  const totalMilestones = milestones.length;
+  const completedMilestones = milestones.filter((m: any) => m.status === "completed").length;
+  const projectProgress = totalMilestones > 0 
+    ? Math.round((completedMilestones / totalMilestones) * 100) 
+    : 0;
+
+  await ctx.db.patch(projectId, {
+    progress: projectProgress,
+  });
+
+  return projectProgress;
+}
+
+/**
+ * Reorder milestones
+ */
+export const reorderMilestones = mutation({
+  args: {
+    milestoneId: v.id("milestones"),
+    newOrder: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    await ctx.db.patch(args.milestoneId, {
+      order: args.newOrder,
+    });
+
+    return { success: true };
+  },
+});
+
+/**
+ * Get milestone with all its tasks (for detail view)
+ */
+export const getMilestoneDetails = query({
+  args: {
+    milestoneId: v.id("milestones"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const milestone = await ctx.db.get(args.milestoneId);
+    if (!milestone) throw new Error("Milestone not found");
+
+    const tasks = await ctx.db
+      .query("tasks")
+      .withIndex("by_milestone", (q) => q.eq("milestoneId", args.milestoneId))
+      .collect();
+
+    // Get assignee details for each task
+    const tasksWithAssignees = await Promise.all(
+      tasks.map(async (task) => {
+        const assignees = await Promise.all(
+          task.assignedTo.map(userId => ctx.db.get(userId))
+        );
+        return {
+          ...task,
+          assignees: assignees.filter(a => a !== null),
+        };
+      })
+    );
+
+    return {
+      ...milestone,
+      tasks: tasksWithAssignees,
+    };
+  },
+});

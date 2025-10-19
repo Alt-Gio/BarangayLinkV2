@@ -49,8 +49,8 @@ type ThreadMetadata = {
   resourceId?: string;
   priority?: 'low' | 'medium' | 'high';
   category?: 'question' | 'feedback' | 'bug' | 'feature' | 'general';
-  assignedTo?: string[];
-  tags?: string[];
+  assignedTo?: string; // Comma-separated user IDs
+  tags?: string; // Comma-separated tags
   createdAt?: number;
 };
 
@@ -87,6 +87,6 @@ export const {
     useAddReaction,
     useRemoveReaction,
   },
-} = createRoomContext<Presence, Storage, UserMeta, RoomEvent>(client);
+} = createRoomContext<Presence, Storage, UserMeta, RoomEvent, ThreadMetadata>(client);
 
 export { client };

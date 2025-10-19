@@ -584,7 +584,7 @@ export const getProjectTasks = query({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    if (!identity) return []; // Return empty array if not authenticated
 
     const tasks = await ctx.db
       .query("tasks")

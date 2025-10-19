@@ -139,7 +139,7 @@ export const getAllUsersWithStatus = query({
           .filter((q) => q.eq(q.field("userId"), user._id))
           .first();
 
-        let status: "online" | "away" | "offline" = "offline";
+        let status: "online" | "away" | "offline" | "busy" | "dnd" | "meeting" | "wfh" = "offline";
         let lastSeen = 0;
 
         if (presence && presence.lastSeen > fiveMinutesAgo) {

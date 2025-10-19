@@ -199,12 +199,39 @@ export default defineSchema({
   .index("by_priority", ["priority"])
   .index("by_urgency", ["urgency"]),
 
+  // Milestones - Project goals that contain sprint tasks
+  milestones: defineTable({
+    projectId: v.id("projects"),
+    title: v.string(),
+    description: v.string(),
+    order: v.number(), // Display order (1, 2, 3...)
+    targetDate: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    status: v.union(
+      v.literal("not_started"),
+      v.literal("in_progress"),
+      v.literal("completed"),
+      v.literal("blocked")
+    ),
+    progress: v.number(), // 0-100, calculated from tasks
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    // Milestone metadata
+    isRequired: v.boolean(), // Must complete for project to finish
+    blockedReason: v.optional(v.string()),
+    dependencies: v.array(v.id("milestones")), // Must complete these first
+  })
+  .index("by_project", ["projectId"])
+  .index("by_status", ["status"])
+  .index("by_order", ["order"]),
+
   // Tasks linked to projects (Habitica-style gamified)
   tasks: defineTable({
     userId: v.id("users"), // Owner of the task (for personal tasks)
     title: v.string(),
     description: v.string(),
     projectId: v.optional(v.id("projects")),
+    milestoneId: v.optional(v.id("milestones")), // Link to milestone
     eventId: v.optional(v.id("events")),
     type: v.union(v.literal("todo"), v.literal("daily"), v.literal("habit"), v.literal("milestone"), v.literal("reward")), // Task types: todo, daily, habit, milestone, reward
     difficulty: v.union(v.literal("trivial"), v.literal("easy"), v.literal("medium"), v.literal("hard")),
@@ -252,6 +279,7 @@ export default defineSchema({
   })
   .index("by_user", ["userId"])
   .index("by_project", ["projectId"])
+  .index("by_milestone", ["milestoneId"])
   .index("by_event", ["eventId"])
   .index("by_assigned_to", ["assignedTo"])
   .index("by_status", ["status"])
@@ -411,6 +439,17 @@ export default defineSchema({
     isActive: v.boolean(),
     lastMessage: v.optional(v.string()),
     lastMessageAt: v.optional(v.number()),
+    // Group admin features
+    admins: v.optional(v.array(v.id("users"))), // Group admins
+    description: v.optional(v.string()), // Group description
+    avatar: v.optional(v.string()), // Group avatar URL
+    settings: v.optional(v.object({
+      onlyAdminsCanSend: v.boolean(),
+      onlyAdminsCanAddMembers: v.boolean(),
+      joinApprovalRequired: v.boolean(),
+    })),
+    // Pinned messages
+    pinnedMessages: v.optional(v.array(v.id("messages"))), // Up to 10 pinned
   })
   .index("by_type", ["type"])
   .index("by_project", ["projectId"])
@@ -419,7 +458,7 @@ export default defineSchema({
   messages: defineTable({
     roomId: v.id("chatRooms"),
     content: v.string(),
-    messageType: v.union(v.literal("text"), v.literal("file"), v.literal("system")),
+    messageType: v.union(v.literal("text"), v.literal("file"), v.literal("system"), v.literal("poll")),
     sender: v.id("users"),
     attachments: v.array(v.id("documents")),
     replyTo: v.optional(v.id("messages")),
@@ -427,6 +466,30 @@ export default defineSchema({
     readBy: v.array(v.object({
       userId: v.id("users"),
       readAt: v.number(),
+    })),
+    // Message reactions
+    reactions: v.optional(v.array(v.object({
+      emoji: v.string(), // 👍, ❤️, 😂, etc.
+      userId: v.id("users"),
+      addedAt: v.number(),
+    }))),
+    // Link preview data
+    linkPreview: v.optional(v.object({
+      url: v.string(),
+      title: v.optional(v.string()),
+      description: v.optional(v.string()),
+      image: v.optional(v.string()),
+      domain: v.optional(v.string()),
+    })),
+    // Poll data (if messageType is "poll")
+    pollData: v.optional(v.object({
+      question: v.string(),
+      options: v.array(v.object({
+        text: v.string(),
+        votes: v.array(v.id("users")),
+      })),
+      allowMultiple: v.boolean(),
+      expiresAt: v.optional(v.number()),
     })),
   })
   .index("by_room", ["roomId"])
@@ -525,9 +588,23 @@ export default defineSchema({
     userId: v.id("users"),
     clerkId: v.string(),
     lastSeen: v.number(),
-    status: v.union(v.literal("online"), v.literal("away"), v.literal("offline")),
+    status: v.union(
+      v.literal("online"), 
+      v.literal("away"), 
+      v.literal("offline"),
+      v.literal("busy"),
+      v.literal("dnd"), // Do not disturb
+      v.literal("meeting"),
+      v.literal("wfh") // Working from home
+    ),
     currentPage: v.optional(v.string()),
     isActive: v.boolean(),
+    // Custom status message
+    customStatus: v.optional(v.object({
+      message: v.string(), // "In a meeting", "Out for lunch", etc.
+      emoji: v.optional(v.string()), // 🍕, 💼, 🏠, etc.
+      expiresAt: v.optional(v.number()), // Auto-clear time
+    })),
   })
   .index("by_user", ["userId"])
   .index("by_clerk_id", ["clerkId"])

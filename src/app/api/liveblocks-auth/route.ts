@@ -67,11 +67,17 @@ export async function POST(req: Request) {
       userInfo: {
         name: user.fullName || user.firstName || user.emailAddresses?.[0]?.emailAddress || 'Anonymous',
         avatar: user.imageUrl || '',
+        role: 'user', // Add role for comments
       },
     })
     
+    // Allow full access including comments/threads
     session.allow(room, session.FULL_ACCESS)
-    console.log('✅ Session prepared, authorizing...');
+    
+    // Explicitly allow comments permissions (required for threads)
+    session.allow(room, ['room:write', 'comments:write'])
+    
+    console.log('✅ Session prepared with comments permissions, authorizing...');
     
     const { body: responseBody, status } = await session.authorize()
     console.log('✅ Liveblocks session authorized with status:', status);
