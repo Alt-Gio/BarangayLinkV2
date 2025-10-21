@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { useRouter } from 'next/navigation';
 import { 
   Users, 
   Building2, 
@@ -21,6 +22,7 @@ import {
   Award,
   AlertTriangle
 } from 'lucide-react';
+import { formatCurrency, formatPercentage } from '@/lib/formatters';
 
 interface ManagerDashboardProps {
   user: any;
@@ -28,6 +30,7 @@ interface ManagerDashboardProps {
 }
 
 export function ManagerDashboard({ user, permissions }: ManagerDashboardProps) {
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const dashboardData = useQuery(api.dashboards.getManagerDashboard);
 
@@ -131,59 +134,61 @@ export function ManagerDashboard({ user, permissions }: ManagerDashboardProps) {
       {/* Department Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Team Size</p>
-                <p className="text-3xl font-bold text-white">{departmentOverview.teamSize}</p>
-                <p className="text-sm text-blue-400">Department members</p>
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-gray-400 mb-1">Team Size</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight">{departmentOverview.teamSize}</p>
+                <p className="text-xs sm:text-sm text-blue-400 mt-1">Department members</p>
               </div>
-              <Users className="w-12 h-12 text-blue-400" />
+              <Users className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-blue-400 flex-shrink-0" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Active Projects</p>
-                <p className="text-3xl font-bold text-white">{departmentOverview.activeProjects}</p>
-                <p className="text-sm text-green-400">
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-gray-400 mb-1">Active Projects</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight">{departmentOverview.activeProjects}</p>
+                <p className="text-xs sm:text-sm text-green-400 mt-1">
                   {departmentOverview.completedProjects} completed
                 </p>
               </div>
-              <Building2 className="w-12 h-12 text-green-400" />
+              <Building2 className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-green-400 flex-shrink-0" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Department Tasks</p>
-                <p className="text-3xl font-bold text-white">{departmentOverview.totalTasks}</p>
-                <p className="text-sm text-purple-400">
-                  {departmentOverview.totalTasks > 0 ? Math.round((departmentOverview.completedTasks / departmentOverview.totalTasks) * 100) : 0}% completed
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-gray-400 mb-1">Department Tasks</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight">{departmentOverview.totalTasks}</p>
+                <p className="text-xs sm:text-sm text-purple-400 mt-1">
+                  {formatPercentage(departmentOverview.totalTasks > 0 ? (departmentOverview.completedTasks / departmentOverview.totalTasks) * 100 : 0)} completed
                 </p>
               </div>
-              <CheckSquare className="w-12 h-12 text-purple-400" />
+              <CheckSquare className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-purple-400 flex-shrink-0" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Department Budget</p>
-                <p className="text-3xl font-bold text-white">₱{departmentOverview.departmentBudget.toLocaleString()}</p>
-                <p className="text-sm text-yellow-400">
-                  ₱{departmentOverview.budgetUsed.toLocaleString()} used
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-gray-400 mb-1">Department Budget</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-white break-words leading-tight">
+                  {formatCurrency(departmentOverview.departmentBudget)}
+                </p>
+                <p className="text-xs sm:text-sm text-yellow-400 mt-1">
+                  {formatCurrency(departmentOverview.budgetUsed)} used
                 </p>
               </div>
-              <DollarSign className="w-12 h-12 text-yellow-400" />
+              <DollarSign className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-yellow-400 flex-shrink-0" />
             </div>
           </CardContent>
         </Card>
@@ -292,25 +297,37 @@ export function ManagerDashboard({ user, permissions }: ManagerDashboardProps) {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <button className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
-              <Users className="w-8 h-8 text-blue-400 mb-2" />
-              <p className="text-white font-medium">Manage Team</p>
-              <p className="text-gray-400 text-sm">Assign roles & tasks</p>
+            <button 
+              onClick={() => router.push('/dashboard/team-workload')}
+              className="p-4 bg-gradient-to-br from-teal-700 to-teal-600 hover:from-teal-600 hover:to-teal-500 rounded-lg transition-all text-left border-2 border-teal-500/50"
+            >
+              <Users className="w-8 h-8 text-teal-100 mb-2" />
+              <p className="text-white font-semibold">Team Workload</p>
+              <p className="text-teal-100 text-sm">Track capacity</p>
             </button>
             
-            <button className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
+            <button 
+              onClick={() => router.push('/projects')}
+              className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left"
+            >
               <Building2 className="w-8 h-8 text-green-400 mb-2" />
               <p className="text-white font-medium">Projects</p>
               <p className="text-gray-400 text-sm">Create & approve</p>
             </button>
             
-            <button className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
-              <TrendingUp className="w-8 h-8 text-purple-400 mb-2" />
-              <p className="text-white font-medium">Analytics</p>
-              <p className="text-gray-400 text-sm">Department metrics</p>
+            <button 
+              onClick={() => router.push('/strategic-planning')}
+              className="p-4 bg-gradient-to-br from-cyan-700 to-cyan-600 hover:from-cyan-600 hover:to-cyan-500 rounded-lg transition-all text-left border-2 border-cyan-500/50"
+            >
+              <Target className="w-8 h-8 text-cyan-100 mb-2" />
+              <p className="text-white font-semibold">Strategic Planning</p>
+              <p className="text-cyan-100 text-sm">Goals & progress</p>
             </button>
             
-            <button className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
+            <button 
+              onClick={() => router.push('/events')}
+              className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left"
+            >
               <Calendar className="w-8 h-8 text-yellow-400 mb-2" />
               <p className="text-white font-medium">Schedule</p>
               <p className="text-gray-400 text-sm">Events & meetings</p>

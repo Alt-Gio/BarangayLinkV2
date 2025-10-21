@@ -207,10 +207,13 @@ export const sendFCMNotificationAction = internalAction({
     try {
       // Call our Next.js API route to send FCM notification
       const apiUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const apiSecret = process.env.FCM_API_SECRET || 'development-secret-change-in-production';
+      
       const response = await fetch(`${apiUrl}/api/send-fcm`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-api-secret': apiSecret,
         },
         body: JSON.stringify({
           token: args.token,

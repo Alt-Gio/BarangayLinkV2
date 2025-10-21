@@ -13,10 +13,11 @@ export const sendInvitationEmail = action({
   },
   handler: async (ctx, args) => {
     const RESEND_API_KEY = process.env.RESEND_API_KEY;
+    const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "BarangayLink <noreply@yourdomain.com>";
     
     if (!RESEND_API_KEY) {
       console.error("RESEND_API_KEY not configured");
-      throw new Error("Email service not configured");
+      throw new Error("Email service not configured. Please add RESEND_API_KEY to your .env.local");
     }
 
     const invitationLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/accept-invitation/${args.invitationToken}`;
@@ -138,10 +139,11 @@ export const sendInvitationEmail = action({
           Authorization: `Bearer ${RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from: "BarangayLink <onboarding@resend.dev>", // Change to your verified domain
+          from: FROM_EMAIL,
           to: [args.to],
           subject: `🎉 You're invited to join BarangayLink V2`,
           html: htmlContent,
+          reply_to: FROM_EMAIL,
         }),
       });
 

@@ -43,7 +43,6 @@ import {
 import { GlobalSearch } from '@/components/search/GlobalSearch';
 import { SidebarNotificationPanel } from '@/components/notifications/SidebarNotificationPanel';
 import { SidebarProfilePanel } from '@/components/profile/SidebarProfilePanel';
-import { SyncStatus } from '@/components/SyncStatus';
 
 interface MenuItem {
   id: string;
@@ -90,9 +89,11 @@ export function Sidebar({
   useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth < 768;
+      const wasMobile = isMobile;
       setIsMobile(mobile);
-      // On mobile, ensure sidebar starts closed
-      if (mobile && !isMounted && onToggle && isOpen) {
+      
+      // Close sidebar when switching to mobile or on mobile mount
+      if (mobile && (!wasMobile || !isMounted) && onToggle && isOpen) {
         onToggle();
       }
     };
@@ -101,7 +102,7 @@ export function Sidebar({
     setIsMounted(true);
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  }, [isMobile, isMounted, onToggle, isOpen]);
 
   // Auto-close sidebar on mobile when route changes - immediate close
   useEffect(() => {
@@ -513,11 +514,6 @@ export function Sidebar({
           </div>
         </div>
       )}
-
-      {/* Sync Status */}
-      <div className="border-t border-gray-700 px-4 py-3">
-        <SyncStatus />
-      </div>
 
       {/* Notifications Panel */}
       <SidebarNotificationPanel />

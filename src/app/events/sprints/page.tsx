@@ -24,7 +24,8 @@ import {
   Plus,
   BarChart3,
   Zap,
-  AlertCircle
+  AlertCircle,
+  Briefcase
 } from 'lucide-react';
 
 export default function SprintsPage() {
@@ -461,26 +462,76 @@ export default function SprintsPage() {
                       />
                     </div>
 
-                    {/* Link to Project */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Link to Project (Optional)
-                      </label>
-                      <select
-                        value={sprintForm.projectId}
-                        onChange={(e) => setSprintForm({ ...sprintForm, projectId: e.target.value })}
-                        className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white"
-                      >
-                        <option value="" className="bg-gray-900 text-gray-300">No project (Standalone sprint)</option>
-                        {projects && projects.map((project: any) => (
-                          <option key={project._id} value={project._id} className="bg-gray-900 text-white">
-                            {project.title}
+                    {/* Link to Project - Modern Design */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm font-semibold text-white flex items-center gap-2">
+                          <Briefcase className="w-4 h-4 text-purple-400" />
+                          Link to Project
+                        </label>
+                        <span className="text-xs text-gray-500 bg-gray-800 px-2 py-1 rounded-full">
+                          Optional
+                        </span>
+                      </div>
+
+                      {/* Modern Select with Card Style */}
+                      <div className="relative">
+                        <select
+                          value={sprintForm.projectId}
+                          onChange={(e) => setSprintForm({ ...sprintForm, projectId: e.target.value })}
+                          className="w-full px-4 py-3 bg-gradient-to-br from-gray-800 to-gray-900 border-2 border-gray-700 hover:border-purple-500/50 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 rounded-lg text-white font-medium appearance-none cursor-pointer transition-all duration-200 pr-10"
+                        >
+                          <option value="" className="bg-gray-900 text-gray-400">
+                            🎯 Standalone Sprint (No Project)
                           </option>
-                        ))}
-                      </select>
-                      <p className="text-xs text-gray-500 mt-1">
-                        💡 Linking to a project will show this sprint in the project's Events tab
-                      </p>
+                          {projects && projects.map((project: any) => (
+                            <option 
+                              key={project._id} 
+                              value={project._id} 
+                              className="bg-gray-900 text-white py-2"
+                            >
+                              📁 {project.title}
+                            </option>
+                          ))}
+                        </select>
+                        
+                        {/* Custom Dropdown Arrow */}
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+
+                      {/* Info Card */}
+                      {sprintForm.projectId ? (
+                        <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3 flex items-start gap-3">
+                          <div className="flex-shrink-0 w-8 h-8 bg-purple-500/20 rounded-full flex items-center justify-center">
+                            <Briefcase className="w-4 h-4 text-purple-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-purple-300 mb-1">
+                              {projects?.find((p: any) => p._id === sprintForm.projectId)?.title}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              This sprint will appear in the project's Events tab
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-3 flex items-start gap-3">
+                          <div className="flex-shrink-0">
+                            <div className="w-8 h-8 bg-blue-500/10 rounded-full flex items-center justify-center">
+                              <span className="text-blue-400">💡</span>
+                            </div>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-xs text-gray-400 leading-relaxed">
+                              Link this sprint to a project to track progress together and sync deadlines automatically
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Date Range */}
@@ -573,10 +624,15 @@ export default function SprintsPage() {
                         </div>
                         {sprintForm.projectId && (
                           <div className="col-span-2">
-                            <span className="text-gray-400">Linked Project:</span>
-                            <span className="text-purple-300 ml-2 font-medium">
-                              📁 {projects?.find((p: any) => p._id === sprintForm.projectId)?.title || 'Selected Project'}
-                            </span>
+                            <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3 flex items-center gap-2">
+                              <Briefcase className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs text-gray-400 mb-0.5">Linked Project</p>
+                                <p className="text-sm font-semibold text-purple-300 truncate">
+                                  {projects?.find((p: any) => p._id === sprintForm.projectId)?.title || 'Selected Project'}
+                                </p>
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>

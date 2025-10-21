@@ -21,6 +21,7 @@ import {
   Menu,
   Briefcase
 } from 'lucide-react';
+import { formatCurrency, formatPercentage } from '@/lib/formatters';
 
 interface BuilderDashboardProps {
   user: any;
@@ -109,59 +110,61 @@ export function BuilderDashboard({ user, permissions }: BuilderDashboardProps) {
       {/* Project Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">My Projects</p>
-                <p className="text-3xl font-bold text-white">{projectOverview.totalProjects}</p>
-                <p className="text-sm text-green-400">
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-gray-400 mb-1">My Projects</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight">{projectOverview.totalProjects}</p>
+                <p className="text-xs sm:text-sm text-green-400 mt-1">
                   {projectOverview.activeProjects} active
                 </p>
               </div>
-              <Building2 className="w-12 h-12 text-green-400" />
+              <Building2 className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-green-400 flex-shrink-0" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Project Tasks</p>
-                <p className="text-3xl font-bold text-white">{taskDistribution.totalTasks}</p>
-                <p className="text-sm text-purple-400">
-                  {taskDistribution.totalTasks > 0 ? Math.round((taskDistribution.completedTasks / taskDistribution.totalTasks) * 100) : 0}% completed
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-gray-400 mb-1">Project Tasks</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight">{taskDistribution.totalTasks}</p>
+                <p className="text-xs sm:text-sm text-purple-400 mt-1">
+                  {formatPercentage(taskDistribution.totalTasks > 0 ? (taskDistribution.completedTasks / taskDistribution.totalTasks) * 100 : 0)} completed
                 </p>
               </div>
-              <CheckSquare className="w-12 h-12 text-purple-400" />
+              <CheckSquare className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-purple-400 flex-shrink-0" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Team Members</p>
-                <p className="text-3xl font-bold text-white">{projectOverview.assignedWorkers}</p>
-                <p className="text-sm text-blue-400">Workers assigned</p>
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-gray-400 mb-1">Team Members</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight">{projectOverview.assignedWorkers}</p>
+                <p className="text-xs sm:text-sm text-blue-400 mt-1">Workers assigned</p>
               </div>
-              <Users className="w-12 h-12 text-blue-400" />
+              <Users className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-blue-400 flex-shrink-0" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Project Budget</p>
-                <p className="text-3xl font-bold text-white">₱{projectOverview.totalBudget.toLocaleString()}</p>
-                <p className="text-sm text-yellow-400">
-                  ₱{projectOverview.budgetUsed.toLocaleString()} used
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-gray-400 mb-1">Project Budget</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-white break-words leading-tight">
+                  {formatCurrency(projectOverview.totalBudget)}
+                </p>
+                <p className="text-xs sm:text-sm text-yellow-400 mt-1">
+                  {formatCurrency(projectOverview.budgetUsed)} used
                 </p>
               </div>
-              <Briefcase className="w-12 h-12 text-yellow-400" />
+              <Briefcase className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-yellow-400 flex-shrink-0" />
             </div>
           </CardContent>
         </Card>

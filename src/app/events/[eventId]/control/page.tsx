@@ -37,6 +37,7 @@ import {
   Package,
   ChevronDown,
   ChevronUp,
+  Menu,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -105,9 +106,11 @@ export default function EventControlPage() {
   const router = useRouter();
   const eventId = params.eventId as Id<"events">;
 
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Sidebar closed by default on mobile
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPriority, setFilterPriority] = useState<string>("all");
+  const [headerCollapsed, setHeaderCollapsed] = useState(false); // Collapsible header for mobile
   const [selectedTask, setSelectedTask] = useState<Id<"eventTasks"> | null>(null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [isClockInDialogOpen, setIsClockInDialogOpen] = useState(false);
@@ -698,33 +701,56 @@ export default function EventControlPage() {
         userRole={currentUser?.userLevel?.name || "WORKER"}
         dashboardTitle="Event Control"
         dashboardSubtitle="Manage event tasks and assignments"
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
       />
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="bg-gray-800 border-b border-gray-700 px-6 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4">
+        {/* Compact Mobile Header */}
+        <div className="bg-gray-800 border-b border-gray-700">
+          {/* Top Bar - Always Visible */}
+          <div className="px-3 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {/* Mobile Menu Button */}
+              <Button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                variant="ghost"
+                size="sm"
+                className="md:hidden p-2"
+              >
+                <Menu className="w-5 h-5" />
+              </Button>
+              
               <Button
                 onClick={() => router.push('/events')}
-                variant="outline"
-                className="border-gray-600 hover:bg-gray-700"
+                variant="ghost"
+                size="sm"
+                className="p-2"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Events
+                <ArrowLeft className="w-5 h-5" />
               </Button>
-              <div className="border-l border-gray-600 pl-4">
-                <h1 className="text-2xl font-bold text-white">{event.title}</h1>
-                <p className="text-sm text-gray-400">Event Control Board - Organize & Manage Tasks</p>
-              </div>
             </div>
-            <div className="flex gap-3">
+
+            <div className="flex items-center gap-2">
+              {/* Collapse Toggle Button */}
+              <Button
+                onClick={() => setHeaderCollapsed(!headerCollapsed)}
+                variant="ghost"
+                size="sm"
+                className="p-2"
+                title={headerCollapsed ? "Show Details" : "Hide Details"}
+              >
+                {headerCollapsed ? <ChevronDown className="w-5 h-5" /> : <ChevronUp className="w-5 h-5" />}
+              </Button>
+              
               <Button
                 onClick={() => handleExportReport()}
-                className="bg-teal-600 hover:bg-teal-700"
+                variant="ghost"
+                size="sm"
+                className="p-2 hidden sm:flex"
               >
-                <FileText className="w-4 h-4 mr-2" />
-                Export Report
+                <FileText className="w-5 h-5" />
               </Button>
+              
               <CreateTaskDialog
                 eventId={eventId}
                 isOpen={isCreateTaskOpen}
@@ -737,9 +763,22 @@ export default function EventControlPage() {
             </div>
           </div>
 
+          {/* Event Title - Always Visible, Centered */}
+          <div className="text-center px-4 py-3 border-t border-gray-700/50">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white leading-tight">
+              {event.title}
+            </h1>
+            {!headerCollapsed && (
+              <p className="text-xs sm:text-sm text-gray-400 mt-1">Event Control Board</p>
+            )}
+          </div>
+
+        {/* Collapsible Stats & Filters Section */}
+        {!headerCollapsed && (
+          <div className="px-3 py-4 space-y-4 border-t border-gray-700/50">
         {/* Dashboard Stats */}
         {dashboard && (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3">
             <StatCard
               icon={<CheckCircle2 className="w-5 h-5" />}
               label="Total Tasks"
@@ -780,7 +819,7 @@ export default function EventControlPage() {
         )}
 
           {/* Filters */}
-          <div className="flex gap-4 items-center">
+          <div className="flex flex-col sm:flex-row gap-2 items-stretch">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
@@ -791,7 +830,7 @@ export default function EventControlPage() {
               />
             </div>
             <Select value={filterPriority} onValueChange={setFilterPriority}>
-              <SelectTrigger className="w-[180px] bg-gray-700 border-gray-600">
+              <SelectTrigger className="w-full sm:w-[180px] bg-gray-700 border-gray-600 text-sm">
                 <SelectValue placeholder="Filter by priority" />
               </SelectTrigger>
               <SelectContent>
@@ -803,31 +842,38 @@ export default function EventControlPage() {
               </SelectContent>
             </Select>
           </div>
+          </div>
+        )}
         </div>
 
-        {/* Kanban Board */}
-        <div className="flex-1 overflow-x-auto p-6">
-          <div className="flex gap-4 h-full">
+        {/* Centered Kanban Board */}
+        <div className="flex-1 overflow-x-auto overflow-y-hidden px-2 py-4">
+          {/* Mobile Scroll Hint */}
+          <div className="text-center mb-2 md:hidden">
+            <p className="text-xs text-gray-500">← Swipe to browse columns →</p>
+          </div>
+          
+          <div className="flex gap-3 h-full min-w-min justify-start md:justify-center pb-4">
         {statusColumns.map((column) => {
           const columnTasks = getTasksByStatus(column.id);
           return (
             <div
               key={column.id}
-              className="flex-shrink-0 w-80 bg-gray-800/50 rounded-lg p-4"
+              className="flex-shrink-0 w-72 sm:w-80 bg-gray-800/50 rounded-lg p-3 sm:p-4 flex flex-col"
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, column.id)}
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-700/50 flex-shrink-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">{column.icon}</span>
-                  <h3 className="font-semibold text-white">{column.title}</h3>
-                  <Badge variant="secondary" className="ml-2">
+                  <span className="text-xl sm:text-2xl">{column.icon}</span>
+                  <h3 className="font-semibold text-white text-sm sm:text-base">{column.title}</h3>
+                  <Badge variant="secondary" className="text-xs">
                     {columnTasks.length}
                   </Badge>
                 </div>
               </div>
 
-              <div className="space-y-3 max-h-[calc(100vh-400px)] overflow-y-auto">
+              <div className="space-y-2 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
                 {columnTasks.map((task: Task) => (
                   <div
                     key={task._id}

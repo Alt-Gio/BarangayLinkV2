@@ -46,6 +46,10 @@ export default defineSchema({
     rejectedBy: v.optional(v.id("users")),
     rejectedAt: v.optional(v.number()),
     rejectionReason: v.optional(v.string()),
+    // Status change tracking (for reverting to pending)
+    reviewedBy: v.optional(v.id("users")),
+    reviewedAt: v.optional(v.number()),
+    reviewReason: v.optional(v.string()),
     // Gamification stats (Habitica-style)
     level: v.number(),
     experience: v.number(),
@@ -142,7 +146,8 @@ export default defineSchema({
     progress: v.number(), // 0-100 calculated from tasks
     liveblocksRoom: v.string(), // For real-time collaboration
     isPublic: v.boolean(),
-    
+    isFeatured: v.optional(v.boolean()), // Highlight on landing page
+    featuredOrder: v.optional(v.number()), // Display order for featured projects
     // Approval workflow
     approvalStatus: v.union(
       v.literal("pending"),
@@ -1075,6 +1080,43 @@ export default defineSchema({
   .index("by_status", ["status"])
   .index("by_assigned_by", ["assignedBy"]),
 
+  // Public Project Feedback - Allow community to comment on projects
+  projectFeedback: defineTable({
+    projectId: v.id("projects"),
+    // Submitter information (public users don't need accounts)
+    submitterName: v.string(),
+    submitterEmail: v.optional(v.string()),
+    submitterPhone: v.optional(v.string()),
+    // Feedback content
+    feedbackType: v.union(
+      v.literal("comment"),
+      v.literal("suggestion"),
+      v.literal("concern"),
+      v.literal("appreciation")
+    ),
+    rating: v.optional(v.number()), // 1-5 stars
+    message: v.string(),
+    // Moderation
+    status: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("rejected"),
+      v.literal("spam")
+    ),
+    moderatedBy: v.optional(v.id("users")),
+    moderatedAt: v.optional(v.number()),
+    moderationNote: v.optional(v.string()),
+    // Metadata
+    isPublic: v.boolean(), // Show on public page
+    submittedAt: v.number(),
+    ipAddress: v.optional(v.string()), // For spam prevention
+    userAgent: v.optional(v.string()),
+  })
+  .index("by_project", ["projectId"])
+  .index("by_status", ["status"])
+  .index("by_project_status", ["projectId", "status"])
+  .index("by_submitted_at", ["submittedAt"]),
+
   // Push Notification Subscriptions (FCM tokens)
   pushSubscriptions: defineTable({
     userId: v.id("users"),
@@ -1166,4 +1208,24 @@ export default defineSchema({
   .index("by_task", ["taskId"])
   .index("by_project", ["projectId"])
   .index("by_priority", ["priority"]),
+
+  // Comments system for collaboration
+  comments: defineTable({
+    resourceType: v.string(), // 'project', 'event', 'task', 'sprint', 'document'
+    resourceId: v.string(), // ID of the resource
+    body: v.string(),
+    category: v.string(), // 'general', 'question', 'feedback', 'bug', 'feature'
+    priority: v.string(), // 'low', 'medium', 'high'
+    parentId: v.optional(v.id("comments")), // For threaded replies
+    userId: v.id("users"),
+    userName: v.string(),
+    userAvatar: v.optional(v.string()),
+    resolved: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_resource", ["resourceType", "resourceId"])
+  .index("by_user", ["userId"])
+  .index("by_parent", ["parentId"])
+  .index("by_resolved", ["resolved"]),
 });

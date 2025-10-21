@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { X, Mail, User, Building, Briefcase, Phone, Shield, Send } from "lucide-react";
+import { X, Mail, User, Building, Briefcase, Phone, Shield, Send, Copy, Check, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface SendInvitationModalProps {
   isOpen: boolean;
@@ -32,6 +33,8 @@ export function SendInvitationModal({ isOpen, onClose }: SendInvitationModalProp
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [invitationLink, setInvitationLink] = useState("");
+  const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;
 
@@ -45,7 +48,7 @@ export function SendInvitationModal({ isOpen, onClose }: SendInvitationModalProp
         throw new Error("Please fill in all required fields");
       }
 
-      await sendInvitation({
+      const invitationId = await sendInvitation({
         email: formData.email,
         firstName: formData.firstName,
         lastName: formData.lastName,
@@ -59,13 +62,47 @@ export function SendInvitationModal({ isOpen, onClose }: SendInvitationModalProp
       });
 
       setSuccess(true);
+      toast.success("Invitation sent successfully!", {
+        description: `An invitation email has been sent to ${formData.email}`,
+      });
+      
+      // Note: We don't have direct access to the token from the mutation return
+      // The link will be sent via email
       setTimeout(() => {
         onClose();
+        // Reset form
+        setFormData({
+          email: "",
+          firstName: "",
+          lastName: "",
+          department: "",
+          position: "",
+          phone: "",
+          userLevelId: "",
+          assignInitialTasks: true,
+          sendWelcomeMessage: true,
+          customMessage: "",
+        });
+        setSuccess(false);
+        setError("");
       }, 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send invitation");
+      const errorMessage = err instanceof Error ? err.message : "Failed to send invitation";
+      setError(errorMessage);
+      toast.error("Failed to send invitation", {
+        description: errorMessage,
+      });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (invitationLink) {
+      await navigator.clipboard.writeText(invitationLink);
+      setCopied(true);
+      toast.success("Link copied to clipboard!");
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -95,8 +132,19 @@ export function SendInvitationModal({ isOpen, onClose }: SendInvitationModalProp
           )}
 
           {success && (
-            <div className="bg-emerald-500/20 border border-emerald-500 rounded-lg p-4">
-              <p className="text-emerald-400 text-sm">✓ Invitation sent successfully!</p>
+            <div className="bg-emerald-500/20 border border-emerald-500 rounded-lg p-6">
+              <div className="flex items-start gap-3 mb-4">
+                <Check className="w-6 h-6 text-emerald-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-emerald-400 font-semibold mb-1">Invitation Sent Successfully!</p>
+                  <p className="text-emerald-300/80 text-sm">
+                    An invitation email has been sent to <strong>{formData.email}</strong>
+                  </p>
+                  <p className="text-emerald-300/60 text-xs mt-2">
+                    The invitation link is valid for 7 days. They'll receive an email with instructions to join.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 

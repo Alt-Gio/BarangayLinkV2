@@ -186,8 +186,8 @@ export const getAdminDashboard = query({
   args: {},
   handler: async (ctx) => {
     const currentUser = await getCurrentUser(ctx);
-    if (!currentUser || currentUser.userLevel.name !== "ADMIN") {
-      throw new Error("Admin access required");
+    if (!currentUser || (currentUser.userLevel.name !== "ADMIN" && currentUser.userLevel.name !== "CAPTAIN")) {
+      throw new Error("Admin or Captain access required");
     }
 
     const [users, projects, tasks, events, notifications, sessions] = await Promise.all([
@@ -226,8 +226,8 @@ export const getManagerDashboard = query({
   args: {},
   handler: async (ctx) => {
     const currentUser = await getCurrentUser(ctx);
-    if (!currentUser || currentUser.userLevel.name !== "MANAGER") {
-      throw new Error("Manager access required");
+    if (!currentUser || (currentUser.userLevel.name !== "MANAGER" && currentUser.userLevel.name !== "CAPTAIN" && currentUser.userLevel.name !== "ADMIN")) {
+      throw new Error("Manager, Captain, or Admin access required");
     }
 
     const department = currentUser.department;

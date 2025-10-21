@@ -2,6 +2,7 @@
 
 import { useUser, UserButton } from '@clerk/nextjs';
 import { AdminDashboard } from './AdminDashboard';
+import { CaptainDashboard } from './CaptainDashboard';
 import { ManagerDashboard } from './ManagerDashboard';
 import { BuilderDashboard } from './BuilderDashboard';
 import { WorkerDashboard } from './WorkerDashboard';
@@ -29,6 +30,16 @@ const HIERARCHY_CONFIG = {
     borderColor: 'border-purple-500',
     description: 'Full system access and management',
     greeting: 'Welcome back, Administrator! You have full control over the system.'
+  },
+  CAPTAIN: {
+    level: 3.5,
+    name: 'Captain',
+    icon: Shield,
+    color: 'text-cyan-400',
+    bgColor: 'bg-cyan-900/20',
+    borderColor: 'border-cyan-500',
+    description: 'Senior leadership and strategic oversight',
+    greeting: 'Welcome, Captain! Lead the team to success with strategic decisions.'
   },
   MANAGER: {
     level: 3,
@@ -126,6 +137,8 @@ export function RoleBasedDashboard({ className = "" }: RoleBasedDashboardProps) 
     switch (userRole) {
       case 'ADMIN':
         return <AdminDashboard user={currentUser} permissions={userPermissions} />;
+      case 'CAPTAIN':
+        return <CaptainDashboard user={currentUser} permissions={userPermissions} />;
       case 'MANAGER':
         return <ManagerDashboard user={currentUser} permissions={userPermissions} />;
       case 'BUILDER':

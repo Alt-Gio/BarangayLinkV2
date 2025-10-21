@@ -49,9 +49,9 @@ export function LiveComments({ resourceType, resourceId, title }: LiveCommentsPr
 
   // Apply filters
   const filteredThreads = resourceThreads.filter((thread: any) => {
-    // Filter by resolved status
-    if (filterResolved === 'open' && thread.metadata.resolved) return false;
-    if (filterResolved === 'resolved' && !thread.metadata.resolved) return false;
+    // Filter by resolved status (metadata is string)
+    if (filterResolved === 'open' && thread.metadata.resolved === 'true') return false;
+    if (filterResolved === 'resolved' && thread.metadata.resolved !== 'true') return false;
 
     // Filter by search query
     if (searchQuery) {
@@ -69,24 +69,23 @@ export function LiveComments({ resourceType, resourceId, title }: LiveCommentsPr
   const handleCreateComment = async () => {
     if (!newCommentText.trim()) return;
 
+    console.log('🔍 Creating thread WITHOUT metadata');
+    console.log('📝 Comment body:', newCommentText);
+
     try {
+      // Try with NO metadata first
       const thread = await createThread({
-        body: newCommentText,
-        metadata: {
-          resolved: false,
-          resourceType,
-          resourceId,
-          category,
-          priority,
-          createdAt: Date.now(),
-        },
+        body: newCommentText as any,
+        // NO metadata at all
       });
 
+      console.log('✅ Thread created successfully (no metadata):', thread);
       setNewCommentText('');
       setCategory('general');
       setPriority('medium');
-    } catch (error) {
-      console.error('Failed to create comment:', error);
+    } catch (error: any) {
+      console.error('❌ Failed to create comment:', error);
+      console.error('❌ Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
     }
   };
 
@@ -94,7 +93,10 @@ export function LiveComments({ resourceType, resourceId, title }: LiveCommentsPr
     if (!replyText.trim()) return;
 
     try {
-      await createComment({ threadId, body: replyText });
+      await createComment({ 
+        threadId, 
+        body: replyText as any // Type workaround
+      });
       setReplyText('');
       setReplyingTo(null);
     } catch (error) {
@@ -102,11 +104,11 @@ export function LiveComments({ resourceType, resourceId, title }: LiveCommentsPr
     }
   };
 
-  const toggleResolved = async (threadId: string, currentResolved: boolean) => {
+  const toggleResolved = async (threadId: string, currentResolved: string) => {
     try {
       await editThreadMetadata({
         threadId,
-        metadata: { resolved: !currentResolved },
+        metadata: { resolved: currentResolved === 'true' ? 'false' : 'true' },
       });
     } catch (error) {
       console.error('Failed to toggle resolved:', error);
@@ -246,7 +248,7 @@ export function LiveComments({ resourceType, resourceId, title }: LiveCommentsPr
             <Card
               key={thread.id}
               className={`border transition-all ${
-                thread.metadata.resolved
+                thread.metadata.resolved === 'true'
                   ? 'bg-gray-800/30 border-gray-700/30 opacity-75'
                   : 'bg-gray-800/50 border-gray-700 hover:border-blue-500/30'
               }`}
@@ -266,7 +268,7 @@ export function LiveComments({ resourceType, resourceId, title }: LiveCommentsPr
                           {thread.metadata.priority.toUpperCase()}
                         </span>
                       )}
-                      {thread.metadata.resolved && (
+                      {thread.metadata.resolved === 'true' && (
                         <Badge className="bg-green-500/20 text-green-300 text-xs">
                           <CheckCircle2 className="w-3 h-3 mr-1" />
                           Resolved
@@ -277,15 +279,15 @@ export function LiveComments({ resourceType, resourceId, title }: LiveCommentsPr
                   
                   <div className="flex items-center gap-2">
                     <Button
-                      onClick={() => toggleResolved(thread.id, thread.metadata.resolved || false)}
+                      onClick={() => toggleResolved(thread.id, thread.metadata.resolved || 'false')}
                       size="sm"
                       className={`${
-                        thread.metadata.resolved
+                        thread.metadata.resolved === 'true'
                           ? 'bg-gray-700 hover:bg-gray-600'
                           : 'bg-green-600 hover:bg-green-700'
                       }`}
                     >
-                      {thread.metadata.resolved ? (
+                      {thread.metadata.resolved === 'true' ? (
                         <><X className="w-4 h-4 mr-1" /> Reopen</>
                       ) : (
                         <><Check className="w-4 h-4 mr-1" /> Resolve</>

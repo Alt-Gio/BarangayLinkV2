@@ -27,6 +27,15 @@ if (!admin.apps.length) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify API secret for security
+    const apiSecret = request.headers.get('x-api-secret');
+    const expectedSecret = process.env.FCM_API_SECRET || 'development-secret-change-in-production';
+    
+    if (apiSecret !== expectedSecret) {
+      console.error('❌ Unauthorized FCM request - invalid API secret');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
+
     const { token, title, body, url, icon, badge, tag, requireInteraction, actions } = await request.json();
 
     if (!token) {

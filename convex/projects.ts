@@ -2,6 +2,70 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, checkPermission } from "./roleBasedAccess";
 
+// Get featured public projects for landing page
+export const getFeaturedPublicProjects = query({
+  args: {},
+  handler: async (ctx, args) => {
+    const projects = await ctx.db
+      .query("projects")
+      .filter((q) => q.and(
+        q.eq(q.field("isPublic"), true),
+        q.eq(q.field("isFeatured"), true)
+      ))
+      .collect();
+    
+    // Sort by featured order, then by creation date
+    return projects.sort((a, b) => {
+      if (a.featuredOrder && b.featuredOrder) {
+        return a.featuredOrder - b.featuredOrder;
+      }
+      return b._creationTime - a._creationTime;
+    }).slice(0, 6);
+  },
+});
+
+// Get all public projects with progress
+export const getPublicProjects = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 12;
+    const projects = await ctx.db
+      .query("projects")
+      .filter((q) => q.and(
+        q.eq(q.field("isPublic"), true),
+        q.or(
+          q.eq(q.field("status"), "active"),
+          q.eq(q.field("status"), "approved")
+        )
+      ))
+      .order("desc")
+      .take(limit);
+    
+    // Enrich with task counts and team details
+    const enrichedProjects = await Promise.all(
+      projects.map(async (project) => {
+        const tasks = await ctx.db
+          .query("tasks")
+          .withIndex("by_project", (q) => q.eq("projectId", project._id))
+          .collect();
+        
+        const completedTasks = tasks.filter(t => t.completed).length;
+        const totalTasks = tasks.length;
+        
+        return {
+          ...project,
+          taskStats: {
+            completed: completedTasks,
+            total: totalTasks,
+          },
+        };
+      })
+    );
+    
+    return enrichedProjects;
+  },
+});
+
 // Get active projects for public display
 export const getActiveProjects = query({
   args: {},

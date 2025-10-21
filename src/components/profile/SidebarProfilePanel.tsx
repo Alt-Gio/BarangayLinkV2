@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useClerk } from '@clerk/nextjs';
 import { useState, useEffect } from 'react';
 import { OnlineUsersModal } from './OnlineUsersModal';
+import { useOfflineData } from '@/contexts/OfflineDataContext';
 
 // Presence status colors and meanings
 const PRESENCE_STATES = {
@@ -61,6 +62,7 @@ export function SidebarProfilePanel() {
   const currentActivity = useQuery(api.activity.getCurrentActivity);
   const recentAchievements = useQuery(api.activity.getRecentAchievements, { limit: 3 });
   const { signOut } = useClerk();
+  const { isOnline, isSyncing, pendingSyncCount } = useOfflineData();
 
   // Debug: Log current activity
   useEffect(() => {
@@ -124,7 +126,12 @@ export function SidebarProfilePanel() {
         <div className="flex items-center gap-3">
           {/* Avatar with Clerk UserButton */}
           <div className="relative">
-            <div className={`absolute -inset-0.5 rounded-full ${currentPresence.ring} ring-2 animate-pulse`}></div>
+            <div className={`absolute -inset-0.5 rounded-full ${
+              isSyncing ? 'ring-2 ring-blue-500/50 animate-pulse' :
+              !isOnline ? 'ring-2 ring-orange-500/50 animate-pulse' :
+              pendingSyncCount > 0 ? 'ring-2 ring-yellow-500/50 animate-pulse' :
+              'ring-2 ring-emerald-500/30'
+            }`}></div>
             <UserButton 
               appearance={{
                 elements: {
@@ -152,8 +159,18 @@ export function SidebarProfilePanel() {
                 {convexUser.name || clerkUser.firstName}
               </p>
               <div 
-                className={`w-2 h-2 ${currentPresence.color} rounded-full cursor-pointer`}
-                title={`${currentPresence.label} - ${currentPresence.description}`}
+                className={`relative w-2 h-2 ${currentPresence.color} rounded-full cursor-pointer ${
+                  isSyncing ? 'ring-2 ring-blue-500 animate-pulse' :
+                  !isOnline ? 'ring-2 ring-orange-500 animate-pulse' :
+                  pendingSyncCount > 0 ? 'ring-2 ring-yellow-500 animate-pulse' :
+                  'ring-2 ring-emerald-500/50'
+                }`}
+                title={`${currentPresence.label} - ${currentPresence.description}${
+                  isSyncing ? ' | Syncing...' :
+                  !isOnline ? ' | Offline' :
+                  pendingSyncCount > 0 ? ` | ${pendingSyncCount} pending` :
+                  ' | Synced'
+                }`}
                 onClick={() => setShowPresenceMenu(!showPresenceMenu)}
               ></div>
               {/* Online Users Button */}

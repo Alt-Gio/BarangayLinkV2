@@ -3,12 +3,16 @@
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { formatDistanceToNow } from 'date-fns';
-import { Bell, Trash2, Check, CheckCheck, Filter, X } from 'lucide-react';
+import { Bell, Trash2, Check, CheckCheck, Filter, X, Menu } from 'lucide-react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Sidebar } from '@/components/layout/Sidebar';
+import { useDashboardData } from '@/hooks/useDashboardData';
 
 export default function NotificationsPage() {
   const router = useRouter();
+  const { userRole } = useDashboardData();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   
@@ -114,8 +118,30 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 p-6">
-      <div className="max-w-5xl mx-auto">
+    <div className="flex h-screen bg-gray-900">
+      <Sidebar 
+        userRole={userRole || 'WORKER'}
+        dashboardTitle="Notifications"
+        dashboardSubtitle="Your activity updates"
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+      />
+      
+      <div className="flex-1 overflow-y-auto">
+        {/* Mobile Header */}
+        <div className="md:hidden bg-gray-800 p-4 flex items-center justify-between sticky top-0 z-10">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600 transition-colors"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <h1 className="text-lg font-semibold text-white">Notifications</h1>
+          <div className="w-9" /> {/* Spacer */}
+        </div>
+
+        <div className="p-4 md:p-6">
+          <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="bg-gray-800 rounded-lg p-6 mb-6 border border-gray-700 shadow-xl">
           <div className="flex items-center justify-between mb-4">
@@ -177,7 +203,7 @@ export default function NotificationsPage() {
                 {categories.map(cat => (
                   <button
                     key={cat}
-                    onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}
+                    onClick={() => setCategoryFilter(categoryFilter === cat ? null : (cat as string))}
                     className={`px-3 py-2 rounded-lg text-sm transition-all ${
                       categoryFilter === cat
                         ? 'bg-emerald-600 text-white shadow-lg'
@@ -293,6 +319,8 @@ export default function NotificationsPage() {
             </div>
           )}
         </div>
+      </div>
+    </div>
       </div>
     </div>
   );

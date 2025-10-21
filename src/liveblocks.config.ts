@@ -42,16 +42,16 @@ type RoomEvent =
   | { type: "CHAT_REQUEST"; fromUser: { name: string; id: string }; toUser: { name: string; id: string } };
 
 type ThreadMetadata = {
-  resolved?: boolean;
+  resolved?: string; // Must be string for Liveblocks API
   projectId?: string;
   taskId?: string;
-  resourceType?: 'project' | 'task' | 'event' | 'sprint' | 'document';
+  resourceType?: string; // Must be string, not union
   resourceId?: string;
-  priority?: 'low' | 'medium' | 'high';
-  category?: 'question' | 'feedback' | 'bug' | 'feature' | 'general';
+  priority?: string; // Must be string, not union
+  category?: string; // Must be string, not union
   assignedTo?: string; // Comma-separated user IDs
   tags?: string; // Comma-separated tags
-  createdAt?: number;
+  createdAt?: string; // Must be string, not number
 };
 
 export const {

@@ -6,6 +6,7 @@ import { api } from '../../../convex/_generated/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { useRouter } from 'next/navigation';
 import { 
   Users, 
   Building2, 
@@ -16,8 +17,10 @@ import {
   Shield,
   Settings,
   BarChart3,
-  Menu
+  Menu,
+  TrendingUp
 } from 'lucide-react';
+import { formatCurrency, formatPercentage } from '@/lib/formatters';
 
 interface AdminDashboardProps {
   user: any;
@@ -25,6 +28,7 @@ interface AdminDashboardProps {
 }
 
 export function AdminDashboard({ user, permissions }: AdminDashboardProps) {
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const dashboardData = useQuery(api.dashboards.getAdminDashboard);
 
@@ -133,60 +137,62 @@ export function AdminDashboard({ user, permissions }: AdminDashboardProps) {
       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
         <Card className="bg-gray-800 border-gray-700">
           <CardContent className="p-3 sm:p-4 md:p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
-              <div>
-                <p className="text-xs sm:text-sm text-gray-400">Total Users</p>
-                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white">{systemOverview.totalUsers}</p>
-                <p className="text-xs sm:text-sm text-green-400">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-gray-400 mb-1">Total Users</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight">{systemOverview.totalUsers}</p>
+                <p className="text-xs sm:text-sm text-green-400 mt-1">
                   {systemOverview.activeUsers} currently active
                 </p>
               </div>
-              <Users className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-blue-400" />
+              <Users className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-blue-400 flex-shrink-0" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gray-800 border-gray-700">
           <CardContent className="p-3 sm:p-4 md:p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
-              <div>
-                <p className="text-xs sm:text-sm text-gray-400">Total Projects</p>
-                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white">{systemOverview.totalProjects}</p>
-                <p className="text-xs sm:text-sm text-blue-400">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-gray-400 mb-1">Total Projects</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight">{systemOverview.totalProjects}</p>
+                <p className="text-xs sm:text-sm text-blue-400 mt-1">
                   {systemOverview.activeProjects} active
                 </p>
               </div>
-              <Building2 className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-green-400" />
+              <Building2 className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-green-400 flex-shrink-0" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gray-800 border-gray-700">
           <CardContent className="p-3 sm:p-4 md:p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
-              <div>
-                <p className="text-xs sm:text-sm text-gray-400">System Tasks</p>
-                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white">{systemOverview.totalTasks}</p>
-                <p className="text-xs sm:text-sm text-purple-400">
-                  {systemOverview.totalTasks > 0 ? Math.round((systemOverview.completedTasks / systemOverview.totalTasks) * 100) : 0}% completed
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-gray-400 mb-1">System Tasks</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight">{systemOverview.totalTasks}</p>
+                <p className="text-xs sm:text-sm text-purple-400 mt-1">
+                  {formatPercentage(systemOverview.totalTasks > 0 ? (systemOverview.completedTasks / systemOverview.totalTasks) * 100 : 0)} completed
                 </p>
               </div>
-              <CheckSquare className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-purple-400" />
+              <CheckSquare className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-purple-400 flex-shrink-0" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gray-800 border-gray-700">
           <CardContent className="p-3 sm:p-4 md:p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
-              <div>
-                <p className="text-xs sm:text-sm text-gray-400">Total Budget</p>
-                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white">₱{systemOverview.totalBudget.toLocaleString()}</p>
-                <p className="text-xs sm:text-sm text-yellow-400">
-                  ₱{systemOverview.totalSpent.toLocaleString()} spent
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-gray-400 mb-1">Total Budget</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-white break-words leading-tight">
+                  {formatCurrency(systemOverview.totalBudget)}
+                </p>
+                <p className="text-xs sm:text-sm text-yellow-400 mt-1">
+                  {formatCurrency(systemOverview.totalSpent)} spent
                 </p>
               </div>
-              <DollarSign className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-yellow-400" />
+              <DollarSign className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-yellow-400 flex-shrink-0" />
             </div>
           </CardContent>
         </Card>
@@ -256,25 +262,37 @@ export function AdminDashboard({ user, permissions }: AdminDashboardProps) {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <button className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
+            <button 
+              onClick={() => router.push('/admin/users')}
+              className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left"
+            >
               <Users className="w-8 h-8 text-blue-400 mb-2" />
               <p className="text-white font-medium">Manage Users</p>
               <p className="text-gray-400 text-sm">Add, edit, assign roles</p>
             </button>
             
-            <button className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
+            <button 
+              onClick={() => router.push('/dashboard/team-workload')}
+              className="p-4 bg-gradient-to-br from-teal-700 to-teal-600 hover:from-teal-600 hover:to-teal-500 rounded-lg transition-all text-left border-2 border-teal-500/50"
+            >
+              <TrendingUp className="w-8 h-8 text-teal-100 mb-2" />
+              <p className="text-white font-semibold">Team Workload</p>
+              <p className="text-teal-100 text-sm">Track capacity</p>
+            </button>
+            
+            <button 
+              onClick={() => router.push('/admin/settings')}
+              className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left"
+            >
               <Settings className="w-8 h-8 text-gray-400 mb-2" />
               <p className="text-white font-medium">System Settings</p>
               <p className="text-gray-400 text-sm">Configure system</p>
             </button>
             
-            <button className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
-              <Shield className="w-8 h-8 text-red-400 mb-2" />
-              <p className="text-white font-medium">Security</p>
-              <p className="text-gray-400 text-sm">Manage permissions</p>
-            </button>
-            
-            <button className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
+            <button 
+              onClick={() => router.push('/dashboard/analytics')}
+              className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left"
+            >
               <BarChart3 className="w-8 h-8 text-purple-400 mb-2" />
               <p className="text-white font-medium">Analytics</p>
               <p className="text-gray-400 text-sm">System reports</p>

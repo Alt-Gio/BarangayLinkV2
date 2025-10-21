@@ -22,6 +22,7 @@ import {
   Trophy,
   Play
 } from 'lucide-react';
+import { formatPercentage } from '@/lib/formatters';
 
 interface WorkerDashboardProps {
   user: any;
@@ -110,55 +111,55 @@ export function WorkerDashboard({ user, permissions }: WorkerDashboardProps) {
       {/* Gamification Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Level</p>
-                <p className="text-3xl font-bold text-white">{personalStats.level}</p>
-                <p className="text-sm text-purple-400">
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-gray-400 mb-1">Level</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight">{personalStats.level}</p>
+                <p className="text-xs sm:text-sm text-purple-400 mt-1">
                   {personalStats.nextLevelXP} XP to next level
                 </p>
               </div>
-              <Star className="w-12 h-12 text-purple-400" />
+              <Star className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-purple-400 flex-shrink-0" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Gold Earned</p>
-                <p className="text-3xl font-bold text-white">{personalStats.gold}</p>
-                <p className="text-sm text-yellow-400">Total rewards</p>
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-gray-400 mb-1">Gold Earned</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight">{personalStats.gold}</p>
+                <p className="text-xs sm:text-sm text-yellow-400 mt-1">Total rewards</p>
               </div>
-              <Coins className="w-12 h-12 text-yellow-400" />
+              <Coins className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-yellow-400 flex-shrink-0" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Tasks Completed</p>
-                <p className="text-3xl font-bold text-white">{personalStats.totalTasksCompleted}</p>
-                <p className="text-sm text-green-400">All time</p>
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-gray-400 mb-1">Tasks Completed</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight">{personalStats.totalTasksCompleted}</p>
+                <p className="text-xs sm:text-sm text-green-400 mt-1">All time</p>
               </div>
-              <CheckSquare className="w-12 h-12 text-green-400" />
+              <CheckSquare className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-green-400 flex-shrink-0" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Streak</p>
-                <p className="text-3xl font-bold text-white">{personalStats.streakCount}</p>
-                <p className="text-sm text-orange-400">Days active</p>
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-gray-400 mb-1">Streak</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight">{personalStats.streakCount}</p>
+                <p className="text-xs sm:text-sm text-orange-400 mt-1">Days active</p>
               </div>
-              <Zap className="w-12 h-12 text-orange-400" />
+              <Zap className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-orange-400 flex-shrink-0" />
             </div>
           </CardContent>
         </Card>
