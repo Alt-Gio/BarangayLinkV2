@@ -331,3 +331,21 @@ body {
     padding-bottom: calc(16px + env(safe-area-inset-bottom));
   }
 }
+
+/* Hide scrollbar but keep scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Mobile-friendly buttons - larger touch targets */
+@media (max-width: 640px) {
+  button, a, input[type="button"], input[type="submit"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

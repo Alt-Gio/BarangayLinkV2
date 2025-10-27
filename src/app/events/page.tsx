@@ -182,27 +182,28 @@ export default function EventsPage() {
             </div>
           </div>
           
-          {/* Mobile Event Type Filter */}
-          <div className="px-4 pb-3 overflow-x-auto">
+          {/* Mobile Event Type Filter - Icons with Labels */}
+          <div className="px-4 pb-3 overflow-x-auto no-scrollbar">
             <div className="flex gap-2">
               {[
-                { value: "all" as const, label: "All Events", icon: Globe },
-                { value: "meeting" as const, label: "Meetings", icon: MessageSquare },
-                { value: "community" as const, label: "Community", icon: Users },
-                { value: "project" as const, label: "Projects", icon: Briefcase },
-                { value: "emergency" as const, label: "Emergency", icon: AlertTriangle },
-              ].map(({ value, label, icon: Icon }) => (
+                { value: "all" as const, label: "All Events", shortLabel: "All", icon: Globe },
+                { value: "meeting" as const, label: "Meetings", shortLabel: "Meet", icon: MessageSquare },
+                { value: "community" as const, label: "Community", shortLabel: "Community", icon: Users },
+                { value: "project" as const, label: "Projects", shortLabel: "Projects", icon: Briefcase },
+                { value: "emergency" as const, label: "Emergency", shortLabel: "Emergency", icon: AlertTriangle },
+              ].map(({ value, label, shortLabel, icon: Icon }) => (
                 <button
                   key={value}
                   onClick={() => setEventType(value)}
-                  className={`px-3 py-2 rounded-lg flex items-center gap-2 whitespace-nowrap transition-all text-sm ${
+                  className={`flex-shrink-0 px-3 py-2 rounded-lg flex flex-col sm:flex-row items-center gap-1 sm:gap-2 transition-all min-w-[70px] sm:min-w-0 ${
                     eventType === value
-                      ? "bg-emerald-600 text-white"
+                      ? "bg-emerald-600 text-white shadow-lg"
                       : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                   }`}
+                  title={label}
                 >
-                  <Icon className="w-4 h-4" />
-                  {label}
+                  <Icon className="w-5 h-5 sm:w-4 sm:h-4" />
+                  <span className="text-xs sm:text-sm whitespace-nowrap">{shortLabel}</span>
                 </button>
               ))}
             </div>

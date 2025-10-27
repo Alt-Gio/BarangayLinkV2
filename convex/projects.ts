@@ -980,3 +980,65 @@ export const getPendingApprovals = query({
     return projects;
   },
 });
+
+// Get approved projects for managers
+export const getApprovedProjects = query({
+  args: {},
+  handler: async (ctx) => {
+    const currentUser = await checkPermission(ctx, ["MANAGER", "ADMIN"]);
+    
+    let projects = await ctx.db
+      .query("projects")
+      .filter((q) => q.eq(q.field("approvalStatus"), "approved"))
+      .collect();
+    
+    if (currentUser.userLevel.name === "MANAGER") {
+      projects = projects.filter((p) => p.department === currentUser.department);
+    }
+    
+    return projects;
+  },
+});
+
+// Get rejected projects for managers
+export const getRejectedProjects = query({
+  args: {},
+  handler: async (ctx) => {
+    const currentUser = await checkPermission(ctx, ["MANAGER", "ADMIN"]);
+    
+    let projects = await ctx.db
+      .query("projects")
+      .filter((q) => q.eq(q.field("approvalStatus"), "rejected"))
+      .collect();
+    
+    if (currentUser.userLevel.name === "MANAGER") {
+      projects = projects.filter((p) => p.department === currentUser.department);
+    }
+    
+    return projects;
+  },
+});
+
+// Get all reviewed projects (approved + rejected) for managers
+export const getAllReviewedProjects = query({
+  args: {},
+  handler: async (ctx) => {
+    const currentUser = await checkPermission(ctx, ["MANAGER", "ADMIN"]);
+    
+    let projects = await ctx.db
+      .query("projects")
+      .filter((q) => 
+        q.or(
+          q.eq(q.field("approvalStatus"), "approved"),
+          q.eq(q.field("approvalStatus"), "rejected")
+        )
+      )
+      .collect();
+    
+    if (currentUser.userLevel.name === "MANAGER") {
+      projects = projects.filter((p) => p.department === currentUser.department);
+    }
+    
+    return projects;
+  },
+});

@@ -27,17 +27,23 @@ import {
   Menu
 } from 'lucide-react';
 
+type TabType = 'pending' | 'approved' | 'rejected' | 'all';
+
 export default function ProjectApprovalPage() {
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>('pending');
 
   // Get current user from offline context (cached, saves bandwidth)
   const { currentUser, isOnline } = useOfflineData();
   
-  // Get pending projects
+  // Get projects by status
   const pendingProjects = useQuery(api.projects.getPendingApprovals as any);
+  const approvedProjects = useQuery(api.projects.getApprovedProjects as any);
+  const rejectedProjects = useQuery(api.projects.getRejectedProjects as any);
+  const allReviewedProjects = useQuery(api.projects.getAllReviewedProjects as any);
   
   // Review mutation
   const reviewProject = useMutation(api.projects.reviewProject);
@@ -132,27 +138,82 @@ export default function ProjectApprovalPage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                  <CheckCircle className="w-8 h-8 text-emerald-500" />
+                <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
+                  <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-500" />
                   Project Approval
                 </h1>
-                <p className="text-gray-400 mt-2">Review and approve pending project proposals</p>
+                <p className="text-gray-400 mt-2 text-sm sm:text-base">Review and approve project proposals</p>
               </div>
-              <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 px-4 py-2">
-                {pendingProjects?.length || 0} Pending
-              </Badge>
+            </div>
+
+            {/* Mobile-Friendly Tabs */}
+            <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-2">
+              <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                <button
+                  onClick={() => setActiveTab('pending')}
+                  className={`flex-shrink-0 px-4 py-2.5 rounded-lg font-medium transition-all ${activeTab === 'pending' ? 'bg-yellow-600 text-white shadow-lg' : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    <span>Pending</span>
+                    <Badge className="bg-yellow-500/20 text-yellow-400 text-xs">{pendingProjects?.length || 0}</Badge>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setActiveTab('approved')}
+                  className={`flex-shrink-0 px-4 py-2.5 rounded-lg font-medium transition-all ${activeTab === 'approved' ? 'bg-green-600 text-white shadow-lg' : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Approved</span>
+                    <Badge className="bg-green-500/20 text-green-400 text-xs">{approvedProjects?.length || 0}</Badge>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setActiveTab('rejected')}
+                  className={`flex-shrink-0 px-4 py-2.5 rounded-lg font-medium transition-all ${activeTab === 'rejected' ? 'bg-red-600 text-white shadow-lg' : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <XCircle className="w-4 h-4" />
+                    <span>Rejected</span>
+                    <Badge className="bg-red-500/20 text-red-400 text-xs">{rejectedProjects?.length || 0}</Badge>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setActiveTab('all')}
+                  className={`flex-shrink-0 px-4 py-2.5 rounded-lg font-medium transition-all ${activeTab === 'all' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    <span>All</span>
+                    <Badge className="bg-blue-500/20 text-blue-400 text-xs">{allReviewedProjects?.length || 0}</Badge>
+                  </div>
+                </button>
+              </div>
             </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Pending Projects List */}
+          {/* Projects List */}
           <div className="lg:col-span-1 space-y-4">
             <Card className="bg-gray-800/50 border-gray-700/50">
               <CardHeader>
-                <CardTitle className="text-white">Pending Projects</CardTitle>
+                <CardTitle className="text-white">
+                  {activeTab === 'pending' && 'Pending Projects'}
+                  {activeTab === 'approved' && 'Approved Projects'}
+                  {activeTab === 'rejected' && 'Rejected Projects'}
+                  {activeTab === 'all' && 'All Projects'}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 max-h-[calc(100vh-300px)] overflow-y-auto">
-                {pendingProjects && pendingProjects.length > 0 ? (
-                  pendingProjects.map((project: any) => (
+                {(() => {
+                  let projects;
+                  if (activeTab === 'pending') projects = pendingProjects;
+                  else if (activeTab === 'approved') projects = approvedProjects;
+                  else if (activeTab === 'rejected') projects = rejectedProjects;
+                  else projects = allReviewedProjects;
+
+                  return projects && projects.length > 0 ? (
+                    projects.map((project: any) => (
                     <button
                       key={project._id}
                       onClick={() => setSelectedProject(project)}
@@ -174,14 +235,28 @@ export default function ProjectApprovalPage() {
                         <span>{new Date(project._creationTime).toLocaleDateString()}</span>
                       </div>
                     </button>
-                  ))
-                ) : (
-                  <div className="text-center py-12">
-                    <CheckCircle className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-400">No pending projects</p>
-                    <p className="text-sm text-gray-500 mt-2">All projects have been reviewed</p>
-                  </div>
-                )}
+                    ))
+                  ) : (
+                    <div className="text-center py-12">
+                      {activeTab === 'pending' && <Clock className="w-12 h-12 text-gray-600 mx-auto mb-4" />}
+                      {activeTab === 'approved' && <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-4" />}
+                      {activeTab === 'rejected' && <XCircle className="w-12 h-12 text-red-600 mx-auto mb-4" />}
+                      {activeTab === 'all' && <FileText className="w-12 h-12 text-gray-600 mx-auto mb-4" />}
+                      <p className="text-gray-400">
+                        {activeTab === 'pending' && 'No pending projects'}
+                        {activeTab === 'approved' && 'No approved projects'}
+                        {activeTab === 'rejected' && 'No rejected projects'}
+                        {activeTab === 'all' && 'No projects found'}
+                      </p>
+                      <p className="text-sm text-gray-500 mt-2">
+                        {activeTab === 'pending' && 'All projects have been reviewed'}
+                        {activeTab === 'approved' && 'No projects have been approved yet'}
+                        {activeTab === 'rejected' && 'No projects have been rejected'}
+                        {activeTab === 'all' && 'No reviewed projects in the system'}
+                      </p>
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </div>
@@ -358,32 +433,33 @@ export default function ProjectApprovalPage() {
                       />
                     </div>
 
-                    <div className="flex gap-3">
+                    {/* Mobile: Stack vertically, Desktop: Horizontal */}
+                    <div className="flex flex-col sm:flex-row gap-3">
                       <Button
                         onClick={() => handleReview('approve')}
                         disabled={isSubmitting}
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                        className="w-full sm:flex-1 bg-green-600 hover:bg-green-700 text-white py-3 sm:py-2"
                       >
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Approve Project
+                        <CheckCircle className="w-5 h-5 sm:w-4 sm:h-4 mr-2" />
+                        <span className="text-base sm:text-sm">Approve Project</span>
                       </Button>
                       
                       <Button
                         onClick={() => handleReview('request_revision')}
                         disabled={isSubmitting || !feedback.trim()}
-                        className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white"
+                        className="w-full sm:flex-1 bg-yellow-600 hover:bg-yellow-700 text-white py-3 sm:py-2"
                       >
-                        <AlertCircle className="w-4 h-4 mr-2" />
-                        Request Revision
+                        <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4 mr-2" />
+                        <span className="text-base sm:text-sm">Request Revision</span>
                       </Button>
                       
                       <Button
                         onClick={() => handleReview('reject')}
                         disabled={isSubmitting || !feedback.trim()}
-                        className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                        className="w-full sm:flex-1 bg-red-600 hover:bg-red-700 text-white py-3 sm:py-2"
                       >
-                        <XCircle className="w-4 h-4 mr-2" />
-                        Reject Project
+                        <XCircle className="w-5 h-5 sm:w-4 sm:h-4 mr-2" />
+                        <span className="text-base sm:text-sm">Reject Project</span>
                       </Button>
                     </div>
 

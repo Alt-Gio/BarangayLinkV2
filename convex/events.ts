@@ -898,6 +898,105 @@ export const getPendingEvents = query({
   },
 });
 
+// Get approved events (Manager+ only)
+export const getApprovedEvents = query({
+  args: {},
+  handler: async (ctx) => {
+    const currentUser = await checkPermission(ctx, ["ADMIN", "MANAGER"]);
+    
+    const approvedEvents = await ctx.db
+      .query("events")
+      .filter(q => q.eq(q.field("status"), "published"))
+      .collect();
+    
+    const eventsWithOrganizers = await Promise.all(
+      approvedEvents.map(async (event) => {
+        const organizer = await ctx.db.get(event.organizer);
+        let imageUrl = event.imageUrl;
+        if (event.imageUrl) {
+          const url = await ctx.storage.getUrl(event.imageUrl as any);
+          imageUrl = url ?? event.imageUrl;
+        }
+        return {
+          ...event,
+          imageUrl,
+          organizerName: organizer?.name || "Unknown",
+          organizerEmail: organizer?.email || "",
+        };
+      })
+    );
+    
+    return eventsWithOrganizers;
+  },
+});
+
+// Get rejected events (Manager+ only)
+export const getRejectedEvents = query({
+  args: {},
+  handler: async (ctx) => {
+    const currentUser = await checkPermission(ctx, ["ADMIN", "MANAGER"]);
+    
+    const rejectedEvents = await ctx.db
+      .query("events")
+      .filter(q => q.eq(q.field("status"), "cancelled"))
+      .collect();
+    
+    const eventsWithOrganizers = await Promise.all(
+      rejectedEvents.map(async (event) => {
+        const organizer = await ctx.db.get(event.organizer);
+        let imageUrl = event.imageUrl;
+        if (event.imageUrl) {
+          const url = await ctx.storage.getUrl(event.imageUrl as any);
+          imageUrl = url ?? event.imageUrl;
+        }
+        return {
+          ...event,
+          imageUrl,
+          organizerName: organizer?.name || "Unknown",
+          organizerEmail: organizer?.email || "",
+        };
+      })
+    );
+    
+    return eventsWithOrganizers;
+  },
+});
+
+// Get all reviewed events (approved + rejected) (Manager+ only)
+export const getAllReviewedEvents = query({
+  args: {},
+  handler: async (ctx) => {
+    const currentUser = await checkPermission(ctx, ["ADMIN", "MANAGER"]);
+    
+    const allEvents = await ctx.db
+      .query("events")
+      .collect();
+    
+    const reviewedEvents = allEvents.filter(e => 
+      e.status === "published" || e.status === "cancelled"
+    );
+    
+    const eventsWithOrganizers = await Promise.all(
+      reviewedEvents.map(async (event) => {
+        const organizer = await ctx.db.get(event.organizer);
+        let imageUrl = event.imageUrl;
+        if (event.imageUrl) {
+          const url = await ctx.storage.getUrl(event.imageUrl as any);
+          imageUrl = url ?? event.imageUrl;
+        }
+        return {
+          ...event,
+          imageUrl,
+          organizerName: organizer?.name || "Unknown",
+          organizerEmail: organizer?.email || "",
+        };
+      })
+    );
+    
+    return eventsWithOrganizers;
+  },
+});
+
 // Approve event (Manager+ only)
 export const approveEvent = mutation({
   args: { eventId: v.id("events") },

@@ -6,6 +6,7 @@ import { api } from "../../../convex/_generated/api";
 import { X, Calendar, Clock, MapPin, Users, AlertTriangle, Briefcase, MessageSquare, Globe, Image, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LocationPickerModal } from "@/components/shared/LocationPickerModal";
+import { MobileModal } from "@/components/ui/MobileModal";
 import type { Id } from "../../../convex/_generated/dataModel";
 
 interface CreateEventModalProps {
@@ -167,24 +168,14 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-white/10">
-        {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-r from-emerald-600 to-emerald-700 p-6 flex items-center justify-between border-b border-white/10 z-10">
-          <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-            <Calendar className="w-7 h-7" />
-            Create New Event
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-          >
-            <X className="w-6 h-6 text-white" />
-          </button>
-        </div>
-
+    <>
+      <MobileModal
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Create New Event"
+      >
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
             <div className="bg-red-500/20 border border-red-500 rounded-lg p-4">
               <p className="text-red-400 text-sm">{error}</p>
@@ -523,7 +514,7 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
             </Button>
           </div>
         </form>
-      </div>
+      </MobileModal>
       
       {/* Location Picker Modal */}
       <LocationPickerModal
@@ -539,6 +530,6 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
         }}
         initialLocation={coordinates || undefined}
       />
-    </div>
+    </>
   );
 }

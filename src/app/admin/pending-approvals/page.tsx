@@ -18,11 +18,13 @@ import {
   XCircle,
   Menu,
   AlertCircle,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { AdminGuard } from "@/components/admin/AdminGuard";
+import { MobileModalCompact } from "@/components/ui/MobileModal";
 import { toast } from "sonner";
 
 export const dynamic = "force-dynamic";
@@ -184,8 +186,8 @@ export default function PendingApprovalsPage() {
                   </div>
                 </div>
 
-                {/* Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+                {/* Desktop Stats */}
+                <div className="hidden md:grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
                   <button
                     onClick={() => setActiveFilter('pending')}
                     className={`bg-yellow-600/20 border border-yellow-500/30 rounded-lg p-4 text-left transition-all hover:bg-yellow-600/30 hover:scale-105 ${
@@ -238,8 +240,80 @@ export default function PendingApprovalsPage() {
               </div>
             </div>
 
+            {/* Mobile-Friendly Tabs */}
+            <div className="md:hidden max-w-7xl mx-auto px-4 py-4">
+              <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-2">
+                <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                  <button
+                    onClick={() => setActiveFilter('pending')}
+                    className={`flex-shrink-0 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                      activeFilter === 'pending' 
+                        ? 'bg-yellow-600 text-white shadow-lg' 
+                        : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      <span>Pending</span>
+                      <Badge className="bg-yellow-500/20 text-yellow-400 text-xs">
+                        {approvalStats?.pendingUsers || 0}
+                      </Badge>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setActiveFilter('approved')}
+                    className={`flex-shrink-0 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                      activeFilter === 'approved' 
+                        ? 'bg-green-600 text-white shadow-lg' 
+                        : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4" />
+                      <span>Approved</span>
+                      <Badge className="bg-green-500/20 text-green-400 text-xs">
+                        {approvalStats?.activeUsers || 0}
+                      </Badge>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setActiveFilter('rejected')}
+                    className={`flex-shrink-0 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                      activeFilter === 'rejected' 
+                        ? 'bg-red-600 text-white shadow-lg' 
+                        : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <XCircle className="w-4 h-4" />
+                      <span>Rejected</span>
+                      <Badge className="bg-red-500/20 text-red-400 text-xs">
+                        {approvalStats?.rejectedUsers || 0}
+                      </Badge>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setActiveFilter('invitations')}
+                    className={`flex-shrink-0 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                      activeFilter === 'invitations' 
+                        ? 'bg-blue-600 text-white shadow-lg' 
+                        : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-4 h-4" />
+                      <span>Invites</span>
+                      <Badge className="bg-blue-500/20 text-blue-400 text-xs">
+                        {approvalStats?.pendingInvitations || 0}
+                      </Badge>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {/* Content */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8">
               {/* Determine which list to show */}
               {(() => {
                 let displayUsers: any[] = [];
@@ -301,7 +375,7 @@ export default function PendingApprovalsPage() {
                       return (
                         <div
                           key={userItem._id}
-                          className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-all"
+                          className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:border-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300"
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex items-start gap-4 flex-1">
@@ -445,29 +519,35 @@ export default function PendingApprovalsPage() {
                               </div>
                             </div>
 
-                            {/* Action Buttons */}
-                            <div className="flex gap-2 ml-4">
+                            {/* Action Buttons - Elegant Design */}
+                            <div className="flex flex-col sm:flex-row gap-3 ml-0 sm:ml-4 mt-4 sm:mt-0">
                               {activeFilter === 'pending' && (
                                 <>
                                   <Button
                                     onClick={() => handleApprove(userItem._id)}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                                    size="sm"
+                                    className="group relative bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white shadow-lg shadow-emerald-600/30 hover:shadow-xl hover:shadow-emerald-500/40 transform hover:scale-105 transition-all duration-300 py-3 px-6 font-semibold"
                                   >
-                                    <CheckCircle className="w-4 h-4 mr-2" />
-                                    Approve
+                                    <div className="flex items-center gap-2">
+                                      <CheckCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                      <span>Approve</span>
+                                    </div>
+                                    <div className="absolute inset-0 rounded-lg bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                                   </Button>
                                   <Button
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      console.log('Reject button clicked', userItem);
                                       setSelectedUser(userItem);
                                       setShowRejectModal(true);
                                     }}
-                                    variant="outline"
-                                    className="border-red-500 text-red-400 hover:bg-red-600/20"
-                                    size="sm"
+                                    type="button"
+                                    className="group relative bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white shadow-lg shadow-red-600/30 hover:shadow-xl hover:shadow-red-500/40 transform hover:scale-105 transition-all duration-300 py-3 px-6 font-semibold"
                                   >
-                                    <XCircle className="w-4 h-4 mr-2" />
-                                    Reject
+                                    <div className="flex items-center gap-2">
+                                      <XCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                      <span>Reject</span>
+                                    </div>
+                                    <div className="absolute inset-0 rounded-lg bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                                   </Button>
                                 </>
                               )}
@@ -475,7 +555,10 @@ export default function PendingApprovalsPage() {
                               {/* Only show for ADMIN */}
                               {activeFilter === 'approved' && currentUser?.userLevel?.name === 'ADMIN' && (
                                 <button
-                                  onClick={() => {
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    console.log('Shield button clicked (Re-review)', userItem);
                                     setSelectedUser(userItem);
                                     setShowReviewModal(true);
                                   }}
@@ -489,7 +572,10 @@ export default function PendingApprovalsPage() {
                               {/* Only show for ADMIN */}
                               {activeFilter === 'rejected' && currentUser?.userLevel?.name === 'ADMIN' && (
                                 <button
-                                  onClick={() => {
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    console.log('Reconsider button clicked', userItem);
                                     setSelectedUser(userItem);
                                     setShowReviewModal(true);
                                   }}
@@ -512,61 +598,89 @@ export default function PendingApprovalsPage() {
         </div>
       </div>
 
-      {/* Reject Modal */}
-      {showRejectModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-xl border border-white/10 p-6 max-w-md w-full">
-            <div className="flex items-center gap-3 mb-4">
-              <AlertCircle className="w-6 h-6 text-red-400" />
-              <h3 className="text-xl font-semibold text-white">Reject User Registration</h3>
+      {/* Reject Modal - Elegant Mobile-Friendly */}
+      <MobileModalCompact
+        isOpen={showRejectModal}
+        onClose={() => {
+          console.log('Closing reject modal');
+          setShowRejectModal(false);
+          setSelectedUser(null);
+          setRejectionReason("");
+        }}
+        title="Reject User Registration"
+      >
+        <div className="space-y-4">
+          {/* User Info Card */}
+          <div className="bg-red-600/10 border border-red-500/20 rounded-xl p-4">
+            <div className="flex items-center gap-3">
+              <img
+                src={selectedUser?.imageUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${selectedUser?.name}`}
+                alt={selectedUser?.name}
+                className="w-12 h-12 rounded-full border-2 border-red-400/30"
+              />
+              <div>
+                <p className="text-white font-semibold">{selectedUser?.name}</p>
+                <p className="text-sm text-gray-400">{selectedUser?.email}</p>
+              </div>
             </div>
-            <p className="text-gray-400 mb-4">
-              Please provide a reason for rejecting <strong>{selectedUser?.name}</strong>'s registration:
+          </div>
+
+          <div>
+            <p className="text-gray-300 mb-3">
+              Please provide a reason for rejection:
             </p>
             <textarea
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
-              placeholder="e.g., Invalid credentials, not from this barangay, etc."
-              className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 mb-4"
+              placeholder="e.g., Invalid credentials, not from this barangay, incomplete information..."
+              className="w-full bg-gray-900/50 border border-gray-700 rounded-xl p-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
               rows={4}
             />
-            <div className="flex gap-3">
-              <Button
-                onClick={handleReject}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-              >
-                <XCircle className="w-4 h-4 mr-2" />
-                Reject User
-              </Button>
-              <Button
-                onClick={() => {
-                  setShowRejectModal(false);
-                  setSelectedUser(null);
-                  setRejectionReason("");
-                }}
-                variant="outline"
-                className="flex-1 border-white/20 text-white hover:bg-white/10"
-              >
-                Cancel
-              </Button>
-            </div>
+          </div>
+
+          <div className="bg-yellow-600/10 border border-yellow-500/20 rounded-lg p-3">
+            <p className="text-xs text-yellow-300">
+              <strong>Note:</strong> The user will be notified via email about this decision.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button
+              onClick={handleReject}
+              className="flex-1 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white py-3 shadow-lg shadow-red-600/30 font-semibold"
+            >
+              <XCircle className="w-5 h-5 mr-2" />
+              Confirm Rejection
+            </Button>
+            <Button
+              onClick={() => {
+                setShowRejectModal(false);
+                setSelectedUser(null);
+                setRejectionReason("");
+              }}
+              variant="outline"
+              className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700 py-3"
+            >
+              Cancel
+            </Button>
           </div>
         </div>
-      )}
+      </MobileModalCompact>
 
-      {/* Review Status Change Modal */}
-      {showReviewModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800/95 backdrop-blur-xl rounded-xl border border-white/20 shadow-2xl p-6 max-w-md w-full">
-            <div className="flex items-center gap-3 mb-4">
-              <Shield className="w-6 h-6 text-yellow-400" />
-              <h3 className="text-xl font-semibold text-white">
-                {activeFilter === 'approved' ? 'Request Account Re-review' : 'Reconsider Application'}
-              </h3>
-            </div>
-            
+      {/* Review Status Change Modal - Elegant Mobile-Friendly */}
+      <MobileModalCompact
+        isOpen={showReviewModal}
+        onClose={() => {
+          setShowReviewModal(false);
+          setSelectedUser(null);
+          setReviewReason("");
+        }}
+        title={activeFilter === 'approved' ? 'Request Account Re-review' : 'Reconsider Application'}
+      >
+        <div className="space-y-4">
+          <div className="bg-yellow-600/10 border border-yellow-500/20 rounded-xl p-1">
             {/* User Info */}
-            <div className="bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
+            <div className="bg-gray-900/50 rounded-lg p-4">
               <div className="flex items-center gap-3">
                 <img
                   src={selectedUser?.imageUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${selectedUser?.name}`}
@@ -585,8 +699,10 @@ export default function PendingApprovalsPage() {
                 </div>
               </div>
             </div>
+          </div>
 
-            <p className="text-gray-400 mb-2 text-sm">
+          <div>
+            <p className="text-gray-300 mb-3 text-sm">
               {activeFilter === 'approved' 
                 ? 'This will move the approved user back to pending status for re-verification. Please provide a reason:'
                 : 'This will give the rejected user another chance. Their application will be moved to pending for re-review. Please provide a reason:'
@@ -600,39 +716,39 @@ export default function PendingApprovalsPage() {
                 ? 'e.g., Additional verification required, documents need review...'
                 : 'e.g., New information provided, reconsidering decision...'
               }
-              className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 mb-4"
+              className="w-full bg-gray-900/50 border border-gray-700 rounded-xl p-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all"
               rows={3}
             />
+          </div>
 
-            <div className="bg-yellow-600/10 border border-yellow-500/20 rounded-lg p-3 mb-4">
-              <p className="text-xs text-yellow-300">
-                <strong>Note:</strong> The user will be notified of this status change and their account will be moved to pending status.
-              </p>
-            </div>
+          <div className="bg-yellow-600/10 border border-yellow-500/20 rounded-lg p-3">
+            <p className="text-xs text-yellow-300">
+              <strong>Note:</strong> The user will be notified of this status change and their account will be moved to pending status.
+            </p>
+          </div>
 
-            <div className="flex gap-3">
-              <Button
-                onClick={handleRevertToPending}
-                className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white"
-              >
-                <Shield className="w-4 h-4 mr-2" />
-                {activeFilter === 'approved' ? 'Request Re-review' : 'Reconsider'}
-              </Button>
-              <Button
-                onClick={() => {
-                  setShowReviewModal(false);
-                  setSelectedUser(null);
-                  setReviewReason("");
-                }}
-                variant="outline"
-                className="flex-1 border-white/20 text-white hover:bg-white/10"
-              >
-                Cancel
-              </Button>
-            </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button
+              onClick={handleRevertToPending}
+              className="flex-1 bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-white py-3 shadow-lg shadow-yellow-600/30 font-semibold"
+            >
+              <Shield className="w-5 h-5 mr-2" />
+              {activeFilter === 'approved' ? 'Request Re-review' : 'Reconsider'}
+            </Button>
+            <Button
+              onClick={() => {
+                setShowReviewModal(false);
+                setSelectedUser(null);
+                setReviewReason("");
+              }}
+              variant="outline"
+              className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700 py-3"
+            >
+              Cancel
+            </Button>
           </div>
         </div>
-      )}
+      </MobileModalCompact>
     </AdminGuard>
   );
 }

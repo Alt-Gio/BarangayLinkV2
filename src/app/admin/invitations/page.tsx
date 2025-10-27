@@ -206,8 +206,71 @@ export default function AdminInvitationsPage() {
               <UserPlus className="w-5 h-5" />
             </button>
           </div>
-      {/* Header */}
-      <div className="hidden md:block bg-white/5 backdrop-blur-md border-b border-white/10 md:sticky md:top-0 z-40">
+
+          {/* Mobile Tabs */}
+          <div className="md:hidden px-4 py-4 bg-gray-800/50">
+            <div className="flex gap-2 overflow-x-auto no-scrollbar mb-3">
+              <button
+                onClick={() => setActiveTab('invitations')}
+                className={`flex-shrink-0 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                  activeTab === 'invitations'
+                    ? 'bg-emerald-600 text-white shadow-lg'
+                    : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Mail className="w-4 h-4" />
+                  <span>Invitations</span>
+                  <Badge className="bg-emerald-500/20 text-emerald-400 text-xs">{stats.total}</Badge>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('codes')}
+                className={`flex-shrink-0 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                  activeTab === 'codes'
+                    ? 'bg-purple-600 text-white shadow-lg'
+                    : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Ticket className="w-4 h-4" />
+                  <span>Codes</span>
+                  <Badge className="bg-purple-500/20 text-purple-400 text-xs">{codeStats?.total || 0}</Badge>
+                </div>
+              </button>
+            </div>
+            
+            {/* Mobile Action Buttons */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  console.log('Send Invitation button clicked!');
+                  setIsInviteModalOpen(true);
+                }}
+                className="flex-1 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white py-3 px-4 rounded-xl font-semibold shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition-all active:scale-95"
+              >
+                <UserPlus className="w-5 h-5" />
+                <span>Send Invitation</span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  console.log('Create Code button clicked!');
+                  setShowCreateCodeModal(true);
+                }}
+                className="flex-1 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white py-3 px-4 rounded-xl font-semibold shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2 transition-all active:scale-95"
+              >
+                <Ticket className="w-5 h-5" />
+                <span>Create Code</span>
+              </button>
+            </div>
+          </div>
+
+      {/* Header - Desktop */}
+      <div className="hidden md:block bg-white/5 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -243,8 +306,8 @@ export default function AdminInvitationsPage() {
           </div>
 
           {/* Tabs */}
-          <Tabs defaultValue="invitations" className="w-full" onValueChange={setActiveTab}>
-            <TabsList className="bg-white/5 backdrop-blur-sm border border-white/10 p-1 rounded-xl mb-6 shadow-lg">
+          <Tabs value={activeTab} defaultValue="invitations" className="w-full" onValueChange={setActiveTab}>
+            <TabsList className="hidden md:flex bg-white/5 backdrop-blur-sm border border-white/10 p-1 rounded-xl mb-6 shadow-lg">
               <TabsTrigger 
                 value="invitations" 
                 className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-emerald-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-emerald-500/30 rounded-lg transition-all px-6 py-2.5"
@@ -642,19 +705,21 @@ export default function AdminInvitationsPage() {
       </div>
 
         {/* Modals */}
-        {isInviteModalOpen && (
-          <SendInvitationModal
-            isOpen={isInviteModalOpen}
-            onClose={() => setIsInviteModalOpen(false)}
-          />
-        )}
+        <SendInvitationModal
+          isOpen={isInviteModalOpen}
+          onClose={() => {
+            console.log('Closing Send Invitation modal');
+            setIsInviteModalOpen(false);
+          }}
+        />
         
-        {showCreateCodeModal && (
-          <CreateInvitationCodeModal
-            isOpen={showCreateCodeModal}
-            onClose={() => setShowCreateCodeModal(false)}
-          />
-        )}
+        <CreateInvitationCodeModal
+          isOpen={showCreateCodeModal}
+          onClose={() => {
+            console.log('Closing Create Code modal');
+            setShowCreateCodeModal(false);
+          }}
+        />
         </div>
       </div>
     </AdminGuard>

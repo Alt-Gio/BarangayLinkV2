@@ -21,14 +21,18 @@ import {
   Menu,
   Briefcase,
   MessageSquare,
-  AlertTriangle
+  AlertTriangle,
+  FileText
 } from 'lucide-react';
+
+type TabType = 'pending' | 'approved' | 'rejected' | 'all';
 
 export default function EventApprovalPage() {
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>('pending');
 
   // Get current user from offline context
   const { currentUser, isOnline } = useOfflineData();
@@ -36,8 +40,11 @@ export default function EventApprovalPage() {
   // Get user role
   const userRole = currentUser?.userLevel?.name || 'WORKER';
   
-  // Get pending events
+  // Get events by status
   const pendingEvents = useQuery(api.events.getPendingEvents);
+  const approvedEvents = useQuery(api.events.getApprovedEvents);
+  const rejectedEvents = useQuery(api.events.getRejectedEvents);
+  const allReviewedEvents = useQuery(api.events.getAllReviewedEvents);
   
   // Approval mutations
   const approveEvent = useMutation(api.events.approveEvent);
@@ -129,31 +136,101 @@ export default function EventApprovalPage() {
       />
 
       {/* Main content */}
-      <div className="flex-1 overflow-y-auto p-4 lg:p-8">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <CheckCircle className="w-8 h-8 text-emerald-500" />
-              <h1 className="text-3xl lg:text-4xl font-bold text-white">Event Approval</h1>
+      <div className="flex-1 overflow-y-auto">
+        {/* Mobile Header */}
+        <div className="md:hidden sticky top-0 z-30 bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 flex items-center justify-between p-4">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-lg bg-gray-800 text-white hover:bg-gray-700 transition-colors"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <h1 className="text-lg font-semibold text-white">Event Approval</h1>
+          <div className="w-9" />
+        </div>
+
+        <div className="p-4 sm:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white flex items-center gap-3">
+                  <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-500" />
+                  Event Approval
+                </h1>
+                <p className="text-gray-400 mt-2 text-sm sm:text-base">Review and approve event submissions</p>
+              </div>
             </div>
-            <p className="text-gray-400 ml-11">Review and approve pending event submissions</p>
-          </div>
+
+            {/* Mobile-Friendly Tabs */}
+            <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-2">
+              <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                <button
+                  onClick={() => setActiveTab('pending')}
+                  className={`flex-shrink-0 px-4 py-2.5 rounded-lg font-medium transition-all ${activeTab === 'pending' ? 'bg-yellow-600 text-white shadow-lg' : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    <span>Pending</span>
+                    <Badge className="bg-yellow-500/20 text-yellow-400 text-xs">{pendingEvents?.length || 0}</Badge>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setActiveTab('approved')}
+                  className={`flex-shrink-0 px-4 py-2.5 rounded-lg font-medium transition-all ${activeTab === 'approved' ? 'bg-green-600 text-white shadow-lg' : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Approved</span>
+                    <Badge className="bg-green-500/20 text-green-400 text-xs">{approvedEvents?.length || 0}</Badge>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setActiveTab('rejected')}
+                  className={`flex-shrink-0 px-4 py-2.5 rounded-lg font-medium transition-all ${activeTab === 'rejected' ? 'bg-red-600 text-white shadow-lg' : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <XCircle className="w-4 h-4" />
+                    <span>Rejected</span>
+                    <Badge className="bg-red-500/20 text-red-400 text-xs">{rejectedEvents?.length || 0}</Badge>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setActiveTab('all')}
+                  className={`flex-shrink-0 px-4 py-2.5 rounded-lg font-medium transition-all ${activeTab === 'all' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    <span>All</span>
+                    <Badge className="bg-blue-500/20 text-blue-400 text-xs">{allReviewedEvents?.length || 0}</Badge>
+                  </div>
+                </button>
+              </div>
+            </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
-            {/* Pending Events List */}
+            {/* Events List */}
             <Card className="bg-gray-800/50 border-gray-700/50 h-fit xl:max-h-[calc(100vh-12rem)] xl:overflow-y-auto">
               <CardHeader>
                 <CardTitle className="text-white flex items-center justify-between">
-                  <span>Pending Events</span>
-                  <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
-                    {pendingEvents?.length || 0} Pending
-                  </Badge>
+                  <span>
+                    {activeTab === 'pending' && 'Pending Events'}
+                    {activeTab === 'approved' && 'Approved Events'}
+                    {activeTab === 'rejected' && 'Rejected Events'}
+                    {activeTab === 'all' && 'All Events'}
+                  </span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {pendingEvents && pendingEvents.length > 0 ? (
-                  pendingEvents.map((event: any) => {
+                {(() => {
+                  let events;
+                  if (activeTab === 'pending') events = pendingEvents;
+                  else if (activeTab === 'approved') events = approvedEvents;
+                  else if (activeTab === 'rejected') events = rejectedEvents;
+                  else events = allReviewedEvents;
+
+                  return events && events.length > 0 ? (
+                    events.map((event: any) => {
                     const EventIcon = getEventTypeIcon(event.type);
                     return (
                       <div
@@ -188,28 +265,27 @@ export default function EventApprovalPage() {
                       </div>
                     );
                   })
-                ) : (
-                  <div className="text-center py-16">
-                    <div className="mb-6">
-                      <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-700/50 flex items-center justify-center">
-                        <CheckCircle className="w-10 h-10 text-emerald-500" />
-                      </div>
-                      <div className="mb-4">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-700/50 rounded-full">
-                          <span className="text-3xl font-bold text-white">0</span>
-                          <span className="text-gray-400">Events</span>
-                        </div>
-                      </div>
-                      <h3 className="text-xl font-semibold text-white mb-2">No Pending Approvals</h3>
-                      <p className="text-gray-400 mb-1">All events have been reviewed</p>
-                      <p className="text-sm text-gray-500">New events requiring approval will appear here</p>
+                  ) : (
+                    <div className="text-center py-12">
+                      {activeTab === 'pending' && <Clock className="w-12 h-12 text-gray-600 mx-auto mb-4" />}
+                      {activeTab === 'approved' && <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-4" />}
+                      {activeTab === 'rejected' && <XCircle className="w-12 h-12 text-red-600 mx-auto mb-4" />}
+                      {activeTab === 'all' && <FileText className="w-12 h-12 text-gray-600 mx-auto mb-4" />}
+                      <p className="text-gray-400">
+                        {activeTab === 'pending' && 'No pending events'}
+                        {activeTab === 'approved' && 'No approved events'}
+                        {activeTab === 'rejected' && 'No rejected events'}
+                        {activeTab === 'all' && 'No events found'}
+                      </p>
+                      <p className="text-sm text-gray-500 mt-2">
+                        {activeTab === 'pending' && 'All events have been reviewed'}
+                        {activeTab === 'approved' && 'No events have been approved yet'}
+                        {activeTab === 'rejected' && 'No events have been rejected'}
+                        {activeTab === 'all' && 'No reviewed events in the system'}
+                      </p>
                     </div>
-                    <div className="flex items-center justify-center gap-2 text-xs text-gray-600">
-                      <div className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></div>
-                      <span>System ready for new submissions</span>
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
               </CardContent>
             </Card>
 
@@ -315,24 +391,24 @@ export default function EventApprovalPage() {
                       />
                     </div>
 
-                    {/* Action Buttons */}
+                    {/* Action Buttons - Mobile Optimized */}
                     <div className="flex flex-col sm:flex-row gap-3">
                       <Button
                         onClick={() => handleReview('approve')}
                         disabled={isSubmitting}
-                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                        className="w-full sm:flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 sm:py-2"
                       >
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Approve Event
+                        <CheckCircle className="w-5 h-5 sm:w-4 sm:h-4 mr-2" />
+                        <span className="text-base sm:text-sm">Approve Event</span>
                       </Button>
                       <Button
                         onClick={() => handleReview('reject')}
                         disabled={isSubmitting}
                         variant="destructive"
-                        className="flex-1"
+                        className="w-full sm:flex-1 py-3 sm:py-2"
                       >
-                        <XCircle className="w-4 h-4 mr-2" />
-                        Reject Event
+                        <XCircle className="w-5 h-5 sm:w-4 sm:h-4 mr-2" />
+                        <span className="text-base sm:text-sm">Reject Event</span>
                       </Button>
                     </div>
                   </div>
@@ -348,6 +424,7 @@ export default function EventApprovalPage() {
                 )}
               </CardContent>
             </Card>
+          </div>
           </div>
         </div>
       </div>
