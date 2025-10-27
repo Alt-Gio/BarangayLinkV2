@@ -107,7 +107,7 @@ export const getProjectDocuments = query({
       .query("documents")
       .filter((q) => q.eq(q.field("projectId"), projectId))
       .order("desc")
-      .collect();
+      .take(100); // OPTIMIZED: Limit to 100 documents per project
 
     const enrichedDocs = await Promise.all(
       documents.map(async (doc) => {
@@ -131,7 +131,7 @@ export const getTaskDocuments = query({
       .query("documents")
       .filter((q) => q.eq(q.field("taskId"), taskId))
       .order("desc")
-      .collect();
+      .take(50); // OPTIMIZED: Limit to 50 documents per task
 
     const enrichedDocs = await Promise.all(
       documents.map(async (doc) => {
@@ -281,7 +281,7 @@ export const searchDocuments = query({
       documentsQuery = documentsQuery.filter((q) => q.eq(q.field("category"), category));
     }
 
-    const documents = await documentsQuery.collect();
+    const documents = await documentsQuery.take(200); // OPTIMIZED: Limit to 200 documents for search
 
     // Filter by search term (filename or description)
     const filtered = documents.filter((doc) => {
@@ -311,7 +311,7 @@ export const searchDocuments = query({
 export const getDocumentStats = query({
   args: {},
   handler: async (ctx) => {
-    const documents = await ctx.db.query("documents").collect();
+    const documents = await ctx.db.query("documents").take(1000); // OPTIMIZED: Limit stats calculation
 
     const totalSize = documents.reduce((sum, doc) => sum + doc.fileSize, 0);
     const byCategory = documents.reduce((acc: Record<string, number>, doc) => {

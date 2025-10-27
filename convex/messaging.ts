@@ -27,7 +27,7 @@ export const getOrCreateDirectChat = mutation({
       .query("chatRooms")
       .filter((q) => q.eq(q.field("type"), "direct"))
       .filter((q) => q.eq(q.field("isActive"), true))
-      .collect();
+      .take(100); // OPTIMIZED: Limit room search
 
     const dmRoom = existingRoom.find((room) => {
       const participants = room.participants.map(String);
@@ -91,7 +91,7 @@ export const createGroupChat = mutation({
 });
 
 // Alias for getUserChatRooms (for compatibility)
-export const getUserChatRooms = query({
+export const getUserRooms = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -104,7 +104,7 @@ export const getUserChatRooms = query({
 
     if (!user) return [];
 
-    const allRooms = await ctx.db.query("chatRooms").collect();
+    const allRooms = await ctx.db.query("chatRooms").take(50); // OPTIMIZED: Limit to 50 recent rooms
     
     const userRooms = allRooms.filter((room) =>
       room.participants.some((p) => p === user._id)
@@ -125,7 +125,7 @@ export const getForCurrentUser = query({
     return await ctx.db
       .query('messages')
       .filter((q) => q.eq(q.field('sender'), identity.subject))
-      .collect();
+      .take(100); // OPTIMIZED: Limit to 100 recent messages
   },
 });
 
@@ -148,7 +148,8 @@ export const markMessagesAsRead = mutation({
     const messages = await ctx.db
       .query("messages")
       .filter((q) => q.eq(q.field("roomId"), roomId))
-      .collect();
+      .order("desc")
+      .take(100); // OPTIMIZED: Limit to 100 recent messages
 
     for (const message of messages) {
       if (message.sender !== user._id && !message.readBy.some((r) => r.userId === user._id)) {
@@ -187,7 +188,7 @@ export const createChatRoom = mutation({
       const existing = await ctx.db
         .query("chatRooms")
         .filter((q) => q.eq(q.field("type"), "direct"))
-        .collect();
+        .take(100); // OPTIMIZED: Limit room check
 
       const existingRoom = existing.find((room) => {
         const roomParticipants = new Set(room.participants.map(String));
@@ -227,7 +228,7 @@ export const getMyChatRooms = query({
 
     if (!user) return [];
 
-    const allRooms = await ctx.db.query("chatRooms").collect();
+    const allRooms = await ctx.db.query("chatRooms").take(50); // OPTIMIZED: Limit to 50 rooms
     
     const userRooms = allRooms.filter((room) =>
       room.participants.some((p) => p === user._id)
@@ -244,7 +245,8 @@ export const getMyChatRooms = query({
         const messages = await ctx.db
           .query("messages")
           .filter((q) => q.eq(q.field("roomId"), room._id))
-          .collect();
+          .order("desc")
+          .take(50); // OPTIMIZED: Check only recent 50 messages for unread count
 
         const unreadCount = messages.filter(
           (msg) =>

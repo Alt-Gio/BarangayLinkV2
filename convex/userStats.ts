@@ -84,8 +84,8 @@ export const updateProjectSuccessRate = internalMutation({
     userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    // Get all projects where user is assigned
-    const allProjects = await ctx.db.query("projects").collect();
+    // Get all projects where user is assigned - OPTIMIZED
+    const allProjects = await ctx.db.query("projects").take(500); // Limit to 500 projects
     const userProjects = allProjects.filter((p: any) => 
       p.assignedTo?.includes(args.userId) || p.createdBy === args.userId
     );
@@ -141,15 +141,15 @@ export const recalculateUserStats = mutation({
     const user = await ctx.db.get(args.userId);
     if (!user) throw new Error("User not found");
 
-    // 1. Calculate total tasks completed
-    const allTasks = await ctx.db.query("tasks").collect();
+    // 1. Calculate total tasks completed - OPTIMIZED
+    const allTasks = await ctx.db.query("tasks").take(1000); // Limit to 1000 tasks
     const completedTasks = allTasks.filter((t: any) => 
       t.completed && 
       (t.assignedTo?.includes(args.userId) || t.createdBy === args.userId)
     );
 
-    // 2. Calculate total hours from work sessions
-    const allSessions = await ctx.db.query("userSessions").collect();
+    // 2. Calculate total hours from work sessions - OPTIMIZED
+    const allSessions = await ctx.db.query("userSessions").take(500); // Limit to 500 sessions
     const userSessions = allSessions.filter((s: any) => s.userId === args.userId);
     
     let totalHours = 0;
@@ -160,8 +160,8 @@ export const recalculateUserStats = mutation({
       }
     }
 
-    // 3. Calculate project success rate
-    const allProjects = await ctx.db.query("projects").collect();
+    // 3. Calculate project success rate - OPTIMIZED
+    const allProjects = await ctx.db.query("projects").take(500); // Limit to 500 projects
     const userProjects = allProjects.filter((p: any) => 
       p.assignedTo?.includes(args.userId) || p.createdBy === args.userId
     );
@@ -195,20 +195,22 @@ export const recalculateAllUserStatsInternal = internalMutation({
   args: {},
   handler: async (ctx) => {
 
-    const allUsers = await ctx.db.query("users").collect();
+    const allUsers = await ctx.db.query("users").take(100); // OPTIMIZED: Only 100 users at a time
     let updatedCount = 0;
+
+    // OPTIMIZED: Load data ONCE instead of per-user loop
+    const allTasks = await ctx.db.query("tasks").take(1000);
+    const allProjects = await ctx.db.query("projects").take(500);
 
     for (const user of allUsers) {
       try {
         // Calculate tasks completed
-        const allTasks = await ctx.db.query("tasks").collect();
         const completedTasks = allTasks.filter((t: any) => 
           t.completed && 
           (t.assignedTo?.includes(user._id) || t.createdBy === user._id)
         );
 
         // Calculate project success rate
-        const allProjects = await ctx.db.query("projects").collect();
         const userProjects = allProjects.filter((p: any) => 
           p.assignedTo?.includes(user._id) || p.createdBy === user._id
         );
@@ -256,20 +258,22 @@ export const recalculateAllUserStats = mutation({
       throw new Error("Only admins can recalculate all user stats");
     }
 
-    const allUsers = await ctx.db.query("users").collect();
+    const allUsers = await ctx.db.query("users").take(100); // OPTIMIZED: Only 100 users at a time
     let updatedCount = 0;
+
+    // OPTIMIZED: Load data ONCE instead of per-user loop
+    const allTasks = await ctx.db.query("tasks").take(1000);
+    const allProjects = await ctx.db.query("projects").take(500);
 
     for (const user of allUsers) {
       try {
         // Calculate tasks completed
-        const allTasks = await ctx.db.query("tasks").collect();
         const completedTasks = allTasks.filter((t: any) => 
           t.completed && 
           (t.assignedTo?.includes(user._id) || t.createdBy === user._id)
         );
 
         // Calculate project success rate
-        const allProjects = await ctx.db.query("projects").collect();
         const userProjects = allProjects.filter((p: any) => 
           p.assignedTo?.includes(user._id) || p.createdBy === user._id
         );

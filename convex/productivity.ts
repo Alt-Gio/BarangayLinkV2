@@ -298,10 +298,10 @@ export const getProjects = query({
     
     // Apply role-based filtering based on user requirements
     // NOTE: assignedTo is now an array, so we need to filter in JS
-    const allProjects = await query.collect();
+    const allProjects = await query.order("desc").take(args.limit || 100); // OPTIMIZED: Default 100, max from args
     
     // Get all users to check creator roles for BUILDER filtering
-    const allUsers = await ctx.db.query("users").collect();
+    const allUsers = await ctx.db.query("users").take(200); // OPTIMIZED: Limit user loading
     const userRoles = new Map();
     for (const user of allUsers) {
       if (user.userLevel) {

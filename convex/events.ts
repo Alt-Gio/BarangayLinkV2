@@ -498,7 +498,7 @@ export const getAllEvents = query({
       query = query.filter((q) => q.eq(q.field("type"), args.type));
     }
     
-    const events = await query.order("desc").collect();
+    const events = await query.order("desc").take(100); // OPTIMIZED: Limit to 100 events for faster loading
     
     // Enrich with organizer details and project information
     const enrichedEvents = await Promise.all(
@@ -675,7 +675,7 @@ export const getProjectEvents = query({
     // This includes events created from both:
     // 1. The Project Events Tab (with projectId set)
     // 2. The main Events page with this project linked
-    const allEvents = await ctx.db.query("events").collect();
+    const allEvents = await ctx.db.query("events").take(500); // OPTIMIZED: Limit to 500 events
     const projectEvents = allEvents.filter(event => 
       event.projectId && event.projectId === args.projectId
     );
@@ -709,7 +709,7 @@ export const getArchivedEvents = query({
       .query("events")
       .filter((q) => q.eq(q.field("status"), "archived"))
       .order("desc")
-      .collect();
+      .take(100); // OPTIMIZED: Limit archived events
     
     const enrichedEvents = await Promise.all(
       events.map(async (event) => {
@@ -738,34 +738,34 @@ export const getArchivedEvents = query({
 
 // Get events by project using projectId field
 export const getEventsByProject = query({
-  args: { projectId: v.id("projects") },
-  handler: async (ctx, args) => {
-    const events = await ctx.db
-      .query("events")
-      .filter((q) => q.and(
-        q.eq(q.field("projectId"), args.projectId),
-        q.neq(q.field("status"), "archived")
-      ))
-      .order("desc")
-      .collect();
-    
-    const enrichedEvents = await Promise.all(
-      events.map(async (event) => {
-        const organizer = await ctx.db.get(event.organizer);
-        return {
-          ...event,
-          organizerDetails: organizer ? {
-            _id: organizer._id,
-            name: organizer.name,
-            imageUrl: organizer.imageUrl,
-          } : null,
-          attendeeCount: event.attendees.length,
-        };
-      })
-    );
-    
-    return enrichedEvents;
-  },
+args: { projectId: v.id("projects") },
+handler: async (ctx, args) => {
+  const events = await ctx.db
+    .query("events")
+    .filter((q) => q.and(
+      q.eq(q.field("projectId"), args.projectId),
+      q.neq(q.field("status"), "archived")
+    ))
+    .order("desc")
+    .take(100); // OPTIMIZED: Limit export data
+  
+  const enrichedEvents = await Promise.all(
+    events.map(async (event) => {
+      const organizer = await ctx.db.get(event.organizer);
+      return {
+        ...event,
+        organizerDetails: organizer ? {
+          _id: organizer._id,
+          name: organizer.name,
+          imageUrl: organizer.imageUrl,
+        } : null,
+        attendeeCount: event.attendees.length,
+      };
+    })
+  );
+  
+  return enrichedEvents;
+},
 });
 
 // Export events data for CSV/iCal
@@ -782,7 +782,7 @@ export const getEventsForExport = query({
       query = query.filter((q) => q.neq(q.field("status"), "archived"));
     }
     
-    const events = await query.collect();
+    const events = await query.take(200); // OPTIMIZED: Limit to 200 events for search
     
     let filteredEvents = events;
     if (args.startDate && args.endDate) {

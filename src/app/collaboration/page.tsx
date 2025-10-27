@@ -5,6 +5,7 @@ import { useUser } from '@clerk/nextjs';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Sidebar } from '@/components/layout/Sidebar';
+import RippleLoader from '@/components/ui/RippleLoader';
 import { LiveComments } from '@/components/collaboration/LiveComments';
 import { LiveNotifications } from '@/components/collaboration/LiveNotifications';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,8 +40,9 @@ export default function CollaborationPage() {
   const [activeTab, setActiveTab] = useState<'comments' | 'public'>('comments');
 
   const currentUser = useQuery(api.users.getCurrentUser);
-  const projects = useQuery(api.projects.getAllProjects);
-  const events = useQuery(api.events.getAllEvents);
+  // OPTIMIZED: Use better query that already has role-based filtering and limits
+  const projects = useQuery(api.productivity.getProjects, { limit: 100 });
+  const events = useQuery(api.events.getAllEvents, { status: "published" });
   
   // Get public feedback for selected project
   const publicFeedback = useQuery(
@@ -57,10 +59,7 @@ export default function CollaborationPage() {
   if (!isLoaded || !currentUser) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading collaboration workspace...</p>
-        </div>
+        <RippleLoader size="lg" color="blue" text="Loading collaboration workspace..." />
       </div>
     );
   }

@@ -18,18 +18,15 @@ export default function OAuthCallbackPage() {
       return;
     }
 
-    // If user exists and is signed in, proceed to dashboard
+    // If user exists and is signed in, proceed to dashboard IMMEDIATELY
     if (user && isSignedIn) {
       console.log("✅ OAuth successful! User loaded:", user.firstName, user.lastName);
       console.log("✅ Redirecting to dashboard...");
       setWaitingForUser(false);
       
-      // Small delay to ensure everything is synced
-      const timer = setTimeout(() => {
-        router.push('/dashboard');
-      }, 1000);
-
-      return () => clearTimeout(timer);
+      // OPTIMIZED: No delay - redirect immediately for faster navigation
+      router.replace('/dashboard'); // Use replace instead of push to avoid back button
+      return;
     }
 
     // If loaded but no user, wait a bit and retry (Clerk might still be syncing)

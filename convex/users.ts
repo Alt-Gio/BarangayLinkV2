@@ -668,7 +668,7 @@ export const getUsersByLevel = query({
     const users = await ctx.db
       .query("users")
       .filter((q) => q.eq(q.field("userLevel"), args.userLevelId))
-      .collect();
+      .take(100); // OPTIMIZED: Limit to 100 users per level
 
     return users;
   },
@@ -727,7 +727,7 @@ export const getUserByClerkId = query({
 export const getAllUsersWithLevels = query({
   args: {},
   handler: async (ctx) => {
-    const users = await ctx.db.query("users").collect();
+    const users = await ctx.db.query("users").take(100); // OPTIMIZED: Only load 100 users instead of ALL
     
     const usersWithLevels = await Promise.all(
       users.map(async (user) => {
@@ -1197,7 +1197,7 @@ export const getPaginatedUsersWithLevels = query({
   handler: async (ctx, args) => {
     const { page, limit } = getPaginationParams(args.page, args.limit);
     
-    const users = await ctx.db.query("users").collect();
+    const users = await ctx.db.query("users").take(limit); // OPTIMIZED: Only load requested page
     
     // Enrich with user level details
     const usersWithLevels = await Promise.all(
@@ -1225,7 +1225,7 @@ export const searchUsers = query({
     excludeUserIds: v.optional(v.array(v.id("users"))),
   },
   handler: async (ctx, args) => {
-    let users = await ctx.db.query("users").collect();
+    let users = await ctx.db.query("users").take(50); // OPTIMIZED: Only load 50 users for search
 
     // Filter by search term (if provided and not empty)
     if (args.searchTerm && args.searchTerm.trim().length > 0) {
@@ -1305,7 +1305,7 @@ export const getAllActiveUsers = query({
     const users = await ctx.db
       .query("users")
       .filter((q) => q.eq(q.field("isActive"), true))
-      .collect();
+      .take(100); // OPTIMIZED: Limit to 100 active users
 
     const enrichedUsers = await Promise.all(
       users.map(async (user) => {

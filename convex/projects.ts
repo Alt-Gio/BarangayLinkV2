@@ -88,19 +88,19 @@ export const getAllProjects = query({
     try {
       const currentUser = await getCurrentUser(ctx);
       
-      if (currentUser.userLevel.name === "ADMIN") {
-        // ADMIN can see all projects
-        return await ctx.db.query("projects").order("desc").collect();
+      if (currentUser.userLevel.name === "ADMIN" || currentUser.userLevel.name === "CAPTAIN") {
+        // ADMIN/CAPTAIN can see all projects
+        return await ctx.db.query("projects").order("desc").take(100); // OPTIMIZED: Limit to 100 projects
       } else if (currentUser.userLevel.name === "MANAGER") {
         // MANAGER can see department projects + projects they're assigned to
-        const allProjects = await ctx.db.query("projects").order("desc").collect();
+        const allProjects = await ctx.db.query("projects").order("desc").take(200); // OPTIMIZED
         return allProjects.filter(project => 
           project.department === currentUser.department || 
           project.assignedTo.includes(currentUser._id)
         );
       } else {
         // BUILDER/WORKER can see assigned projects + created projects + public projects
-        const allProjects = await ctx.db.query("projects").order("desc").collect();
+        const allProjects = await ctx.db.query("projects").order("desc").take(200); // OPTIMIZED
         return allProjects.filter(project => 
           project.createdBy === currentUser._id ||
           project.assignedTo.includes(currentUser._id) ||

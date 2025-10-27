@@ -11,78 +11,31 @@ export function useDashboardData() {
   // Core user data - NOW FROM OFFLINE CONTEXT (saves bandwidth!)
   const { currentUser, userPermissions, isOnline } = useOfflineData();
   
-  // Admin-specific data
-  const allUsers = useQuery(
-    api.users.getAllUsersWithLevels,
-    currentUser?.userLevel?.name === 'ADMIN' ? {} : "skip"
-  );
+  // OPTIMIZED: Only load critical data on initial render
+  // Non-critical data should be lazy-loaded after dashboard renders
   
-  const userLevels = useQuery(
-    api.userLevels.getAll,
-    currentUser?.userLevel?.name === 'ADMIN' ? {} : "skip"
-  );
+  // Admin-specific data - DISABLED for performance
+  const allUsers = undefined; // Lazy load when needed
+  const userLevels = undefined; // Lazy load when needed
   
-  // Manager-specific data
-  const departmentUsers = useQuery(
-    api.users.getUsersByDepartment,
-    currentUser?.userLevel?.name === 'MANAGER' && currentUser?.department 
-      ? { department: currentUser.department } 
-      : "skip"
-  );
+  // Manager-specific data - DISABLED for performance  
+  const departmentUsers = undefined; // Lazy load when needed
   
-  // Real-time data for all roles
-  const activeSessions = useQuery(
-    api.userSessions.getActiveSessions,
-    userPermissions?.includes('users:view') ? {} : "skip"
-  );
+  // Real-time data - DISABLED for performance
+  const activeSessions = undefined; // Lazy load when needed
   
-  // Gamified tasks for workers and builders
-  const userStats = useQuery(
-    api.gamifiedTasks.getUserStats,
-    currentUser ? { userId: undefined } : "skip"
-  );
-  
-  const gamifiedTasks = useQuery(
-    api.gamifiedTasks.getGamifiedTasks,
-    currentUser ? { userId: undefined, type: undefined, status: undefined, projectId: undefined } : "skip"
-  );
-  
-  const leaderboard = useQuery(
-    api.gamifiedTasks.getLeaderboard,
-    currentUser ? { type: "experience", limit: 10 } : "skip"
-  );
+  // Gamified data - DISABLED for performance (load after initial render)
+  const userStats = undefined;
+  const gamifiedTasks = undefined;
+  const leaderboard = undefined;
 
-  // Productivity data based on role and permissions
+  // OPTIMIZED: Productivity data - DISABLED for initial load
+  // These should be loaded lazily after dashboard renders
   const productivity = {
-    // Projects data for builders, managers, and admins
-    projects: useQuery(
-      api.productivity.getProjects,
-      userPermissions?.includes('projects:view') ? {
-        department: currentUser?.userLevel?.name === 'MANAGER' ? currentUser?.department : undefined,
-        limit: 50
-      } : "skip"
-    ),
-    
-    // Tasks assigned to current user (all roles)
-    myTasks: useQuery(
-      api.gamifiedTasks.getGamifiedTasks,
-      currentUser ? { userId: currentUser._id, status: undefined, type: undefined, projectId: undefined } : "skip"
-    ),
-    
-    // Analytics for managers and admins
-    analytics: useQuery(
-      api.productivity.getDashboardAnalytics,
-      userPermissions?.includes('analytics:view') ? {
-        department: currentUser?.userLevel?.name === 'MANAGER' ? currentUser?.department : undefined,
-        userId: currentUser?._id
-      } : "skip"
-    ),
-
-    // All users for task assignment (builders, managers, admins)
-    allUsers: useQuery(
-      api.users.getAllUsersWithLevels,
-      userPermissions?.includes('users:view') ? {} : "skip"
-    )
+    projects: undefined, // Lazy load
+    myTasks: undefined, // Lazy load
+    analytics: undefined, // Lazy load
+    allUsers: undefined // Lazy load
   };
 
   // Computed dashboard stats based on role

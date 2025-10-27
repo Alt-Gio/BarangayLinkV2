@@ -353,7 +353,7 @@ export const getActiveSessions = query({
       .query("userSessions")
       .filter((q: any) => q.eq(q.field("isActive"), true))
       .order("desc")
-      .collect();
+      .take(100); // OPTIMIZED: Only load 100 active sessions
 
     const sessionsWithUsers = await Promise.all(
       activeSessions.map(async (session) => {
@@ -509,13 +509,13 @@ export const getSessionStats = query({
       .query("userSessions")
       .filter((q: any) => q.gte(q.field("loginTime"), startDate))
       .filter((q: any) => q.lte(q.field("loginTime"), endDate))
-      .collect();
+      .take(500); // OPTIMIZED: Limit to 500 sessions
 
     // Get currently active sessions
     const activeSessions = await ctx.db
       .query("userSessions")
       .filter((q: any) => q.eq(q.field("isActive"), true))
-      .collect();
+      .take(100); // OPTIMIZED: Only load 100 active sessions
 
     // Calculate statistics
     const totalSessions = sessions.length;
