@@ -1,5 +1,6 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 
 // Upload document metadata (file itself is uploaded via Convex file storage)
 export const createDocument = mutation({
@@ -33,8 +34,23 @@ export const createDocument = mutation({
       throw new Error("User not found");
     }
 
+    // Generate smart tags if none provided or enhance existing tags
+    let smartTags = args.tags;
+    if (args.tags.length === 0) {
+      // Auto-generate tags
+      smartTags = await ctx.runMutation(internal.documentTagging.generateSmartTags, {
+        fileName: args.fileName,
+        mimeType: args.mimeType,
+        category: args.category,
+        projectId: args.projectId,
+        taskId: args.taskId,
+        eventId: args.eventId,
+      });
+    }
+
     const documentId = await ctx.db.insert("documents", {
       ...args,
+      tags: smartTags,
       uploadedBy: user._id,
     });
 

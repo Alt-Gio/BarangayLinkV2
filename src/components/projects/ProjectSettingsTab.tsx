@@ -29,6 +29,7 @@ import {
   XCircle,
   Shield
 } from 'lucide-react';
+import { LocationPickerModal } from '@/components/shared/LocationPickerModal';
 
 interface ProjectSettingsTabProps {
   projectId: Id<"projects">;
@@ -38,12 +39,17 @@ interface ProjectSettingsTabProps {
 
 export function ProjectSettingsTab({ projectId, project, currentUser }: ProjectSettingsTabProps) {
   const [activeSection, setActiveSection] = useState('general');
+  const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
+  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(
+    project.coordinates ? { lat: project.coordinates.latitude, lng: project.coordinates.longitude } : null
+  );
   const [formData, setFormData] = useState({
     // General Settings
     title: project.title,
     description: project.description,
     department: project.department,
     location: project.location || '',
+    coordinates: project.coordinates || null,
     tags: project.tags?.join(', ') || '',
     
     // Budget Settings
@@ -72,6 +78,7 @@ export function ProjectSettingsTab({ projectId, project, currentUser }: ProjectS
           title: formData.title,
           description: formData.description,
           location: formData.location,
+          coordinates: formData.coordinates,
           tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
         }
       });
@@ -239,19 +246,49 @@ export function ProjectSettingsTab({ projectId, project, currentUser }: ProjectS
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    <MapPin className="w-4 h-4 inline mr-1" />
-                    Location
-                  </label>
-                  <Input
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    placeholder="Project location"
-                    className="bg-gray-900/50 border-gray-700 text-white"
-                  />
-                </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <MapPin className="w-4 h-4 inline mr-1" />
+                  Location
+                </label>
+                {formData.location ? (
+                  <div className="bg-emerald-600/20 border border-emerald-600/30 rounded-lg p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 flex-1">
+                        <MapPin className="w-5 h-5 text-emerald-400 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-white font-medium mb-1">{formData.location}</p>
+                          {formData.coordinates && (
+                            <p className="text-gray-400 text-xs">
+                              {formData.coordinates.latitude.toFixed(6)}, {formData.coordinates.longitude.toFixed(6)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => setIsLocationPickerOpen(true)}
+                        variant="ghost"
+                        className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-600/20"
+                      >
+                        Change
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    onClick={() => setIsLocationPickerOpen(true)}
+                    className="w-full bg-gray-700/50 border border-gray-600 hover:bg-gray-700 text-white py-6 flex items-center justify-center gap-2"
+                  >
+                    <MapPin className="w-5 h-5" />
+                    <span>Pick Location on Map</span>
+                  </Button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
+                
 
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -606,6 +643,21 @@ export function ProjectSettingsTab({ projectId, project, currentUser }: ProjectS
           </Card>
         )}
       </div>
+      
+      {/* Location Picker Modal */}
+      <LocationPickerModal
+        isOpen={isLocationPickerOpen}
+        onClose={() => setIsLocationPickerOpen(false)}
+        onSelectLocation={(location) => {
+          setFormData({
+            ...formData,
+            location: location.address,
+            coordinates: { latitude: location.lat, longitude: location.lng }
+          });
+          setCoordinates({ lat: location.lat, lng: location.lng });
+        }}
+        initialLocation={coordinates || undefined}
+      />
     </div>
   );
 }

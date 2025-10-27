@@ -69,6 +69,9 @@ export default function SystemSettingsPage() {
   const clearAllDataAction = useAction(api.backup.clearAllDataWithArchive);
   const clearAllMessagesAction = useAction(api.backup.clearAllMessagesWithArchive);
   const removeDuplicateUsersAction = useAction(api.backup.removeDuplicateUsers);
+  const removeDuplicateDepartmentsAction = useAction(api.backup.removeDuplicateDepartments);
+  const removeDuplicateUserLevelsAction = useAction(api.backup.removeDuplicateUserLevels);
+  const detectAllDuplicatesAction = useAction(api.backup.detectAllDuplicates);
   
   // Notification actions
   const checkOverdueAction = useAction(api.notificationSystem.checkOverdueProjects);
@@ -128,6 +131,10 @@ export default function SystemSettingsPage() {
   const [showClearDataModal, setShowClearDataModal] = useState(false);
   const [showClearMessagesModal, setShowClearMessagesModal] = useState(false);
   const [removingDuplicates, setRemovingDuplicates] = useState(false);
+  const [removingDeptDuplicates, setRemovingDeptDuplicates] = useState(false);
+  const [removingLevelDuplicates, setRemovingLevelDuplicates] = useState(false);
+  const [scanningDuplicates, setScanningDuplicates] = useState(false);
+  const [duplicateStats, setDuplicateStats] = useState({ users: 0, departments: 0, userLevels: 0, total: 0 });
   const [checkingProjects, setCheckingProjects] = useState(false);
   const [sendingTestEmail, setSendingTestEmail] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -391,6 +398,32 @@ export default function SystemSettingsPage() {
     }
   };
 
+  const handleScanDuplicates = async () => {
+    setScanningDuplicates(true);
+    try {
+      const result = await detectAllDuplicatesAction({});
+      if (result.success) {
+        setDuplicateStats(result.duplicates);
+        if (result.duplicates.total === 0) {
+          alert('✅ No duplicates found!\n\nYour database is clean.');
+        } else {
+          alert(
+            `🔍 DUPLICATE DATA DETECTED\n\n` +
+            `Users: ${result.duplicates.users}\n` +
+            `Departments: ${result.duplicates.departments}\n` +
+            `User Levels: ${result.duplicates.userLevels}\n\n` +
+            `Total duplicates: ${result.duplicates.total}\n\n` +
+            `Use the remove buttons below to clean up.`
+          );
+        }
+      }
+    } catch (error: any) {
+      alert(`Failed to scan: ${error.message}`);
+    } finally {
+      setScanningDuplicates(false);
+    }
+  };
+
   const handleRemoveDuplicateUsers = async () => {
     if (!confirm('This will remove duplicate users from the database (keeping the oldest entry for each user). Continue?')) return;
     
@@ -407,6 +440,44 @@ export default function SystemSettingsPage() {
       alert(`Failed to remove duplicates: ${error.message}`);
     } finally {
       setRemovingDuplicates(false);
+    }
+  };
+
+  const handleRemoveDuplicateDepartments = async () => {
+    if (!confirm('This will remove duplicate departments from the database (keeping the oldest entry for each department name). Continue?')) return;
+    
+    setRemovingDeptDuplicates(true);
+    try {
+      const result = await removeDuplicateDepartmentsAction({});
+      if (result.success) {
+        alert(`Success! Removed ${result.duplicatesRemoved} duplicate departments. Please refresh the page.`);
+        window.location.reload();
+      } else {
+        alert(`Failed: ${result.message}`);
+      }
+    } catch (error: any) {
+      alert(`Failed to remove duplicates: ${error.message}`);
+    } finally {
+      setRemovingDeptDuplicates(false);
+    }
+  };
+
+  const handleRemoveDuplicateUserLevels = async () => {
+    if (!confirm('This will remove duplicate user levels from the database (keeping the oldest entry for each level name). Continue?')) return;
+    
+    setRemovingLevelDuplicates(true);
+    try {
+      const result = await removeDuplicateUserLevelsAction({});
+      if (result.success) {
+        alert(`Success! Removed ${result.duplicatesRemoved} duplicate user levels. Please refresh the page.`);
+        window.location.reload();
+      } else {
+        alert(`Failed: ${result.message}`);
+      }
+    } catch (error: any) {
+      alert(`Failed to remove duplicates: ${error.message}`);
+    } finally {
+      setRemovingLevelDuplicates(false);
     }
   };
 
@@ -1229,7 +1300,7 @@ export default function SystemSettingsPage() {
                       </div>
                       
                       {/* Maintenance Zone */}
-                      <div className="p-4 bg-yellow-600/10 border border-yellow-500/30 rounded-lg space-y-3 mb-4">
+                      <div className="p-4 bg-yellow-600/10 border border-yellow-500/30 rounded-lg space-y-4 mb-4">
                         <div>
                           <h4 className="text-white font-semibold flex items-center gap-2">
                             <AlertTriangle className="w-5 h-5 text-yellow-400" />
@@ -1237,12 +1308,57 @@ export default function SystemSettingsPage() {
                           </h4>
                           <p className="text-gray-400 text-sm mt-1">Fix data issues and maintain database health</p>
                         </div>
+
+                        {/* Scan Button */}
+                        <div>
+                          <Button 
+                            onClick={handleScanDuplicates}
+                            disabled={scanningDuplicates}
+                            className="bg-blue-600 hover:bg-blue-700 text-white w-full active:scale-95 transition-transform"
+                          >
+                            {scanningDuplicates ? (
+                              <>
+                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                Scanning Database...
+                              </>
+                            ) : (
+                              <>
+                                <Database className="w-4 h-4 mr-2" />
+                                Scan for Duplicates
+                              </>
+                            )}
+                          </Button>
+                        </div>
+
+                        {/* Duplicate Stats */}
+                        {duplicateStats.total > 0 && (
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            <div className="p-3 bg-red-600/20 border border-red-500/30 rounded-lg text-center">
+                              <div className="text-2xl font-bold text-red-400">{duplicateStats.total}</div>
+                              <div className="text-xs text-gray-400">Total</div>
+                            </div>
+                            <div className="p-3 bg-yellow-600/20 border border-yellow-500/30 rounded-lg text-center">
+                              <div className="text-2xl font-bold text-yellow-400">{duplicateStats.users}</div>
+                              <div className="text-xs text-gray-400">Users</div>
+                            </div>
+                            <div className="p-3 bg-orange-600/20 border border-orange-500/30 rounded-lg text-center">
+                              <div className="text-2xl font-bold text-orange-400">{duplicateStats.departments}</div>
+                              <div className="text-xs text-gray-400">Departments</div>
+                            </div>
+                            <div className="p-3 bg-purple-600/20 border border-purple-500/30 rounded-lg text-center">
+                              <div className="text-2xl font-bold text-purple-400">{duplicateStats.userLevels}</div>
+                              <div className="text-xs text-gray-400">User Levels</div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Remove Buttons */}
                         <div className="flex flex-wrap gap-3">
                           <Button 
                             onClick={handleRemoveDuplicateUsers}
-                            disabled={removingDuplicates}
+                            disabled={removingDuplicates || duplicateStats.users === 0}
                             variant="outline" 
-                            className="border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/20 active:scale-95 transition-transform"
+                            className="border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/20 active:scale-95 transition-transform disabled:opacity-50"
                           >
                             {removingDuplicates ? (
                               <>
@@ -1253,6 +1369,47 @@ export default function SystemSettingsPage() {
                               <>
                                 <CheckCheck className="w-4 h-4 mr-2" />
                                 Remove Duplicate Users
+                                {duplicateStats.users > 0 && ` (${duplicateStats.users})`}
+                              </>
+                            )}
+                          </Button>
+
+                          <Button 
+                            onClick={handleRemoveDuplicateDepartments}
+                            disabled={removingDeptDuplicates || duplicateStats.departments === 0}
+                            variant="outline" 
+                            className="border-orange-500/50 text-orange-400 hover:bg-orange-500/20 active:scale-95 transition-transform disabled:opacity-50"
+                          >
+                            {removingDeptDuplicates ? (
+                              <>
+                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                Cleaning...
+                              </>
+                            ) : (
+                              <>
+                                <Building className="w-4 h-4 mr-2" />
+                                Remove Duplicate Departments
+                                {duplicateStats.departments > 0 && ` (${duplicateStats.departments})`}
+                              </>
+                            )}
+                          </Button>
+
+                          <Button 
+                            onClick={handleRemoveDuplicateUserLevels}
+                            disabled={removingLevelDuplicates || duplicateStats.userLevels === 0}
+                            variant="outline" 
+                            className="border-purple-500/50 text-purple-400 hover:bg-purple-500/20 active:scale-95 transition-transform disabled:opacity-50"
+                          >
+                            {removingLevelDuplicates ? (
+                              <>
+                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                Cleaning...
+                              </>
+                            ) : (
+                              <>
+                                <Shield className="w-4 h-4 mr-2" />
+                                Remove Duplicate User Levels
+                                {duplicateStats.userLevels > 0 && ` (${duplicateStats.userLevels})`}
                               </>
                             )}
                           </Button>

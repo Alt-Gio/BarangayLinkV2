@@ -635,6 +635,201 @@ export const cleanupDuplicateUsers = internalMutation({
   },
 });
 
+// Remove duplicate departments (keep the oldest one for each name)
+export const removeDuplicateDepartments = action({
+  args: {},
+  handler: async (ctx): Promise<{
+    success: boolean;
+    message: string;
+    duplicatesRemoved?: number;
+  }> => {
+    try {
+      const result = await ctx.runMutation(internal.backup.cleanupDuplicateDepartments);
+      return {
+        success: true,
+        message: `Removed ${result.duplicatesRemoved} duplicate departments`,
+        duplicatesRemoved: result.duplicatesRemoved,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  },
+});
+
+// Internal mutation to clean up duplicate departments
+export const cleanupDuplicateDepartments = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const allDepts = await ctx.db.query("departments").collect();
+    
+    // Group departments by name (case-insensitive)
+    const deptsByName = new Map<string, any[]>();
+    for (const dept of allDepts) {
+      const normalizedName = dept.name.toLowerCase().trim();
+      const existing = deptsByName.get(normalizedName) || [];
+      existing.push(dept);
+      deptsByName.set(normalizedName, existing);
+    }
+    
+    // Remove duplicates (keep oldest one)
+    let duplicatesRemoved = 0;
+    for (const [name, depts] of deptsByName.entries()) {
+      if (depts.length > 1) {
+        // Sort by _creationTime to keep the oldest
+        depts.sort((a, b) => a._creationTime - b._creationTime);
+        
+        // Delete all except the first (oldest) one
+        for (let i = 1; i < depts.length; i++) {
+          await ctx.db.delete(depts[i]._id);
+          duplicatesRemoved++;
+        }
+      }
+    }
+    
+    return { duplicatesRemoved };
+  },
+});
+
+// Remove duplicate userLevels (keep the oldest one for each name)
+export const removeDuplicateUserLevels = action({
+  args: {},
+  handler: async (ctx): Promise<{
+    success: boolean;
+    message: string;
+    duplicatesRemoved?: number;
+  }> => {
+    try {
+      const result = await ctx.runMutation(internal.backup.cleanupDuplicateUserLevels);
+      return {
+        success: true,
+        message: `Removed ${result.duplicatesRemoved} duplicate user levels`,
+        duplicatesRemoved: result.duplicatesRemoved,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  },
+});
+
+// Internal mutation to clean up duplicate userLevels
+export const cleanupDuplicateUserLevels = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const allLevels = await ctx.db.query("userLevels").collect();
+    
+    // Group userLevels by name (case-insensitive)
+    const levelsByName = new Map<string, any[]>();
+    for (const level of allLevels) {
+      const normalizedName = level.name.toLowerCase().trim();
+      const existing = levelsByName.get(normalizedName) || [];
+      existing.push(level);
+      levelsByName.set(normalizedName, existing);
+    }
+    
+    // Remove duplicates (keep oldest one)
+    let duplicatesRemoved = 0;
+    for (const [name, levels] of levelsByName.entries()) {
+      if (levels.length > 1) {
+        // Sort by _creationTime to keep the oldest
+        levels.sort((a, b) => a._creationTime - b._creationTime);
+        
+        // Delete all except the first (oldest) one
+        for (let i = 1; i < levels.length; i++) {
+          await ctx.db.delete(levels[i]._id);
+          duplicatesRemoved++;
+        }
+      }
+    }
+    
+    return { duplicatesRemoved };
+  },
+});
+
+// Detect all duplicates across all tables
+export const detectAllDuplicates = action({
+  args: {},
+  handler: async (ctx): Promise<{
+    success: boolean;
+    duplicates: {
+      users: number;
+      departments: number;
+      userLevels: number;
+      total: number;
+    };
+  }> => {
+    try {
+      const result = await ctx.runQuery(internal.backup.scanForDuplicates);
+      return {
+        success: true,
+        duplicates: result,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        duplicates: { users: 0, departments: 0, userLevels: 0, total: 0 },
+      };
+    }
+  },
+});
+
+// Internal query to scan for duplicates
+export const scanForDuplicates = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    let userDuplicates = 0;
+    let deptDuplicates = 0;
+    let levelDuplicates = 0;
+    
+    // Scan users
+    const allUsers = await ctx.db.query("users").collect();
+    const usersByClerkId = new Map<string, number>();
+    for (const user of allUsers) {
+      const count = usersByClerkId.get(user.clerkId) || 0;
+      usersByClerkId.set(user.clerkId, count + 1);
+    }
+    for (const count of usersByClerkId.values()) {
+      if (count > 1) userDuplicates += (count - 1);
+    }
+    
+    // Scan departments
+    const allDepts = await ctx.db.query("departments").collect();
+    const deptsByName = new Map<string, number>();
+    for (const dept of allDepts) {
+      const normalized = dept.name.toLowerCase().trim();
+      const count = deptsByName.get(normalized) || 0;
+      deptsByName.set(normalized, count + 1);
+    }
+    for (const count of deptsByName.values()) {
+      if (count > 1) deptDuplicates += (count - 1);
+    }
+    
+    // Scan userLevels
+    const allLevels = await ctx.db.query("userLevels").collect();
+    const levelsByName = new Map<string, number>();
+    for (const level of allLevels) {
+      const normalized = level.name.toLowerCase().trim();
+      const count = levelsByName.get(normalized) || 0;
+      levelsByName.set(normalized, count + 1);
+    }
+    for (const count of levelsByName.values()) {
+      if (count > 1) levelDuplicates += (count - 1);
+    }
+    
+    return {
+      users: userDuplicates,
+      departments: deptDuplicates,
+      userLevels: levelDuplicates,
+      total: userDuplicates + deptDuplicates + levelDuplicates,
+    };
+  },
+});
+
 // Clear all messages with archiving
 export const clearAllMessagesWithArchive = action({
   args: {},

@@ -5,6 +5,8 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { X, Calendar, Clock, MapPin, Users, AlertTriangle, Briefcase, MessageSquare, Globe, Image, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LocationPickerModal } from "@/components/shared/LocationPickerModal";
+import type { Id } from "../../../convex/_generated/dataModel";
 
 interface CreateEventModalProps {
   isOpen: boolean;
@@ -25,22 +27,36 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
     endDate: "",
     endTime: "",
     location: "",
+    coordinates: null as { latitude: number; longitude: number } | null,
     maxAttendees: "",
     projectId: "",
     imageUrl: "",
     isPublic: true,
     requiresApproval: false,
     allowPublicRSVP: false,
+    allowDocumentUpload: false,
     milestoneTaskCount: 0,
   });
   
-  // Fetch projects from Convex
+  // Fetch projects and current user from Convex
   const projects = useQuery(api.projects.getAllProjects);
+  const currentUser = useQuery(api.users.getCurrentUser);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [imagePreview, setImagePreview] = useState<string>("");
+  const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
+  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  
+  // Determine user role level
+  const userLevel = currentUser?.userLevel && typeof currentUser.userLevel === 'object' && 'level' in currentUser.userLevel 
+    ? currentUser.userLevel.level 
+    : 0;
+  
+  // Builder = 2, Worker = 1, Manager = 4, Admin = 5
+  const isBuilderOrWorker = userLevel < 4; // Builder/Worker need approval
+  const isManagerOrHigher = userLevel >= 4; // Manager+ don't need approval checkbox
   
   // Handle image upload
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,6 +137,9 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
         imageUrl = storageId;
       }
 
+      // Builder/Worker events always require approval
+      const needsApproval = isBuilderOrWorker ? true : formData.requiresApproval;
+
       await createEvent({
         title: formData.title,
         description: formData.description,
@@ -128,12 +147,14 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
         startDate: startDateTime,
         endDate: endDateTime,
         location: formData.location,
+        coordinates: formData.coordinates || undefined,
         maxAttendees: formData.maxAttendees ? parseInt(formData.maxAttendees) : undefined,
-        projectId: formData.projectId || undefined,
+        projectId: formData.projectId ? (formData.projectId as Id<"projects">) : undefined,
         imageUrl: imageUrl,
         isPublic: formData.isPublic,
-        requiresApproval: formData.requiresApproval,
+        requiresApproval: needsApproval,
         allowPublicRSVP: formData.allowPublicRSVP,
+        allowDocumentUpload: formData.allowDocumentUpload,
         milestoneTaskCount: formData.type === 'milestone' ? formData.milestoneTaskCount : undefined,
       });
 
@@ -263,17 +284,40 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
           {/* Location */}
           <div>
             <label className="block text-sm font-semibold text-gray-300 mb-2">Location *</label>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                className="w-full pl-11 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="Event location"
-                required
-              />
-            </div>
+            {formData.location ? (
+              <div className="bg-emerald-600/20 border border-emerald-600/30 rounded-lg p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 flex-1">
+                    <MapPin className="w-5 h-5 text-emerald-400 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-white font-medium mb-1">{formData.location}</p>
+                      {formData.coordinates && (
+                        <p className="text-gray-400 text-xs">
+                          {formData.coordinates.latitude.toFixed(6)}, {formData.coordinates.longitude.toFixed(6)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={() => setIsLocationPickerOpen(true)}
+                    variant="ghost"
+                    className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-600/20"
+                  >
+                    Change
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                onClick={() => setIsLocationPickerOpen(true)}
+                className="w-full bg-gray-700/50 border border-gray-600 hover:bg-gray-700 text-white py-6 flex items-center justify-center gap-2"
+              >
+                <MapPin className="w-5 h-5" />
+                <span>Pick Location on Map</span>
+              </Button>
+            )}
           </div>
 
           {/* Project Link */}
@@ -399,18 +443,37 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
               </div>
             </label>
             
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.requiresApproval}
-                onChange={(e) => setFormData({ ...formData, requiresApproval: e.target.checked })}
-                className="w-5 h-5 rounded border-white/20 bg-white/5 text-emerald-600 focus:ring-2 focus:ring-emerald-500"
-              />
-              <div className="flex-1">
-                <span className="text-white font-medium">Require Approval</span>
-                <p className="text-gray-400 text-xs mt-1">Users need your approval to join this event</p>
-              </div>
-            </label>
+            {/* Require Approval - Conditional based on role */}
+            {isBuilderOrWorker && (
+              <label className="flex items-center gap-3 opacity-75">
+                <input
+                  type="checkbox"
+                  checked={true}
+                  disabled={true}
+                  className="w-5 h-5 rounded border-white/20 bg-white/5 text-emerald-600 cursor-not-allowed"
+                />
+                <div className="flex-1">
+                  <span className="text-white font-medium">Require Approval</span>
+                  <p className="text-yellow-400 text-xs mt-1">⚠️ Your events require Manager approval (Builder/Worker role)</p>
+                </div>
+              </label>
+            )}
+            
+            {/* Manager+ can toggle approval requirement */}
+            {!isBuilderOrWorker && isManagerOrHigher && (
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.requiresApproval}
+                  onChange={(e) => setFormData({ ...formData, requiresApproval: e.target.checked })}
+                  className="w-5 h-5 rounded border-white/20 bg-white/5 text-emerald-600 focus:ring-2 focus:ring-emerald-500"
+                />
+                <div className="flex-1">
+                  <span className="text-white font-medium">Require Approval</span>
+                  <p className="text-gray-400 text-xs mt-1">Users need your approval to join this event</p>
+                </div>
+              </label>
+            )}
             
             <label className="flex items-center gap-3 cursor-pointer">
               <input
@@ -421,7 +484,23 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
               />
               <div className="flex-1">
                 <span className="text-white font-medium">Allow Public RSVP</span>
-                <p className="text-gray-400 text-xs mt-1">Non-logged-in users can join with name & phone</p>
+                <p className="text-gray-400 text-xs mt-1">Non-logged-in users can join with email verification</p>
+              </div>
+            </label>
+            
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.allowDocumentUpload || false}
+                onChange={(e) => setFormData({ ...formData, allowDocumentUpload: e.target.checked })}
+                className="w-5 h-5 rounded border-white/20 bg-white/5 text-purple-600 focus:ring-2 focus:ring-purple-500"
+              />
+              <div className="flex-1">
+                <span className="text-white font-medium flex items-center gap-2">
+                  <Upload className="w-4 h-4" />
+                  Require Document Upload
+                </span>
+                <p className="text-gray-400 text-xs mt-1">Attendees must upload proof of citizenship/residency (max 5MB)</p>
               </div>
             </label>
           </div>
@@ -445,6 +524,21 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
           </div>
         </form>
       </div>
+      
+      {/* Location Picker Modal */}
+      <LocationPickerModal
+        isOpen={isLocationPickerOpen}
+        onClose={() => setIsLocationPickerOpen(false)}
+        onSelectLocation={(location) => {
+          setFormData({
+            ...formData,
+            location: location.address,
+            coordinates: { latitude: location.lat, longitude: location.lng }
+          });
+          setCoordinates({ lat: location.lat, lng: location.lng });
+        }}
+        initialLocation={coordinates || undefined}
+      />
     </div>
   );
 }

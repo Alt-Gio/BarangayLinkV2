@@ -1,12 +1,14 @@
 "use client";
 
+import React from 'react';
 import Link from 'next/link';
 import { Authenticated, Unauthenticated } from 'convex/react';
 import { SignInButton, UserButton } from '@clerk/nextjs';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { formatCurrency } from '@/lib/formatNumber';
 import { 
   Calendar, 
   MapPin, 
@@ -32,7 +34,9 @@ import {
   ThumbsUp,
   Lightbulb,
   AlertCircle as AlertCircleIcon,
-  Smile
+  Smile,
+  AlertTriangle,
+  FileText
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import dynamicImport from 'next/dynamic';
@@ -65,7 +69,12 @@ function PublicLandingPage() {
   const [activeProjectIndex, setActiveProjectIndex] = useState(0);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [showJoinModal, setShowJoinModal] = useState(false);
-  const [joinForm, setJoinForm] = useState({ firstName: '', lastName: '', phone: '' });
+  const [joinForm, setJoinForm] = useState({ firstName: '', lastName: '', email: '' });
+  const [eventOTP, setEventOTP] = useState('');
+  const [eventOTPSent, setEventOTPSent] = useState(false);
+  const [eventOTPVerified, setEventOTPVerified] = useState(false);
+  const [uploadedDocument, setUploadedDocument] = useState<File | null>(null);
+  const [uploadingDocument, setUploadingDocument] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Feedback state
@@ -74,19 +83,24 @@ function PublicLandingPage() {
   const [feedbackForm, setFeedbackForm] = useState({
     name: '',
     email: '',
-    phone: '',
     type: 'comment' as 'comment' | 'suggestion' | 'concern' | 'appreciation',
     rating: 0,
     message: ''
   });
+  const [feedbackOTP, setFeedbackOTP] = useState('');
+  const [feedbackOTPSent, setFeedbackOTPSent] = useState(false);
+  const [feedbackOTPVerified, setFeedbackOTPVerified] = useState(false);
   const [feedbackSuccess, setFeedbackSuccess] = useState(false);
 
   // Fetch real data
-  const featuredProjects = useQuery(api.projects.getFeaturedPublicProjects);
-  const publicProjects = useQuery(api.projects.getPublicProjects, { limit: 9 });
+  const featuredProjects = useQuery(api.landingPage.getFeaturedProjects, { limit: 6 });
+  const publicProjects = useQuery(api.landingPage.getFeaturedProjects, { limit: 9 });
   const events = useQuery(api.events.getUpcomingEvents, { limit: 6 });
   const rsvpToEvent = useMutation(api.events.rsvpToEvent);
   const submitFeedback = useMutation(api.projectFeedback.submitPublicFeedback);
+  const sendOTP = useAction(api.otp.sendOTP);
+  const verifyOTP = useMutation(api.otp.verifyOTP);
+  const generateEventDocumentUploadUrl = useMutation(api.events.generateEventDocumentUploadUrl);
   
   // Get feedback stats for all projects
   const projectIds = publicProjects?.map(p => p._id) || [];
@@ -98,28 +112,171 @@ function PublicLandingPage() {
   // Use featured projects for hero, fallback to public projects
   const heroProjects = (featuredProjects && featuredProjects.length > 0) ? featuredProjects : (publicProjects?.slice(0, 3) || []);
 
+  const handleSendEventOTP = async () => {
+    if (!joinForm.email || !joinForm.email.includes('@')) {
+      alert('Please enter a valid email address');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await sendOTP({
+        email: joinForm.email,
+        purpose: 'event_rsvp',
+        metadata: {
+          eventId: selectedEvent?._id,
+          eventTitle: selectedEvent?.title,
+        },
+      });
+      setEventOTPSent(true);
+      alert('✅ Verification code sent to your email!');
+    } catch (error) {
+      alert('Failed to send verification code. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifyEventOTP = async () => {
+    if (!eventOTP || eventOTP.length !== 6) {
+      alert('Please enter the 6-digit code');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const result = await verifyOTP({
+        email: joinForm.email,
+        otp: eventOTP,
+        purpose: 'event_rsvp',
+      });
+
+      if (result.success) {
+        setEventOTPVerified(true);
+        alert('✅ Email verified! You can now join the event.');
+      } else {
+        alert('❌ ' + (result.error || 'Invalid code'));
+      }
+    } catch (error) {
+      alert('Verification failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleJoinEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedEvent) return;
 
+    if (!eventOTPVerified) {
+      alert('Please verify your email first');
+      return;
+    }
+
+    // Check if document is required but not uploaded
+    if (selectedEvent.allowDocumentUpload && !uploadedDocument) {
+      alert('Please upload the required document (proof of citizenship/residency)');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
+      let documentStorageId: string | undefined;
+
+      // Upload document if provided
+      if (uploadedDocument) {
+        setUploadingDocument(true);
+        
+        // Generate upload URL
+        const uploadUrl = await generateEventDocumentUploadUrl();
+
+        // Upload file
+        const result = await fetch(uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": uploadedDocument.type },
+          body: uploadedDocument,
+        });
+
+        const { storageId } = await result.json();
+        documentStorageId = storageId;
+        
+        setUploadingDocument(false);
+      }
+
       await rsvpToEvent({
         eventId: selectedEvent._id,
         action: "join",
         attendeeInfo: {
           firstName: joinForm.firstName,
           lastName: joinForm.lastName,
-          phone: joinForm.phone,
+          email: joinForm.email,
+          documentStorageId,
         }
       });
 
-      alert('✅ Successfully joined the event! We will contact you soon.');
+      alert('✅ Successfully joined the event! We will contact you via email.');
       setShowJoinModal(false);
-      setJoinForm({ firstName: '', lastName: '', phone: '' });
+      setJoinForm({ firstName: '', lastName: '', email: '' });
+      setEventOTP('');
+      setEventOTPSent(false);
+      setEventOTPVerified(false);
+      setUploadedDocument(null);
       setSelectedEvent(null);
     } catch (error) {
       alert('Failed to join event. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+      setUploadingDocument(false);
+    }
+  };
+
+  const handleSendFeedbackOTP = async () => {
+    if (!feedbackForm.email || !feedbackForm.email.includes('@')) {
+      alert('Please enter a valid email address');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await sendOTP({
+        email: feedbackForm.email,
+        purpose: 'feedback',
+        metadata: {
+          projectId: selectedProject?._id,
+          projectTitle: selectedProject?.title,
+        },
+      });
+      setFeedbackOTPSent(true);
+      alert('✅ Verification code sent to your email!');
+    } catch (error) {
+      alert('Failed to send verification code. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifyFeedbackOTP = async () => {
+    if (!feedbackOTP || feedbackOTP.length !== 6) {
+      alert('Please enter the 6-digit code');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const result = await verifyOTP({
+        email: feedbackForm.email,
+        otp: feedbackOTP,
+        purpose: 'feedback',
+      });
+
+      if (result.success) {
+        setFeedbackOTPVerified(true);
+        alert('✅ Email verified! You can now submit your feedback.');
+      } else {
+        alert('❌ ' + (result.error || 'Invalid code'));
+      }
+    } catch (error) {
+      alert('Verification failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -129,13 +286,18 @@ function PublicLandingPage() {
     e.preventDefault();
     if (!selectedProject) return;
 
+    if (!feedbackOTPVerified) {
+      alert('Please verify your email first');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await submitFeedback({
         projectId: selectedProject._id,
         submitterName: feedbackForm.name,
-        submitterEmail: feedbackForm.email || undefined,
-        submitterPhone: feedbackForm.phone || undefined,
+        submitterEmail: feedbackForm.email,
+        submitterPhone: undefined,
         feedbackType: feedbackForm.type,
         rating: feedbackForm.rating > 0 ? feedbackForm.rating : undefined,
         message: feedbackForm.message,
@@ -148,15 +310,17 @@ function PublicLandingPage() {
         setFeedbackForm({
           name: '',
           email: '',
-          phone: '',
-          type: 'comment',
+          type: 'comment' as 'comment' | 'suggestion' | 'concern' | 'appreciation',
           rating: 0,
           message: ''
         });
+        setFeedbackOTP('');
+        setFeedbackOTPSent(false);
+        setFeedbackOTPVerified(false);
         setFeedbackSuccess(false);
       }, 2000);
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to submit feedback. Please try again.');
+      alert('Failed to submit feedback. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -233,12 +397,15 @@ function PublicLandingPage() {
       <section id="projects" className="h-screen w-full relative pt-14">
         {currentProject ? (
           <div className="h-full w-full relative">
-            {/* Background Image */}
+            {/* Background Image - Now supports custom project images! */}
             <div className="absolute inset-0">
               <img
-                src={currentProject.imageUrl || 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=1920&h=1080&fit=crop'}
+                src={currentProject.imageUrl || '/placeholder-project.jpg'}
                 alt={currentProject.title}
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.src = 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=1920&h=1080&fit=crop';
+                }}
               />
               <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/70 to-black/50"></div>
             </div>
@@ -281,7 +448,7 @@ function PublicLandingPage() {
                     </div>
                     <div>
                       <div className="text-3xl font-bold text-emerald-400">
-                        ₱{((currentProject.budget || 0) / 1000000).toFixed(1)}M
+                        {formatCurrency(currentProject.budget || 0)}
                       </div>
                       <div className="text-sm text-gray-400">Budget</div>
                     </div>
@@ -515,7 +682,7 @@ function PublicLandingPage() {
                       </div>
                       <div>
                         <div className="text-lg font-bold text-white">
-                          ₱{((project.budget || 0) / 1000000).toFixed(1)}M
+                          {formatCurrency(project.budget || 0)}
                         </div>
                         <div className="text-xs text-gray-500">Budget</div>
                       </div>
@@ -605,12 +772,29 @@ function PublicLandingPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {events?.filter(e => e.isPublic && e.allowPublicRSVP).slice(0, 6).map((event) => (
+            {events?.slice(0, 6).map((event) => {
+              const isEmergency = event.type === 'emergency';
+              const buttonText = isEmergency ? 'Participate' : event.type === 'community' ? 'Join Activity' : 'Join Event';
+              const buttonIcon = isEmergency ? AlertTriangle : Users;
+              
+              return (
               <div
                 key={event._id}
-                className="bg-gray-800 rounded-xl overflow-hidden hover:bg-gray-750 transition-all group"
+                className={`rounded-xl overflow-hidden hover:bg-gray-750 transition-all group ${
+                  isEmergency 
+                    ? 'bg-red-900/20 border-2 border-red-500/50 shadow-lg shadow-red-500/20' 
+                    : 'bg-gray-800'
+                }`}
               >
                 <div className="aspect-video relative overflow-hidden bg-gray-700">
+                  {isEmergency && (
+                    <div className="absolute inset-0 bg-red-600/20 z-10 flex items-center justify-center">
+                      <div className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold animate-pulse flex items-center gap-2">
+                        <AlertTriangle className="w-5 h-5" />
+                        EMERGENCY
+                      </div>
+                    </div>
+                  )}
                   <img
                     src={event.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=600&fit=crop'}
                     alt={event.title}
@@ -618,13 +802,22 @@ function PublicLandingPage() {
                   />
                 </div>
                 <div className="p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Badge className="bg-emerald-600/20 text-emerald-400 border border-emerald-600/30">
-                      {event.type}
+                  <div className="flex items-center gap-2 mb-3 flex-wrap">
+                    <Badge className={isEmergency 
+                      ? 'bg-red-600 text-white border border-red-500 animate-pulse' 
+                      : 'bg-emerald-600/20 text-emerald-400 border border-emerald-600/30'
+                    }>
+                      {isEmergency && <AlertTriangle className="w-3 h-3 mr-1" />}
+                      {event.type.toUpperCase()}
                     </Badge>
                     {event.allowPublicRSVP && (
                       <Badge className="bg-blue-600/20 text-blue-400 border border-blue-600/30">
                         Open RSVP
+                      </Badge>
+                    )}
+                    {event.allowDocumentUpload && (
+                      <Badge className="bg-purple-600/20 text-purple-400 border border-purple-600/30 text-xs">
+                        Document Required
                       </Badge>
                     )}
                   </div>
@@ -650,19 +843,24 @@ function PublicLandingPage() {
                         setSelectedEvent(event);
                         setShowJoinModal(true);
                       }}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                      className={`w-full text-white ${
+                        isEmergency 
+                          ? 'bg-red-600 hover:bg-red-700 animate-pulse' 
+                          : 'bg-emerald-600 hover:bg-emerald-700'
+                      }`}
                       size="sm"
                     >
-                      <Users className="w-4 h-4 mr-2" />
-                      Join Event
+                      {React.createElement(buttonIcon, { className: 'w-4 h-4 mr-2' })}
+                      {buttonText}
                     </Button>
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
-          {(!events || events.filter(e => e.isPublic).length === 0) && (
+          {(!events || events.length === 0) && (
             <div className="text-center py-12 bg-gray-800 rounded-xl">
               <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-600" />
               <p className="text-gray-400">No upcoming events</p>
@@ -727,34 +925,171 @@ function PublicLandingPage() {
                 />
               </div>
 
+              {/* Email - REQUIRED */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Phone Number *
+                  Email Address * <span className="text-xs text-gray-500">(For verification)</span>
                 </label>
-                <input
-                  type="tel"
-                  required
-                  value={joinForm.phone}
-                  onChange={(e) => setJoinForm({ ...joinForm, phone: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  placeholder="+63 912 345 6789"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    required
+                    value={joinForm.email}
+                    onChange={(e) => {
+                      setJoinForm({ ...joinForm, email: e.target.value });
+                      setEventOTPSent(false);
+                      setEventOTPVerified(false);
+                    }}
+                    disabled={eventOTPVerified}
+                    className="flex-1 px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+                    placeholder="juan@example.com"
+                  />
+                  {!eventOTPSent && !eventOTPVerified && (
+                    <Button
+                      type="button"
+                      onClick={handleSendEventOTP}
+                      disabled={!joinForm.email || isSubmitting}
+                      className="bg-emerald-600 hover:bg-emerald-700 whitespace-nowrap"
+                    >
+                      Send Code
+                    </Button>
+                  )}
+                  {eventOTPVerified && (
+                    <div className="flex items-center px-3 bg-emerald-600/20 border border-emerald-600/50 rounded-lg">
+                      <CheckCircle className="w-5 h-5 text-emerald-400" />
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* OTP Verification */}
+              {eventOTPSent && !eventOTPVerified && (
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                  <p className="text-sm text-blue-300 mb-3">
+                    📧 We've sent a 6-digit code to <strong>{joinForm.email}</strong>
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={eventOTP}
+                      onChange={(e) => setEventOTP(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      className="flex-1 px-4 py-2 bg-gray-900 border border-blue-500 rounded-lg text-white text-center text-2xl font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="000000"
+                      maxLength={6}
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleVerifyEventOTP}
+                      disabled={eventOTP.length !== 6 || isSubmitting}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      Verify
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Didn't receive it? <button type="button" onClick={handleSendEventOTP} className="text-blue-400 hover:underline">Resend code</button>
+                  </p>
+                </div>
+              )}
+
+              {/* Document Upload - Required for some events */}
+              {selectedEvent.allowDocumentUpload && (
+                <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+                  <div className="flex items-start gap-2 mb-3">
+                    <FileText className="w-5 h-5 text-purple-400 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-purple-300 mb-1">
+                        Document Required *
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Upload proof of citizenship/residency (ID, Barangay Certificate, etc.)
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3">
+                    <input
+                      type="file"
+                      id="event-document"
+                      accept="image/*,.pdf"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          // Validate file size (max 5MB)
+                          if (file.size > 5 * 1024 * 1024) {
+                            alert('File size must be less than 5MB');
+                            e.target.value = '';
+                            return;
+                          }
+                          // Validate file type
+                          const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
+                          if (!allowedTypes.includes(file.type)) {
+                            alert('Only images (JPG, PNG, WebP) and PDF files are allowed');
+                            e.target.value = '';
+                            return;
+                          }
+                          setUploadedDocument(file);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="event-document"
+                      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gray-900 border-2 border-dashed border-purple-500/50 rounded-lg cursor-pointer hover:border-purple-500 transition-colors"
+                    >
+                      {uploadedDocument ? (
+                        <>
+                          <CheckCircle className="w-5 h-5 text-emerald-400" />
+                          <span className="text-sm text-emerald-400 font-medium">
+                            {uploadedDocument.name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setUploadedDocument(null);
+                              const input = document.getElementById('event-document') as HTMLInputElement;
+                              if (input) input.value = '';
+                            }}
+                            className="ml-auto text-red-400 hover:text-red-300"
+                          >
+                            ✕
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="w-5 h-5 text-purple-400" />
+                          <span className="text-sm text-gray-300">
+                            Click to upload document
+                          </span>
+                        </>
+                      )}
+                    </label>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Accepted: JPG, PNG, PDF • Max size: 5MB
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-3 pt-4">
                 <Button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || uploadingDocument}
                   className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
-                  {isSubmitting ? 'Joining...' : 'Join Event'}
+                  {uploadingDocument ? 'Uploading...' : isSubmitting ? 'Joining...' : 'Join Event'}
                 </Button>
                 <Button
                   type="button"
                   onClick={() => {
                     setShowJoinModal(false);
                     setSelectedEvent(null);
-                    setJoinForm({ firstName: '', lastName: '', phone: '' });
+                    setJoinForm({ firstName: '', lastName: '', email: '' });
+                    setEventOTP('');
+                    setEventOTPSent(false);
+                    setEventOTPVerified(false);
+                    setUploadedDocument(null);
                   }}
                   variant="outline"
                   className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
@@ -884,33 +1219,72 @@ function PublicLandingPage() {
                     />
                   </div>
 
-                  {/* Email & Phone */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Email (Optional)
-                      </label>
+                  {/* Email - REQUIRED */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Email Address * <span className="text-xs text-gray-500">(For verification)</span>
+                    </label>
+                    <div className="flex gap-2">
                       <input
                         type="email"
+                        required
                         value={feedbackForm.email}
-                        onChange={(e) => setFeedbackForm({ ...feedbackForm, email: e.target.value })}
-                        className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onChange={(e) => {
+                          setFeedbackForm({ ...feedbackForm, email: e.target.value });
+                          setFeedbackOTPSent(false);
+                          setFeedbackOTPVerified(false);
+                        }}
+                        disabled={feedbackOTPVerified}
+                        className="flex-1 px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                         placeholder="juan@example.com"
                       />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Phone (Optional)
-                      </label>
-                      <input
-                        type="tel"
-                        value={feedbackForm.phone}
-                        onChange={(e) => setFeedbackForm({ ...feedbackForm, phone: e.target.value })}
-                        className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="+63 912 345 6789"
-                      />
+                      {!feedbackOTPSent && !feedbackOTPVerified && (
+                        <Button
+                          type="button"
+                          onClick={handleSendFeedbackOTP}
+                          disabled={!feedbackForm.email || isSubmitting}
+                          className="bg-emerald-600 hover:bg-emerald-700 whitespace-nowrap"
+                        >
+                          Send Code
+                        </Button>
+                      )}
+                      {feedbackOTPVerified && (
+                        <div className="flex items-center px-3 bg-emerald-600/20 border border-emerald-600/50 rounded-lg">
+                          <CheckCircle className="w-5 h-5 text-emerald-400" />
+                        </div>
+                      )}
                     </div>
                   </div>
+
+                  {/* OTP Verification */}
+                  {feedbackOTPSent && !feedbackOTPVerified && (
+                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                      <p className="text-sm text-blue-300 mb-3">
+                        📧 We've sent a 6-digit code to <strong>{feedbackForm.email}</strong>
+                      </p>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={feedbackOTP}
+                          onChange={(e) => setFeedbackOTP(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          className="flex-1 px-4 py-2 bg-gray-900 border border-blue-500 rounded-lg text-white text-center text-2xl font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="000000"
+                          maxLength={6}
+                        />
+                        <Button
+                          type="button"
+                          onClick={handleVerifyFeedbackOTP}
+                          disabled={feedbackOTP.length !== 6 || isSubmitting}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          Verify
+                        </Button>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-2">
+                        Didn't receive it? <button type="button" onClick={handleSendFeedbackOTP} className="text-blue-400 hover:underline">Resend code</button>
+                      </p>
+                    </div>
+                  )}
 
                   {/* Message */}
                   <div>
@@ -949,11 +1323,13 @@ function PublicLandingPage() {
                         setFeedbackForm({
                           name: '',
                           email: '',
-                          phone: '',
                           type: 'comment',
                           rating: 0,
                           message: ''
                         });
+                        setFeedbackOTP('');
+                        setFeedbackOTPSent(false);
+                        setFeedbackOTPVerified(false);
                       }}
                       variant="outline"
                       className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"

@@ -45,13 +45,15 @@ export default function DashboardPage() {
     // They will be prompted to complete profile within the dashboard
     
     // If pending or rejected, redirect to pending approval page
-    if (currentUserStatus.status === "pending" || currentUserStatus.status === "rejected") {
+    if (currentUserStatus && (currentUserStatus.status === "pending" || currentUserStatus.status === "rejected")) {
       console.log("⚠️ User status:", currentUserStatus.status, "redirecting to pending-approval");
       router.replace('/pending-approval');
       return;
     }
     
-    console.log("✅ User status:", currentUserStatus.status, "showing dashboard");
+    if (currentUserStatus) {
+      console.log("✅ User status:", currentUserStatus.status, "showing dashboard");
+    }
   }, [currentUserStatus, router, hasCheckedStatus, isLoaded, user]);
   
   // Initialize database and check user status

@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { X, Calendar, Clock, MapPin, Users, AlertTriangle, Briefcase, MessageSquare } from "lucide-react";
+import { X, Calendar, Clock, MapPin, Users, AlertTriangle, Briefcase, MessageSquare, Globe, Upload, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LocationPickerModal } from "@/components/shared/LocationPickerModal";
 
 interface EditEventModalProps {
   event: any;
@@ -14,21 +15,31 @@ interface EditEventModalProps {
 
 export function EditEventModal({ event, isOpen, onClose }: EditEventModalProps) {
   const updateEvent = useMutation(api.events.updateEvent);
+  const generateUploadUrl = useMutation(api.documents.generateUploadUrl);
   
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    type: "community" as "meeting" | "community" | "project" | "emergency",
+    type: "community" as "meeting" | "community" | "project" | "emergency" | "milestone",
     startDate: "",
     startTime: "",
     endDate: "",
     endTime: "",
     location: "",
+    coordinates: null as { latitude: number; longitude: number } | null,
     maxAttendees: "",
+    isPublic: true,
+    requiresApproval: false,
+    allowPublicRSVP: false,
+    allowDocumentUpload: false,
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
+  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null);
 
   // Pre-fill form with event data
   useEffect(() => {
@@ -45,8 +56,23 @@ export function EditEventModal({ event, isOpen, onClose }: EditEventModalProps) 
         endDate: endDate.toISOString().split('T')[0],
         endTime: endDate.toTimeString().slice(0, 5),
         location: event.location || "",
+        coordinates: event.coordinates || null,
         maxAttendees: event.maxAttendees?.toString() || "",
+        isPublic: event.isPublic ?? true,
+        requiresApproval: event.requiresApproval ?? false,
+        allowPublicRSVP: event.allowPublicRSVP ?? false,
+        allowDocumentUpload: event.allowDocumentUpload ?? false,
       });
+      
+      // Set coordinates for location picker
+      if (event.coordinates) {
+        setCoordinates({ lat: event.coordinates.latitude, lng: event.coordinates.longitude });
+      }
+      
+      // Set existing image preview
+      if (event.imageUrl) {
+        setImagePreview(event.imageUrl);
+      }
     }
   }, [event]);
 
@@ -56,8 +82,22 @@ export function EditEventModal({ event, isOpen, onClose }: EditEventModalProps) 
     { value: "meeting" as const, label: "Meeting", icon: MessageSquare, color: "bg-blue-600" },
     { value: "community" as const, label: "Community", icon: Users, color: "bg-emerald-600" },
     { value: "project" as const, label: "Project", icon: Briefcase, color: "bg-purple-600" },
-    { value: "emergency" as const, label: "Emergency", icon: AlertTriangle, color: "bg-red-600" },
+    { value: "milestone" as const, label: "🎯 Milestone", icon: Briefcase, color: "bg-purple-600" },
+    { value: "emergency" as const, label: "⚠️ Emergency", icon: AlertTriangle, color: "bg-red-600" },
   ];
+
+  // Handle image upload
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,14 +118,41 @@ export function EditEventModal({ event, isOpen, onClose }: EditEventModalProps) 
         throw new Error("End time must be after start time");
       }
 
+      // Upload new image if provided
+      let imageUrl = event.imageUrl; // Keep existing image by default
+      
+      if (imageFile) {
+        // Step 1: Get upload URL
+        const uploadUrl = await generateUploadUrl();
+        
+        // Step 2: Upload file to Convex storage
+        const result = await fetch(uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": imageFile.type },
+          body: imageFile,
+        });
+        
+        const { storageId } = await result.json();
+        
+        // Step 3: Use storageId as imageUrl
+        imageUrl = storageId;
+      }
+
       await updateEvent({
         eventId: event._id,
         title: formData.title,
         description: formData.description,
+        type: formData.type,
         startDate: startDateTime,
         endDate: endDateTime,
         location: formData.location,
+        coordinates: formData.coordinates || undefined,
         maxAttendees: formData.maxAttendees ? parseInt(formData.maxAttendees) : undefined,
+        imageUrl: imageUrl,
+        isPublic: formData.isPublic,
+        requiresApproval: formData.requiresApproval,
+        allowPublicRSVP: formData.allowPublicRSVP,
+        allowDocumentUpload: formData.allowDocumentUpload,
       });
 
       onClose();
@@ -129,7 +196,7 @@ export function EditEventModal({ event, isOpen, onClose }: EditEventModalProps) 
           {/* Event Type */}
           <div>
             <label className="block text-sm font-semibold text-gray-300 mb-3">Event Type</label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {eventTypes.map(({ value, label, icon: Icon, color }) => (
                 <button
                   key={value}
@@ -176,6 +243,51 @@ export function EditEventModal({ event, isOpen, onClose }: EditEventModalProps) 
               placeholder="Describe your event"
               required
             />
+          </div>
+
+          {/* Event Image */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-300 mb-2">
+              Event Image (Optional)
+            </label>
+            <div className="space-y-3">
+              {imagePreview && (
+                <div className="relative aspect-video w-full max-w-md mx-auto rounded-lg overflow-hidden border border-gray-600">
+                  <img
+                    src={imagePreview}
+                    alt="Event preview"
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImagePreview("");
+                      setImageFile(null);
+                    }}
+                    className="absolute top-2 right-2 p-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                  >
+                    <X className="w-4 h-4 text-white" />
+                  </button>
+                </div>
+              )}
+              <div className="flex items-center justify-center w-full">
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-600 border-dashed rounded-lg cursor-pointer bg-gray-700/30 hover:bg-gray-700/50 transition-colors">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Upload className="w-8 h-8 mb-2 text-gray-400" />
+                    <p className="mb-2 text-sm text-gray-400">
+                      <span className="font-semibold">{imagePreview ? 'Change image' : 'Click to upload'}</span> or drag and drop
+                    </p>
+                    <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+                  </div>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                  />
+                </label>
+              </div>
+            </div>
           </div>
 
           {/* Date and Time */}
@@ -233,20 +345,41 @@ export function EditEventModal({ event, isOpen, onClose }: EditEventModalProps) 
 
           {/* Location */}
           <div>
-            <label className="block text-sm font-semibold text-gray-300 mb-2">
-              Location *
-            </label>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                className="w-full pl-11 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Event location"
-                required
-              />
-            </div>
+            <label className="block text-sm font-semibold text-gray-300 mb-2">Location *</label>
+            {formData.location ? (
+              <div className="bg-emerald-600/20 border border-emerald-600/30 rounded-lg p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 flex-1">
+                    <MapPin className="w-5 h-5 text-emerald-400 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-white font-medium mb-1">{formData.location}</p>
+                      {formData.coordinates && (
+                        <p className="text-gray-400 text-xs">
+                          {formData.coordinates.latitude.toFixed(6)}, {formData.coordinates.longitude.toFixed(6)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={() => setIsLocationPickerOpen(true)}
+                    variant="ghost"
+                    className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-600/20"
+                  >
+                    Change
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                onClick={() => setIsLocationPickerOpen(true)}
+                className="w-full bg-gray-700/50 border border-gray-600 hover:bg-gray-700 text-white py-6 flex items-center justify-center gap-2"
+              >
+                <MapPin className="w-5 h-5" />
+                <span>Pick Location on Map</span>
+              </Button>
+            )}
           </div>
 
           {/* Max Attendees */}
@@ -265,6 +398,69 @@ export function EditEventModal({ event, isOpen, onClose }: EditEventModalProps) 
                 min="1"
               />
             </div>
+          </div>
+
+          {/* Event Settings */}
+          <div className="space-y-3 pt-4 border-t border-white/10">
+            <h3 className="text-sm font-semibold text-gray-300 mb-3">Event Settings</h3>
+            
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.isPublic}
+                onChange={(e) => setFormData({ ...formData, isPublic: e.target.checked })}
+                className="w-5 h-5 rounded border-white/20 bg-white/5 text-emerald-600 focus:ring-2 focus:ring-emerald-500"
+              />
+              <div className="flex-1">
+                <span className="text-white font-medium flex items-center gap-2">
+                  <Globe className="w-4 h-4" />
+                  Public Event
+                </span>
+                <p className="text-gray-400 text-xs mt-1">Anyone in the community can see this event</p>
+              </div>
+            </label>
+            
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.requiresApproval}
+                onChange={(e) => setFormData({ ...formData, requiresApproval: e.target.checked })}
+                className="w-5 h-5 rounded border-white/20 bg-white/5 text-emerald-600 focus:ring-2 focus:ring-emerald-500"
+              />
+              <div className="flex-1">
+                <span className="text-white font-medium">Require Approval</span>
+                <p className="text-gray-400 text-xs mt-1">Users need approval to join this event</p>
+              </div>
+            </label>
+            
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.allowPublicRSVP}
+                onChange={(e) => setFormData({ ...formData, allowPublicRSVP: e.target.checked })}
+                className="w-5 h-5 rounded border-white/20 bg-white/5 text-emerald-600 focus:ring-2 focus:ring-emerald-500"
+              />
+              <div className="flex-1">
+                <span className="text-white font-medium">Allow Public RSVP</span>
+                <p className="text-gray-400 text-xs mt-1">Non-logged-in users can join with email verification</p>
+              </div>
+            </label>
+            
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.allowDocumentUpload}
+                onChange={(e) => setFormData({ ...formData, allowDocumentUpload: e.target.checked })}
+                className="w-5 h-5 rounded border-white/20 bg-white/5 text-purple-600 focus:ring-2 focus:ring-purple-500"
+              />
+              <div className="flex-1">
+                <span className="text-white font-medium flex items-center gap-2">
+                  <Upload className="w-4 h-4" />
+                  Require Document Upload
+                </span>
+                <p className="text-gray-400 text-xs mt-1">Attendees must upload proof of citizenship/residency (max 5MB)</p>
+              </div>
+            </label>
           </div>
 
           {/* Buttons */}
@@ -286,6 +482,21 @@ export function EditEventModal({ event, isOpen, onClose }: EditEventModalProps) 
           </div>
         </form>
       </div>
+      
+      {/* Location Picker Modal */}
+      <LocationPickerModal
+        isOpen={isLocationPickerOpen}
+        onClose={() => setIsLocationPickerOpen(false)}
+        onSelectLocation={(location) => {
+          setFormData({
+            ...formData,
+            location: location.address,
+            coordinates: { latitude: location.lat, longitude: location.lng }
+          });
+          setCoordinates({ lat: location.lat, lng: location.lng });
+        }}
+        initialLocation={coordinates || undefined}
+      />
     </div>
   );
 }

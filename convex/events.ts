@@ -20,13 +20,23 @@ export const createEvent = mutation({
     isPublic: v.optional(v.boolean()),
     requiresApproval: v.optional(v.boolean()),
     allowPublicRSVP: v.optional(v.boolean()),
+    allowDocumentUpload: v.optional(v.boolean()),
     projectId: v.optional(v.id("projects")),
     imageUrl: v.optional(v.string()),
     department: v.optional(v.string()),
     milestoneTaskCount: v.optional(v.number()), // For milestone events
   },
   handler: async (ctx, args) => {
-    const currentUser = await checkPermission(ctx, ["ADMIN", "MANAGER", "BUILDER"]);
+    const currentUser = await checkPermission(ctx, ["ADMIN", "MANAGER", "BUILDER", "WORKER"]);
+    
+    // Get user level to determine event status
+    const userLevel = typeof currentUser.userLevel === 'object' && currentUser.userLevel !== null && 'level' in currentUser.userLevel
+      ? currentUser.userLevel.level
+      : 0;
+    
+    // Builder (2) and Worker (1) events go to pending if requiresApproval is true
+    // Manager (4) and Admin (5) events are published immediately
+    const eventStatus = (userLevel < 4 && args.requiresApproval) ? "pending" : "published";
     
     const eventId = await ctx.db.insert("events", {
       title: args.title,
@@ -42,7 +52,8 @@ export const createEvent = mutation({
       isPublic: args.isPublic ?? true,
       requiresApproval: args.requiresApproval ?? false,
       allowPublicRSVP: args.allowPublicRSVP ?? false,
-      status: "published",
+      allowDocumentUpload: args.allowDocumentUpload ?? false,
+      status: eventStatus,
       projectId: args.projectId, // Link to project
       imageUrl: args.imageUrl, // Event image
       publicAttendees: [],
@@ -98,12 +109,18 @@ export const updateEvent = mutation({
     eventId: v.id("events"),
     title: v.optional(v.string()),
     description: v.optional(v.string()),
+    type: v.optional(v.union(v.literal("meeting"), v.literal("community"), v.literal("project"), v.literal("emergency"), v.literal("milestone"))),
     startDate: v.optional(v.number()),
     endDate: v.optional(v.number()),
     location: v.optional(v.string()),
+    coordinates: v.optional(v.object({ latitude: v.number(), longitude: v.number() })),
     status: v.optional(v.union(v.literal("draft"), v.literal("published"), v.literal("cancelled"))),
     maxAttendees: v.optional(v.number()),
     imageUrl: v.optional(v.string()),
+    isPublic: v.optional(v.boolean()),
+    requiresApproval: v.optional(v.boolean()),
+    allowPublicRSVP: v.optional(v.boolean()),
+    allowDocumentUpload: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const currentUser = await getCurrentUser(ctx);
@@ -249,7 +266,8 @@ export const rsvpToEvent = mutation({
     attendeeInfo: v.optional(v.object({
       firstName: v.string(),
       lastName: v.string(),
-      phone: v.string(),
+      email: v.string(),
+      documentStorageId: v.optional(v.string()),
     })),
   },
   handler: async (ctx, args) => {
@@ -282,24 +300,32 @@ export const rsvpToEvent = mutation({
         });
       } else if (args.attendeeInfo) {
         // Public RSVP - add to publicAttendees array and create document
-        const { firstName, lastName, phone } = args.attendeeInfo;
+        const { firstName, lastName, email, documentStorageId } = args.attendeeInfo;
         
         const publicAttendees = event.publicAttendees || [];
         
         // Check if already registered
         const alreadyRegistered = publicAttendees.some(
-          att => att.phone === phone
+          att => att.email.toLowerCase() === email.toLowerCase()
         );
         
         if (!alreadyRegistered) {
+          // Get document URL if uploaded
+          let documentId: string | undefined;
+          if (documentStorageId) {
+            documentId = await ctx.storage.getUrl(documentStorageId) || undefined;
+          }
+
           // Add to event's publicAttendees array
           const newPublicAttendees = [
             ...publicAttendees,
             {
               firstName,
               lastName,
-              phone,
+              email,
               joinedAt: Date.now(),
+              documentId,
+              documentStorageId,
             }
           ];
           
@@ -321,7 +347,7 @@ export const rsvpToEvent = mutation({
           // Build attendee list string
           const attendeeList = newPublicAttendees
             .map((att, index) => 
-              `${index + 1}. ${att.firstName} ${att.lastName}\n   Phone: ${att.phone}\n   Joined: ${new Date(att.joinedAt).toLocaleString()}`
+              `${index + 1}. ${att.firstName} ${att.lastName}\n   Email: ${att.email}\n   Joined: ${new Date(att.joinedAt).toLocaleString()}${att.documentId ? '\n   Document: Uploaded ✓' : ''}`
             )
             .join('\n\n');
           
@@ -547,14 +573,19 @@ export const getUpcomingEvents = query({
       .query("events")
       .filter((q) => q.and(
         q.gte(q.field("startDate"), now),
-        q.eq(q.field("status"), "published")
+        q.eq(q.field("status"), "published"),
+        q.eq(q.field("isPublic"), true)
       ))
-      .order("asc")
-      .take(limit);
+      .collect();
+    
+    // Sort by startDate and take limit
+    const sortedEvents = events
+      .sort((a, b) => a.startDate - b.startDate)
+      .slice(0, limit);
     
     // Enrich with details and project information
     const enrichedEvents = await Promise.all(
-      events.map(async (event) => {
+      sortedEvents.map(async (event) => {
         const organizer = await ctx.db.get(event.organizer);
         
         // Fetch project details if event is linked to a project
@@ -564,8 +595,16 @@ export const getUpcomingEvents = query({
           projectName = project?.title || null;
         }
         
+        // Convert imageUrl storage ID to actual URL
+        let imageUrl = event.imageUrl;
+        if (event.imageUrl) {
+          const url = await ctx.storage.getUrl(event.imageUrl as any);
+          imageUrl = url ?? event.imageUrl;
+        }
+        
         return {
           ...event,
+          imageUrl, // Use converted URL
           organizerDetails: organizer ? {
             _id: organizer._id,
             name: organizer.name,
@@ -820,5 +859,120 @@ export const getEventsForExport = query({
     );
     
     return exportData;
+  },
+});
+
+// Get pending events for approval (Manager+ only)
+export const getPendingEvents = query({
+  args: {},
+  handler: async (ctx) => {
+    const currentUser = await checkPermission(ctx, ["ADMIN", "MANAGER"]);
+    
+    const pendingEvents = await ctx.db
+      .query("events")
+      .filter(q => q.eq(q.field("status"), "pending"))
+      .collect();
+    
+    // Get organizer details for each event
+    const eventsWithOrganizers = await Promise.all(
+      pendingEvents.map(async (event) => {
+        const organizer = await ctx.db.get(event.organizer);
+        
+        // Convert imageUrl storage ID to actual URL
+        let imageUrl = event.imageUrl;
+        if (event.imageUrl) {
+          const url = await ctx.storage.getUrl(event.imageUrl as any);
+          imageUrl = url ?? event.imageUrl;
+        }
+        
+        return {
+          ...event,
+          imageUrl, // Use converted URL
+          organizerName: organizer?.name || "Unknown",
+          organizerEmail: organizer?.email || "",
+        };
+      })
+    );
+    
+    return eventsWithOrganizers;
+  },
+});
+
+// Approve event (Manager+ only)
+export const approveEvent = mutation({
+  args: { eventId: v.id("events") },
+  handler: async (ctx, args) => {
+    const currentUser = await checkPermission(ctx, ["ADMIN", "MANAGER"]);
+    
+    const event = await ctx.db.get(args.eventId);
+    if (!event) throw new Error("Event not found");
+    
+    if (event.status !== "pending") {
+      throw new Error("Event is not pending approval");
+    }
+    
+    await ctx.db.patch(args.eventId, {
+      status: "published",
+    });
+    
+    return args.eventId;
+  },
+});
+
+// Reject event (Manager+ only)
+export const rejectEvent = mutation({
+  args: { 
+    eventId: v.id("events"),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await checkPermission(ctx, ["ADMIN", "MANAGER"]);
+    
+    const event = await ctx.db.get(args.eventId);
+    if (!event) throw new Error("Event not found");
+    
+    if (event.status !== "pending") {
+      throw new Error("Event is not pending approval");
+    }
+    
+    await ctx.db.patch(args.eventId, {
+      status: "cancelled",
+    });
+    
+    // TODO: Optionally notify the event organizer about rejection
+    
+    return args.eventId;
+  },
+});
+
+// DEBUG: Get ALL events with their details (for troubleshooting)
+export const debugGetAllEvents = query({
+  args: {},
+  handler: async (ctx) => {
+    const events = await ctx.db.query("events").collect();
+    const now = Date.now();
+    
+    return events.map(event => ({
+      _id: event._id,
+      title: event.title,
+      type: event.type,
+      status: event.status,
+      isPublic: event.isPublic,
+      requiresApproval: event.requiresApproval,
+      allowPublicRSVP: event.allowPublicRSVP,
+      startDate: event.startDate,
+      isFuture: event.startDate >= now,
+      startDateFormatted: new Date(event.startDate).toLocaleString(),
+      _creationTime: event._creationTime,
+      createdAt: new Date(event._creationTime).toLocaleString(),
+    }));
+  },
+});
+
+// Generate upload URL for event RSVP documents (proof of citizenship, etc.)
+export const generateEventDocumentUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.storage.generateUploadUrl();
   },
 });

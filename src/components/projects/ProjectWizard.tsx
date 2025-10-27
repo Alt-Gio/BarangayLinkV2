@@ -34,6 +34,7 @@ import {
   Plus,
   X,
 } from "lucide-react";
+import { LocationPickerModal } from "@/components/shared/LocationPickerModal";
 import { format } from "date-fns";
 
 interface ProjectWizardProps {
@@ -43,6 +44,8 @@ interface ProjectWizardProps {
 
 export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
   const [step, setStep] = useState(1);
+  const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
+  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   
   // Get current user to determine role and department
   const currentUser = useQuery(api.users.getCurrentUser);
@@ -67,6 +70,7 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
     // Step 3: Budget & Impact
     budget: 0,
     location: "",
+    coordinates: null as { latitude: number; longitude: number } | null,
     estimatedBeneficiaries: 0,
     impactAreas: [] as string[],
     
@@ -169,6 +173,7 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
         startDate: new Date(formData.startDate).getTime(),
         endDate: new Date(formData.endDate).getTime(),
         location: formData.location,
+        coordinates: formData.coordinates || undefined,
         department: formData.department,
         tags: formData.tags,
         isPublic: formData.isPublic,
@@ -476,17 +481,44 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="location" className="text-white flex items-center gap-2">
+                <Label className="text-white flex items-center gap-2">
                   <MapPin className="w-4 h-4" />
                   Location
                 </Label>
-                <Input
-                  id="location"
-                  value={formData.location}
-                  onChange={(e) => updateField("location", e.target.value)}
-                  placeholder="e.g., Barangay Hall, Main Street"
-                  className="bg-gray-800 border-gray-700 text-white"
-                />
+                {formData.location ? (
+                  <div className="bg-emerald-600/20 border border-emerald-600/30 rounded-lg p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 flex-1">
+                        <MapPin className="w-5 h-5 text-emerald-400 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-white font-medium mb-1">{formData.location}</p>
+                          {formData.coordinates && (
+                            <p className="text-gray-400 text-xs">
+                              {formData.coordinates.latitude.toFixed(6)}, {formData.coordinates.longitude.toFixed(6)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => setIsLocationPickerOpen(true)}
+                        variant="ghost"
+                        className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-600/20"
+                      >
+                        Change
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    onClick={() => setIsLocationPickerOpen(true)}
+                    className="w-full bg-gray-700/50 border border-gray-600 hover:bg-gray-700 text-white py-6 flex items-center justify-center gap-2"
+                  >
+                    <MapPin className="w-5 h-5" />
+                    <span>Pick Location on Map</span>
+                  </Button>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -761,6 +793,18 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Location Picker Modal */}
+      <LocationPickerModal
+        isOpen={isLocationPickerOpen}
+        onClose={() => setIsLocationPickerOpen(false)}
+        onSelectLocation={(location) => {
+          updateField("location", location.address);
+          updateField("coordinates", { latitude: location.lat, longitude: location.lng });
+          setCoordinates({ lat: location.lat, lng: location.lng });
+        }}
+        initialLocation={coordinates || undefined}
+      />
     </div>
   );
 }

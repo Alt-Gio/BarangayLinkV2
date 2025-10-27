@@ -134,17 +134,17 @@ export const updateProjectDetails = mutation({
     isPublic: v.optional(v.boolean())
   },
   handler: async (ctx, args) => {
-    const currentUser = await checkPermission(ctx, ["BUILDER", "MANAGER", "ADMIN"]);
+    const currentUser = await checkPermission(ctx, ["MANAGER", "ADMIN"]);
     const project = await ctx.db.get(args.projectId);
     
     if (!project) throw new Error("Project not found");
     
-    // Role-based edit permissions
+    // Only Manager+ can edit projects
+    // Manager can edit projects in their department, Admin can edit all
     const canEdit = currentUser.userLevel.name === "ADMIN" ||
-                   (currentUser.userLevel.name === "MANAGER" && project.department === currentUser.department) ||
-                   (currentUser.userLevel.name === "BUILDER" && project.createdBy === currentUser._id);
+                   (currentUser.userLevel.name === "MANAGER" && project.department === currentUser.department);
                    
-    if (!canEdit) throw new Error("Permission denied");
+    if (!canEdit) throw new Error("Only Managers and Admins can edit projects");
     
     const updateData: any = {};
     Object.keys(args).forEach(key => {
@@ -519,6 +519,7 @@ export const createProject = mutation({
     startDate: v.number(),
     endDate: v.number(),
     location: v.optional(v.string()),
+    coordinates: v.optional(v.object({ latitude: v.number(), longitude: v.number() })),
     department: v.string(),
     tags: v.array(v.string()),
     isPublic: v.boolean(),
@@ -556,6 +557,7 @@ export const createProject = mutation({
       startDate: args.startDate,
       endDate: args.endDate,
       location: args.location,
+      coordinates: args.coordinates,
       createdBy: currentUser._id,
       assignedTo: args.assignedTo && args.assignedTo.length > 0 
         ? args.assignedTo.map(id => id as any) 
@@ -722,6 +724,7 @@ export const updateProject = mutation({
       startDate: v.optional(v.number()),
       endDate: v.optional(v.number()),
       location: v.optional(v.string()),
+      coordinates: v.optional(v.object({ latitude: v.number(), longitude: v.number() })),
       tags: v.optional(v.array(v.string())),
       impactArea: v.optional(v.array(v.string())),
       estimatedBeneficiaries: v.optional(v.number()),
@@ -729,17 +732,17 @@ export const updateProject = mutation({
     }),
   },
   handler: async (ctx, args) => {
-    const currentUser = await getCurrentUser(ctx);
+    const currentUser = await checkPermission(ctx, ["MANAGER", "ADMIN"]);
     const project = await ctx.db.get(args.projectId);
     
     if (!project) throw new Error("Project not found");
     
+    // Only Manager+ can edit projects
     const canEdit = 
       currentUser.userLevel.name === "ADMIN" ||
-      (currentUser.userLevel.name === "MANAGER" && project.department === currentUser.department) ||
-      project.createdBy === currentUser._id;
+      (currentUser.userLevel.name === "MANAGER" && project.department === currentUser.department);
     
-    if (!canEdit) throw new Error("You don't have permission to edit this project");
+    if (!canEdit) throw new Error("Only Managers and Admins can edit projects");
 
     const now = Date.now();
     await ctx.db.patch(args.projectId, args.updates);

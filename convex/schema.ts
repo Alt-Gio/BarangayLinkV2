@@ -155,6 +155,8 @@ export default defineSchema({
     isPublic: v.boolean(),
     isFeatured: v.optional(v.boolean()), // Highlight on landing page
     featuredOrder: v.optional(v.number()), // Display order for featured projects
+    featuredImage: v.optional(v.string()), // Custom image for landing page display
+    featuredImageStorageId: v.optional(v.string()), // Convex storage ID for image
     // Approval workflow
     approvalStatus: v.union(
       v.literal("pending"),
@@ -364,7 +366,8 @@ export default defineSchema({
     isPublic: v.boolean(),
     requiresApproval: v.boolean(),
     allowPublicRSVP: v.optional(v.boolean()), // Allow non-logged-in users to RSVP
-    status: v.union(v.literal("draft"), v.literal("published"), v.literal("cancelled"), v.literal("archived")),
+    allowDocumentUpload: v.optional(v.boolean()), // Require document upload for RSVP (e.g., proof of citizenship)
+    status: v.union(v.literal("draft"), v.literal("pending"), v.literal("published"), v.literal("cancelled"), v.literal("archived")),
     projectId: v.optional(v.id("projects")), // Link event to project
     imageUrl: v.optional(v.string()), // Event image for visual documentation
     imageDocumentId: v.optional(v.id("documents")), // Link to document library for proper documentation
@@ -372,8 +375,10 @@ export default defineSchema({
     publicAttendees: v.optional(v.array(v.object({
       firstName: v.string(),
       lastName: v.string(),
-      phone: v.string(),
+      email: v.string(), // Email for verification
       joinedAt: v.number(),
+      documentId: v.optional(v.string()), // Uploaded document (proof of citizenship, etc.)
+      documentStorageId: v.optional(v.string()), // Convex storage ID
     }))), // Track public RSVP attendees
     liveblocksRoom: v.optional(v.string()),
     archivedAt: v.optional(v.number()),
@@ -1354,4 +1359,17 @@ export default defineSchema({
     updatedAt: v.number(),
     updatedBy: v.optional(v.id("users")),
   }),
+
+  // OTP Verifications for email verification (feedback, event RSVP)
+  otpVerifications: defineTable({
+    email: v.string(),
+    otp: v.string(),
+    purpose: v.union(v.literal("feedback"), v.literal("event_rsvp")),
+    expiresAt: v.number(),
+    verified: v.boolean(),
+    attempts: v.number(),
+  })
+  .index("by_email", ["email"])
+  .index("by_purpose", ["purpose"])
+  .index("by_email_purpose", ["email", "purpose"]),
 });

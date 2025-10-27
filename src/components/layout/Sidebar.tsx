@@ -38,7 +38,9 @@ import {
   MessageSquare,
   Target,
   TrendingUp,
-  Bell
+  Bell,
+  Image,
+  Bug
 } from 'lucide-react';
 import { GlobalSearch } from '@/components/search/GlobalSearch';
 import { SidebarNotificationPanel } from '@/components/notifications/SidebarNotificationPanel';
@@ -197,6 +199,13 @@ export function Sidebar({
           roles: ['WORKER', 'BUILDER', 'MANAGER', 'CAPTAIN', 'ADMIN']
         },
         {
+          id: 'event-approval',
+          label: 'Event Approval',
+          icon: <CheckSquare className="w-4 h-4" />,
+          path: '/events/approval',
+          roles: ['MANAGER', 'CAPTAIN', 'ADMIN']
+        },
+        {
           id: 'sprint-board',
           label: 'Sprint Board',
           icon: <TrendingUp className="w-4 h-4" />,
@@ -264,6 +273,20 @@ export function Sidebar({
           label: 'Organizational Chart',
           icon: <Network className="w-4 h-4" />,
           path: '/admin/org-chart',
+          roles: ['ADMIN']
+        },
+        {
+          id: 'landing-page',
+          label: 'Landing Page Management',
+          icon: <Image className="w-4 h-4" />,
+          path: '/admin/landing-page',
+          roles: ['ADMIN']
+        },
+        {
+          id: 'debug-events',
+          label: 'Debug Events',
+          icon: <Bug className="w-4 h-4" />,
+          path: '/debug/events',
           roles: ['ADMIN']
         },
         {
