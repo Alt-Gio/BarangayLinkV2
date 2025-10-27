@@ -18,7 +18,7 @@ export const getTeamWorkload = query({
     const currentUser = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
+      .first();
 
     if (!currentUser) {
       throw new Error("User not found");
@@ -200,7 +200,7 @@ export const getUserTasks = query({
     const currentUser = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
+      .first();
 
     if (!currentUser) {
       throw new Error("User not found");

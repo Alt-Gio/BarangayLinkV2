@@ -395,10 +395,12 @@ export const getCurrentUser = query({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return null;
 
+    // Use .first() instead of .unique() to handle duplicate users gracefully
+    // (duplicates can occur from backup restores)
     const user = await ctx.db
       .query("users")
       .filter((q) => q.eq(q.field("clerkId"), identity.subject))
-      .unique();
+      .first();
 
     if (!user) return null;
 

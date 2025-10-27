@@ -9,7 +9,7 @@ export const getCurrentUser = async (ctx: any) => {
   const user = await ctx.db
     .query("users")
     .filter((q: any) => q.eq(q.field("clerkId"), identity.subject))
-    .unique();
+    .first();
 
   if (!user) throw new Error("User not found in database");
 

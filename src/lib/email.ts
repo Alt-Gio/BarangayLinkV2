@@ -112,7 +112,7 @@ export async function sendTaskAssignedEmail(params: {
               <p><strong>Priority:</strong> <span class="priority">${params.priority.toUpperCase()}</span></p>
             </div>
             <center>
-              <a href="${BASE_URL}/tasks/my-tasks?taskId=${params.taskId}" class="button">View Task</a>
+              <a href="${BASE_URL}/tasks/my-duties?taskId=${params.taskId}" class="button">View Task</a>
             </center>
           </div>
         </div>

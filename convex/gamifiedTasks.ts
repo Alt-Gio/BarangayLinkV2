@@ -836,7 +836,16 @@ export const getMyProjectTasks = query({
           };
         }
         
-        projectGroups[projectId].tasks.push(task);
+        // Enrich task with milestone info
+        let milestone = null;
+        if (task.milestoneId) {
+          milestone = await ctx.db.get(task.milestoneId);
+        }
+        
+        projectGroups[projectId].tasks.push({
+          ...task,
+          milestone,
+        });
         projectGroups[projectId].total++;
         projectGroups[projectId].totalXP += task.experienceReward;
         projectGroups[projectId].totalGold += task.goldReward;
@@ -850,5 +859,97 @@ export const getMyProjectTasks = query({
     }
 
     return Object.values(projectGroups);
+  },
+});
+
+// Start working on a project task
+export const startWorkingOnTask = mutation({  
+  args: { taskId: v.id("tasks") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkId"), identity.subject))
+      .first();
+
+    if (!user) throw new Error("User not found");
+
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+
+    // Check if user is assigned
+    if (!task.assignedTo.includes(user._id)) {
+      throw new Error("You must be assigned to this task to work on it");
+    }
+
+    // Update task to mark user as working on it
+    await ctx.db.patch(args.taskId, {
+      workingOnIt: user._id,
+      workingOnItStartedAt: Date.now(),
+      status: task.status === "todo" || task.status === "To Do" ? "in_progress" : task.status,
+    });
+
+    return { success: true };
+  },
+});
+
+// Stop working on a project task
+export const stopWorkingOnTask = mutation({
+  args: { 
+    taskId: v.id("tasks"),
+    hoursWorked: v.optional(v.number()),
+    description: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkId"), identity.subject))
+      .first();
+
+    if (!user) throw new Error("User not found");
+
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+
+    // Check if user is the one working on it
+    if (task.workingOnIt !== user._id) {
+      throw new Error("You are not currently working on this task");
+    }
+
+    // Calculate hours if not provided
+    let hoursWorked = args.hoursWorked;
+    if (!hoursWorked && task.workingOnItStartedAt) {
+      const elapsedMs = Date.now() - task.workingOnItStartedAt;
+      hoursWorked = Math.round((elapsedMs / (1000 * 60 * 60)) * 10) / 10; // Round to 1 decimal
+    }
+
+    // Log the hours
+    const loggedHours = task.loggedHours || [];
+    if (hoursWorked && hoursWorked > 0) {
+      loggedHours.push({
+        hours: hoursWorked,
+        date: Date.now(),
+        userId: user._id,
+        description: args.description,
+      });
+    }
+
+    // Calculate new total actual hours
+    const totalActualHours = loggedHours.reduce((sum, log) => sum + log.hours, 0);
+
+    // Update task
+    await ctx.db.patch(args.taskId, {
+      workingOnIt: undefined,
+      workingOnItStartedAt: undefined,
+      loggedHours,
+      actualHours: totalActualHours,
+    });
+
+    return { success: true, hoursWorked };
   },
 });

@@ -34,6 +34,7 @@ import {
   AlertTriangle,
   CheckCheck,
 } from "lucide-react";
+import RippleLoader from "@/components/ui/RippleLoader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -66,6 +67,8 @@ export default function SystemSettingsPage() {
   const deleteBackupMut = useMutation(api.backup.deleteBackup);
   const clearUsersAction = useAction(api.backup.clearUsersWithArchive);
   const clearAllDataAction = useAction(api.backup.clearAllDataWithArchive);
+  const clearAllMessagesAction = useAction(api.backup.clearAllMessagesWithArchive);
+  const removeDuplicateUsersAction = useAction(api.backup.removeDuplicateUsers);
   
   // Notification actions
   const checkOverdueAction = useAction(api.notificationSystem.checkOverdueProjects);
@@ -77,6 +80,14 @@ export default function SystemSettingsPage() {
   const updateDepartmentMut = useMutation(api.departments.updateDepartment);
   const deleteDepartmentMut = useMutation(api.departments.deleteDepartment);
   const updateBackupScheduleMut = useMutation(api.backup.updateBackupSchedule);
+  
+  // Performance optimization
+  const logStats = useQuery(api.performanceOptimization.getLogStatistics);
+  const optimizeSystemMut = useMutation(api.performanceOptimization.optimizeSystem);
+  const cleanupActivityLogsMut = useMutation(api.performanceOptimization.cleanupOldActivityLogs);
+  const cleanupSearchHistoryMut = useMutation(api.performanceOptimization.cleanupOldSearchHistory);
+  const cleanupProjectActivitiesMut = useMutation(api.performanceOptimization.cleanupOldProjectActivities);
+  const cleanupInactiveSessionsMut = useMutation(api.performanceOptimization.cleanupInactiveSessions);
 
   // System settings state
   const [settings, setSettings] = useState({
@@ -106,7 +117,7 @@ export default function SystemSettingsPage() {
     maintenanceMode: false,
   });
 
-  const [newDepartment, setNewDepartment] = useState({ name: "", description: "", contactEmail: "", location: "" });
+  const [newDepartment, setNewDepartment] = useState({ name: "", description: "", contactEmail: "", location: "", category: "General" });
   const [editingDept, setEditingDept] = useState<any>(null);
   const [backupInProgress, setBackupInProgress] = useState(false);
   const [restoreInProgress, setRestoreInProgress] = useState(false);
@@ -115,9 +126,13 @@ export default function SystemSettingsPage() {
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
   const [showClearDataModal, setShowClearDataModal] = useState(false);
+  const [showClearMessagesModal, setShowClearMessagesModal] = useState(false);
+  const [removingDuplicates, setRemovingDuplicates] = useState(false);
   const [checkingProjects, setCheckingProjects] = useState(false);
   const [sendingTestEmail, setSendingTestEmail] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState<any>(null);
   const [notificationStats, setNotificationStats] = useState({ total: 0, overdue: 0 });
 
   const handleCreateBackup = async () => {
@@ -140,7 +155,7 @@ export default function SystemSettingsPage() {
     }
     try {
       await createDepartmentMut(newDepartment);
-      setNewDepartment({ name: "", description: "", contactEmail: "", location: "" });
+      setNewDepartment({ name: "", description: "", contactEmail: "", location: "", category: "General" });
       alert("Department created successfully!");
     } catch (error: any) {
       alert(`Failed to create department: ${error.message}`);
@@ -220,22 +235,88 @@ export default function SystemSettingsPage() {
     const file = event.target.files?.[0];
     if (!file) return;
     
-    if (!confirm('Import this backup? You can choose to merge or replace existing data in the next step.')) return;
+    // First confirmation
+    const confirmImport = confirm(
+      '📥 IMPORT BACKUP\n\n' +
+      'Ready to import: ' + file.name + '\n\n' +
+      'Click OK to continue, Cancel to abort.'
+    );
+    if (!confirmImport) {
+      event.target.value = '';
+      return;
+    }
+    
+    // Mode selection with clear options
+    const clearExisting = confirm(
+      '⚙️ CHOOSE IMPORT MODE\n\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+      'Click OK to REPLACE all data:\n' +
+      '  • Clears everything first\n' +
+      '  • Creates archive backup\n' +
+      '  • Then imports new data\n\n' +
+      'Click CANCEL to MERGE:\n' +
+      '  • Keeps existing data\n' +
+      '  • Adds new records\n' +
+      '  • May create duplicates\n\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+      '💡 Recommended: CANCEL (Merge)\n'
+    );
     
     setImportInProgress(true);
     try {
       const text = await file.text();
-      const clearExisting = confirm('Do you want to CLEAR existing data before importing? (Click Cancel to merge with existing data)\n\nYES = Clear all data first (will be archived)\nNO = Merge with existing data');
+      
+      // Validate JSON
+      try {
+        JSON.parse(text);
+      } catch (e) {
+        throw new Error('Invalid JSON file. Please check the file format.');
+      }
+      
+      alert('⏳ Import starting...\n\nThis may take 30-60 seconds.\nPlease wait and do not close this window.');
       
       const result = await importBackup({ backupJson: text, clearExisting });
+      
       if (result.success) {
-        alert('Backup imported successfully!');
+        alert('✅ SUCCESS!\n\nBackup imported successfully.\nPage will reload to show new data.');
         window.location.reload();
       } else {
-        alert(`Import failed: ${result.message}`);
+        alert('❌ IMPORT FAILED\n\n' + result.message);
       }
     } catch (error: any) {
-      alert(`Import failed: ${error.message}`);
+      console.error('Import error:', error);
+      
+      // Check if this is a timeout error (connection lost)
+      if (error.message && error.message.includes('Connection lost while action was in flight')) {
+        alert(
+          '⚠️ CONNECTION TIMEOUT\n\n' +
+          '⏱️ The import process took longer than expected, causing a timeout.\n\n' +
+          '✅ HOWEVER: Your data may have been imported successfully!\n\n' +
+          'What happened:\n' +
+          '• The import started correctly\n' +
+          '• Data was being saved to the database\n' +
+          '• The connection timed out before confirming\n\n' +
+          '👉 Next Steps:\n' +
+          '1. Click OK to refresh the page\n' +
+          '2. Check if your data appears\n' +
+          '3. If data is missing, try importing again\n\n' +
+          '📊 Check browser console (F12) for detailed logs'
+        );
+        window.location.reload();
+      } else {
+        alert(
+          '❌ IMPORT FAILED\n\n' +
+          'Error: ' + error.message + '\n\n' +
+          'Possible causes:\n' +
+          '• Invalid JSON format\n' +
+          '• Schema validation errors\n' +
+          '• Database connection lost\n\n' +
+          'Try:\n' +
+          '1. Check browser console (F12) for details\n' +
+          '2. Verify JSON file is valid\n' +
+          '3. Try again in a few moments'
+        );
+      }
     } finally {
       setImportInProgress(false);
       event.target.value = '';
@@ -276,7 +357,7 @@ export default function SystemSettingsPage() {
   };
 
   const handleClearAllData = async () => {
-    if (!confirm('⚠️ This will CLEAR projects, events, tasks, and documents (USERS are preserved). Data will be archived first. Continue?')) return;
+    if (!confirm('⚠️ This will CLEAR projects, events, milestones, tasks, and documents (USERS are preserved). Data will be archived first. Continue?')) return;
     if (!confirm('Are you ABSOLUTELY SURE? This will clear all project data but keep users and departments!')) return;
     
     try {
@@ -290,6 +371,42 @@ export default function SystemSettingsPage() {
       }
     } catch (error: any) {
       alert(`Failed to clear data: ${error.message}`);
+    }
+  };
+
+  const handleClearAllMessages = async () => {
+    if (!confirm('⚠️ This will CLEAR ALL MESSAGES. Data will be archived first. Continue?')) return;
+    if (!confirm('Are you ABSOLUTELY SURE? This will delete all messages from the system!')) return;
+    
+    try {
+      const result = await clearAllMessagesAction({});
+      if (result.success) {
+        alert('All messages cleared successfully. Data has been archived.');
+        setShowClearMessagesModal(false);
+      } else {
+        alert(`Failed: ${result.message}`);
+      }
+    } catch (error: any) {
+      alert(`Failed to clear messages: ${error.message}`);
+    }
+  };
+
+  const handleRemoveDuplicateUsers = async () => {
+    if (!confirm('This will remove duplicate users from the database (keeping the oldest entry for each user). Continue?')) return;
+    
+    setRemovingDuplicates(true);
+    try {
+      const result = await removeDuplicateUsersAction({});
+      if (result.success) {
+        alert(`Success! Removed ${result.duplicatesRemoved} duplicate users. Please refresh the page.`);
+        window.location.reload();
+      } else {
+        alert(`Failed: ${result.message}`);
+      }
+    } catch (error: any) {
+      alert(`Failed to remove duplicates: ${error.message}`);
+    } finally {
+      setRemovingDuplicates(false);
     }
   };
 
@@ -380,10 +497,7 @@ export default function SystemSettingsPage() {
   if (!isLoaded || !currentUser) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading settings...</p>
-        </div>
+        <RippleLoader size="lg" color="emerald" text="Loading settings..." />
       </div>
     );
   }
@@ -481,6 +595,10 @@ export default function SystemSettingsPage() {
                   <TabsTrigger value="backup" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
                     <Database className="w-4 h-4 mr-2" />
                     Backup
+                  </TabsTrigger>
+                  <TabsTrigger value="performance" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
+                    <Activity className="w-4 h-4 mr-2" />
+                    Performance
                   </TabsTrigger>
                   <TabsTrigger value="system" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
                     <Info className="w-4 h-4 mr-2" />
@@ -1069,19 +1187,23 @@ export default function SystemSettingsPage() {
                           )}
                         </Button>
                         
-                        <label className="relative">
-                          <input
-                            type="file"
-                            accept=".json"
-                            onChange={handleImportBackup}
-                            disabled={importInProgress}
-                            className="hidden"
-                          />
-                          <Button 
-                            as="span"
-                            disabled={importInProgress}
-                            className="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white transition-transform cursor-pointer"
-                          >
+                        <input
+                          id="import-backup-file"
+                          type="file"
+                          accept=".json"
+                          onChange={handleImportBackup}
+                          disabled={importInProgress}
+                          className="hidden"
+                        />
+                        <label 
+                          htmlFor="import-backup-file"
+                          className="inline-flex w-full"
+                        >
+                          <div className={`flex items-center justify-center w-full px-4 py-2 rounded-lg font-medium transition-all ${
+                            importInProgress 
+                              ? 'bg-emerald-700 cursor-not-allowed opacity-50' 
+                              : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95 cursor-pointer'
+                          } text-white`}>
                             {importInProgress ? (
                               <>
                                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -1093,7 +1215,7 @@ export default function SystemSettingsPage() {
                                 Import Backup
                               </>
                             )}
-                          </Button>
+                          </div>
                         </label>
                         
                         <Button 
@@ -1104,6 +1226,37 @@ export default function SystemSettingsPage() {
                           <Save className="w-4 h-4 mr-2" />
                           Save Schedule
                         </Button>
+                      </div>
+                      
+                      {/* Maintenance Zone */}
+                      <div className="p-4 bg-yellow-600/10 border border-yellow-500/30 rounded-lg space-y-3 mb-4">
+                        <div>
+                          <h4 className="text-white font-semibold flex items-center gap-2">
+                            <AlertTriangle className="w-5 h-5 text-yellow-400" />
+                            Maintenance & Cleanup
+                          </h4>
+                          <p className="text-gray-400 text-sm mt-1">Fix data issues and maintain database health</p>
+                        </div>
+                        <div className="flex flex-wrap gap-3">
+                          <Button 
+                            onClick={handleRemoveDuplicateUsers}
+                            disabled={removingDuplicates}
+                            variant="outline" 
+                            className="border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/20 active:scale-95 transition-transform"
+                          >
+                            {removingDuplicates ? (
+                              <>
+                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                Cleaning...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCheck className="w-4 h-4 mr-2" />
+                                Remove Duplicate Users
+                              </>
+                            )}
+                          </Button>
+                        </div>
                       </div>
                       
                       {/* Danger Zone */}
@@ -1131,6 +1284,14 @@ export default function SystemSettingsPage() {
                           >
                             <Database className="w-4 h-4 mr-2" />
                             Clear All Data
+                          </Button>
+                          <Button 
+                            onClick={() => setShowClearMessagesModal(true)}
+                            variant="outline" 
+                            className="border-red-500/50 text-red-400 hover:bg-red-500/20 active:scale-95 transition-transform"
+                          >
+                            <Mail className="w-4 h-4 mr-2" />
+                            Clear All Messages
                           </Button>
                         </div>
                       </div>
@@ -1226,6 +1387,254 @@ export default function SystemSettingsPage() {
                           <Database className="w-12 h-12 mx-auto text-gray-600 mb-3" />
                           <p className="text-gray-400">No backups yet</p>
                           <p className="text-gray-500 text-sm">Create your first backup to get started</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* Performance Optimization */}
+                <TabsContent value="performance" className="space-y-6">
+                  <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-6">
+                    <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                      <Activity className="w-5 h-5 text-emerald-500" />
+                      Performance Optimization
+                    </h2>
+                    
+                    {/* Statistics */}
+                    {logStats && (
+                      <div className="space-y-6 mb-6">
+                        {/* Overview */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                          <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                            <p className="text-gray-400 text-sm mb-1">Activity Logs</p>
+                            <p className="text-2xl font-bold text-white">{logStats.userActivityLogs.total.toLocaleString()}</p>
+                            <p className="text-xs text-gray-500 mt-1">{logStats.userActivityLogs.olderThan30Days.toLocaleString()} older than 30 days</p>
+                          </div>
+                          <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                            <p className="text-gray-400 text-sm mb-1">User Sessions</p>
+                            <p className="text-2xl font-bold text-white">{logStats.userSessions.total.toLocaleString()}</p>
+                            <p className="text-xs text-gray-500 mt-1">{logStats.userSessions.active} active, {logStats.userSessions.inactive} inactive</p>
+                          </div>
+                          <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                            <p className="text-gray-400 text-sm mb-1">Project Activities</p>
+                            <p className="text-2xl font-bold text-white">{logStats.projectActivities.total.toLocaleString()}</p>
+                            <p className="text-xs text-gray-500 mt-1">{logStats.projectActivities.olderThan60Days.toLocaleString()} older than 60 days</p>
+                          </div>
+                          <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                            <p className="text-gray-400 text-sm mb-1">Search History</p>
+                            <p className="text-2xl font-bold text-white">{logStats.searchHistory.total.toLocaleString()}</p>
+                            <p className="text-xs text-gray-500 mt-1">{logStats.searchHistory.olderThan60Days.toLocaleString()} older than 60 days</p>
+                          </div>
+                        </div>
+
+                        {/* Recommendations */}
+                        <div className="space-y-3">
+                          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                            <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                            Recommendations
+                          </h3>
+                          {logStats.recommendations.map((rec: any, idx: number) => (
+                            <div 
+                              key={idx}
+                              className={`p-4 rounded-lg border ${
+                                rec.severity === 'high' ? 'bg-red-600/10 border-red-500/30' :
+                                rec.severity === 'medium' ? 'bg-yellow-600/10 border-yellow-500/30' :
+                                'bg-green-600/10 border-green-500/30'
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                {rec.severity === 'high' && <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />}
+                                {rec.severity === 'medium' && <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />}
+                                {rec.severity === 'low' && <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />}
+                                <div className="flex-1">
+                                  <p className="text-white font-medium">{rec.message}</p>
+                                  <p className="text-gray-400 text-sm mt-1">Action: {rec.action}</p>
+                                  <p className="text-gray-500 text-xs mt-1">Impact: {rec.impact}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Cleanup Actions */}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold text-white mb-4">Cleanup Actions</h3>
+                      
+                      {/* One-Click Optimization */}
+                      <div className="bg-emerald-600/10 border border-emerald-500/30 rounded-lg p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <h4 className="text-white font-semibold mb-1 flex items-center gap-2">
+                              <CheckCheck className="w-5 h-5 text-emerald-400" />
+                              One-Click System Optimization
+                            </h4>
+                            <p className="text-gray-300 text-sm mb-2">
+                              Automatically clean up all old logs and optimize database performance
+                            </p>
+                            <ul className="text-xs text-gray-400 space-y-1">
+                              <li>• Removes activity logs older than 30 days</li>
+                              <li>• Removes search history older than 60 days</li>
+                              <li>• Removes project activities older than 90 days</li>
+                              <li>• Removes inactive sessions older than 7 days</li>
+                            </ul>
+                          </div>
+                          <Button
+                            onClick={async () => {
+                              if (!confirm('This will clean up old logs to improve performance. Continue?')) return;
+                              setOptimizing(true);
+                              setCleanupResult(null);
+                              try {
+                                const result = await optimizeSystemMut({ dryRun: false });
+                                setCleanupResult(result);
+                                alert(`✅ Optimization Complete!\n\nDeleted ${result.results.totalDeleted} records.\n\nActivity Logs: ${result.results.activityLogs.deleted}\nSearch History: ${result.results.searchHistory.deleted}\nProject Activities: ${result.results.projectActivities.deleted}\nSessions: ${result.results.inactiveSessions.deleted}`);
+                              } catch (error: any) {
+                                alert(`❌ Optimization failed: ${error.message}`);
+                              } finally {
+                                setOptimizing(false);
+                              }
+                            }}
+                            disabled={optimizing}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white whitespace-nowrap"
+                          >
+                            {optimizing ? (
+                              <>
+                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                Optimizing...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCheck className="w-4 h-4 mr-2" />
+                                Optimize Now
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Individual Cleanup Options */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                          <h4 className="text-white font-medium mb-2">Activity Logs</h4>
+                          <p className="text-gray-400 text-sm mb-3">Clean up old user activity logs (keep 30 days)</p>
+                          <Button
+                            onClick={async () => {
+                              setOptimizing(true);
+                              try {
+                                const result = await cleanupActivityLogsMut({ daysToKeep: 30, dryRun: false });
+                                alert(`Deleted ${result.deleted} activity logs`);
+                              } catch (error: any) {
+                                alert(`Failed: ${error.message}`);
+                              } finally {
+                                setOptimizing(false);
+                              }
+                            }}
+                            disabled={optimizing}
+                            className="w-full bg-blue-600 hover:bg-blue-700"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Clean Activity Logs
+                          </Button>
+                        </div>
+
+                        <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                          <h4 className="text-white font-medium mb-2">Search History</h4>
+                          <p className="text-gray-400 text-sm mb-3">Clean up old search history (keep 60 days)</p>
+                          <Button
+                            onClick={async () => {
+                              setOptimizing(true);
+                              try {
+                                const result = await cleanupSearchHistoryMut({ daysToKeep: 60, dryRun: false });
+                                alert(`Deleted ${result.deleted} search records`);
+                              } catch (error: any) {
+                                alert(`Failed: ${error.message}`);
+                              } finally {
+                                setOptimizing(false);
+                              }
+                            }}
+                            disabled={optimizing}
+                            className="w-full bg-blue-600 hover:bg-blue-700"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Clean Search History
+                          </Button>
+                        </div>
+
+                        <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                          <h4 className="text-white font-medium mb-2">Project Activities</h4>
+                          <p className="text-gray-400 text-sm mb-3">Clean up old project activities (keep 90 days)</p>
+                          <Button
+                            onClick={async () => {
+                              setOptimizing(true);
+                              try {
+                                const result = await cleanupProjectActivitiesMut({ daysToKeep: 90, dryRun: false });
+                                alert(`Deleted ${result.deleted} project activities`);
+                              } catch (error: any) {
+                                alert(`Failed: ${error.message}`);
+                              } finally {
+                                setOptimizing(false);
+                              }
+                            }}
+                            disabled={optimizing}
+                            className="w-full bg-blue-600 hover:bg-blue-700"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Clean Project Activities
+                          </Button>
+                        </div>
+
+                        <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                          <h4 className="text-white font-medium mb-2">Inactive Sessions</h4>
+                          <p className="text-gray-400 text-sm mb-3">Clean up old inactive sessions (keep 7 days)</p>
+                          <Button
+                            onClick={async () => {
+                              setOptimizing(true);
+                              try {
+                                const result = await cleanupInactiveSessionsMut({ daysToKeep: 7, dryRun: false });
+                                alert(`Deleted ${result.deleted} inactive sessions`);
+                              } catch (error: any) {
+                                alert(`Failed: ${error.message}`);
+                              } finally {
+                                setOptimizing(false);
+                              }
+                            }}
+                            disabled={optimizing}
+                            className="w-full bg-blue-600 hover:bg-blue-700"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Clean Inactive Sessions
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Last Cleanup Result */}
+                      {cleanupResult && (
+                        <div className="bg-green-600/10 border border-green-500/30 rounded-lg p-4">
+                          <h4 className="text-green-400 font-semibold mb-2 flex items-center gap-2">
+                            <CheckCircle className="w-5 h-5" />
+                            Last Optimization Result
+                          </h4>
+                          <p className="text-gray-300 text-sm">{cleanupResult.message}</p>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                            <div className="bg-white/5 rounded p-2">
+                              <p className="text-xs text-gray-400">Activity Logs</p>
+                              <p className="text-white font-semibold">{cleanupResult.results.activityLogs.deleted}</p>
+                            </div>
+                            <div className="bg-white/5 rounded p-2">
+                              <p className="text-xs text-gray-400">Search History</p>
+                              <p className="text-white font-semibold">{cleanupResult.results.searchHistory.deleted}</p>
+                            </div>
+                            <div className="bg-white/5 rounded p-2">
+                              <p className="text-xs text-gray-400">Project Activities</p>
+                              <p className="text-white font-semibold">{cleanupResult.results.projectActivities.deleted}</p>
+                            </div>
+                            <div className="bg-white/5 rounded p-2">
+                              <p className="text-xs text-gray-400">Sessions</p>
+                              <p className="text-white font-semibold">{cleanupResult.results.inactiveSessions.deleted}</p>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1418,13 +1827,13 @@ export default function SystemSettingsPage() {
                 Clear All Data
               </h3>
               <p className="text-gray-400 mb-6">
-                This will clear <strong className="text-red-400">projects, events, tasks, and documents</strong>. <strong className="text-emerald-400">Users and departments are preserved.</strong> <strong className="text-white">All data will be archived first</strong>.
+                This will clear <strong className="text-red-400">projects, milestones, events, tasks, and documents</strong>. <strong className="text-emerald-400">Users and departments are preserved.</strong> <strong className="text-white">All data will be archived first</strong>.
               </p>
               
               <div className="space-y-3 mb-6">
                 <div className="p-3 bg-red-600/20 border border-red-500/50 rounded-lg">
                   <p className="text-red-400 font-medium text-sm">🚨 Will Clear</p>
-                  <p className="text-gray-300 text-xs mt-1">Projects, Events, Tasks, Event Tasks, Messages, Documents</p>
+                  <p className="text-gray-300 text-xs mt-1">Projects, Milestones, Events, Tasks, Event Tasks, Messages, Documents</p>
                 </div>
                 <div className="p-3 bg-emerald-600/20 border border-emerald-500/50 rounded-lg">
                   <p className="text-emerald-400 font-medium text-sm">✅ Will Keep</p>
@@ -1446,6 +1855,49 @@ export default function SystemSettingsPage() {
                 </Button>
                 <Button
                   onClick={() => setShowClearDataModal(false)}
+                  variant="outline"
+                  className="flex-1 border-white/20 text-white hover:bg-white/10 active:scale-95 transition-transform"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Clear All Messages Modal */}
+        {showClearMessagesModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 rounded-xl border border-white/10 p-6 max-w-md w-full animate-in fade-in zoom-in duration-200">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Mail className="w-5 h-5 text-red-500" />
+                Clear All Messages
+              </h3>
+              <p className="text-gray-400 mb-6">
+                This will clear <strong className="text-red-400">ALL messages from the system</strong>. <strong className="text-white">All messages will be archived first</strong>.
+              </p>
+              
+              <div className="space-y-3 mb-6">
+                <div className="p-3 bg-red-600/20 border border-red-500/50 rounded-lg">
+                  <p className="text-red-400 font-medium text-sm">🚨 Will Clear</p>
+                  <p className="text-gray-300 text-xs mt-1">All Messages (Direct Messages, Group Messages)</p>
+                </div>
+                <div className="p-3 bg-yellow-600/10 border border-yellow-500/30 rounded-lg">
+                  <p className="text-yellow-400 font-medium text-sm">✅ Archive Created</p>
+                  <p className="text-gray-400 text-xs mt-1">An archive backup will be created before clearing</p>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <Button
+                  onClick={handleClearAllMessages}
+                  className="flex-1 bg-red-600 hover:bg-red-700 active:scale-95 text-white transition-transform"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Clear All Messages
+                </Button>
+                <Button
+                  onClick={() => setShowClearMessagesModal(false)}
                   variant="outline"
                   className="flex-1 border-white/20 text-white hover:bg-white/10 active:scale-95 transition-transform"
                 >

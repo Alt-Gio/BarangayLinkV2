@@ -162,13 +162,6 @@ export function Sidebar({
       icon: <ClipboardList className="w-4 h-4" />,
       children: [
         {
-          id: 'my-tasks',
-          label: 'My Tasks',
-          icon: <CheckSquare className="w-4 h-4" />,
-          path: '/tasks/my-tasks',
-          roles: ['WORKER', 'BUILDER', 'MANAGER', 'CAPTAIN', 'ADMIN']
-        },
-        {
           id: 'my-duties',
           label: 'My Duties',
           icon: <Briefcase className="w-4 h-4" />,

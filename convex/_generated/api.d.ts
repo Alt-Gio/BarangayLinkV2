@@ -56,6 +56,7 @@ import type * as milestones from "../milestones.js";
 import type * as notificationSystem from "../notificationSystem.js";
 import type * as notifications from "../notifications.js";
 import type * as pagination from "../pagination.js";
+import type * as performanceOptimization from "../performanceOptimization.js";
 import type * as permissions from "../permissions.js";
 import type * as presence from "../presence.js";
 import type * as productivity from "../productivity.js";
@@ -134,6 +135,7 @@ declare const fullApi: ApiFromModules<{
   notificationSystem: typeof notificationSystem;
   notifications: typeof notifications;
   pagination: typeof pagination;
+  performanceOptimization: typeof performanceOptimization;
   permissions: typeof permissions;
   presence: typeof presence;
   productivity: typeof productivity;

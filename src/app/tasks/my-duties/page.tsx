@@ -28,6 +28,9 @@ import {
   CheckCheck,
   AlertTriangle,
   Zap,
+  Play,
+  Square,
+  ExternalLink,
 } from 'lucide-react';
 import { Id } from '../../../../convex/_generated/dataModel';
 
@@ -52,6 +55,8 @@ export default function MyDutiesPage() {
 
   // Mutations
   const updateEventTaskStatus = useMutation(api.eventControl.updateTaskStatus);
+  const startWorkingOn = useMutation(api.gamifiedTasks.startWorkingOnTask);
+  const stopWorkingOn = useMutation(api.gamifiedTasks.stopWorkingOnTask);
 
   if (!currentUser) {
     return (
@@ -136,6 +141,34 @@ export default function MyDutiesPage() {
     } catch (error) {
       console.error('Failed to update status:', error);
       alert('Failed to update task status. Please try again.');
+    } finally {
+      setUpdatingTaskId(null);
+    }
+  };
+
+  const handleStartWorkingOn = async (taskId: Id<"tasks">) => {
+    setUpdatingTaskId(taskId);
+    try {
+      await startWorkingOn({ taskId });
+      setSuccessMessage('Started working on task!');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error: any) {
+      console.error('Failed to start working:', error);
+      alert(error.message || 'Failed to start working on task. Please try again.');
+    } finally {
+      setUpdatingTaskId(null);
+    }
+  };
+
+  const handleStopWorkingOn = async (taskId: Id<"tasks">) => {
+    setUpdatingTaskId(taskId);
+    try {
+      const result = await stopWorkingOn({ taskId });
+      setSuccessMessage(`Clocked out! Logged ${result.hoursWorked?.toFixed(1) || 0}h of work.`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error: any) {
+      console.error('Failed to stop working:', error);
+      alert(error.message || 'Failed to clock out. Please try again.');
     } finally {
       setUpdatingTaskId(null);
     }
@@ -531,77 +564,146 @@ export default function MyDutiesPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {uniqueProjectTasks.slice(0, 6).map((task: any) => (
-                    <Card 
-                      key={task._id} 
-                      className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 border-gray-700/50 hover:border-blue-500/50 transition-all"
-                    >
-                      <CardContent className="p-4">
-                        <div className="space-y-3">
-                          {/* Project Badge */}
-                          <div className="flex items-center gap-2 pb-2 border-b border-gray-700/50">
-                            <Target className="w-4 h-4 text-blue-400" />
-                            <span className="text-sm font-semibold text-blue-400 truncate">
-                              Project Task
-                            </span>
-                          </div>
+                  {uniqueProjectTasks.map((task: any) => {
+                    const isWorkingOn = task.workingOnIt === currentUser?._id;
+                    const hasMilestone = task.milestone;
 
-                          {/* Task Title */}
-                          <h4 className="font-semibold text-white line-clamp-2">{task.title}</h4>
-
-                          {/* Task Description */}
-                          {task.description && (
-                            <p className="text-sm text-gray-400 line-clamp-2">{task.description}</p>
-                          )}
-
-                          {/* Task Meta */}
-                          <div className="flex flex-wrap gap-2">
-                            {task.priority && (
-                              <Badge className={`text-xs border ${getPriorityColor(task.priority)}`}>
-                                <Flag className="w-3 h-3 mr-1" />
-                                {task.priority}
-                              </Badge>
+                    return (
+                      <Card 
+                        key={task._id} 
+                        className={`bg-gradient-to-br from-gray-800/90 to-gray-900/90 border-gray-700/50 hover:border-blue-500/50 transition-all ${isWorkingOn ? 'ring-2 ring-blue-500/50' : ''}`}
+                      >
+                        <CardContent className="p-4">
+                          <div className="space-y-3">
+                            {/* Milestone Badge */}
+                            {hasMilestone ? (
+                              <div 
+                                className="flex items-center gap-2 pb-2 border-b border-gray-700/50 cursor-pointer hover:bg-gray-700/30 px-2 py-1 -mx-2 rounded transition-colors"
+                                onClick={() => window.location.href = `/milestones/${task.milestone._id}/kanban`}
+                                title="Open Kanban Board"
+                              >
+                                <Target className="w-4 h-4 text-purple-400" />
+                                <span className="text-sm font-semibold text-purple-400 truncate flex-1">
+                                  {task.milestone.title}
+                                </span>
+                                <ExternalLink className="w-3 h-3 text-purple-300" />
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 pb-2 border-b border-gray-700/50">
+                                <Target className="w-4 h-4 text-blue-400" />
+                                <span className="text-sm font-semibold text-blue-400 truncate">
+                                  Project Task
+                                </span>
+                              </div>
                             )}
 
-                            {task.status && (
-                              <Badge className={`text-xs ${getStatusColor(task.status)}`}>
-                                {task.status === 'done' && <CheckCircle2 className="w-3 h-3 mr-1" />}
-                                {task.status === 'in_progress' && <Clock className="w-3 h-3 mr-1" />}
-                                {task.status === 'blocked' && <AlertCircle className="w-3 h-3 mr-1" />}
-                                {task.status.replace('_', ' ')}
-                              </Badge>
-                            )}
-                          </div>
+                            {/* Task Title */}
+                            <h4 className="font-semibold text-white line-clamp-2">{task.title}</h4>
 
-                          {/* View Project Button */}
-                          <Button 
-                            size="sm"
-                            variant="outline"
-                            className="w-full border-gray-600 hover:bg-gray-700 text-xs"
-                            onClick={() => window.location.href = '/projects'}
-                          >
-                            <Target className="w-3 h-3 mr-1" />
-                            View in Projects
-                            <ArrowRight className="w-3 h-3 ml-1" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                            {/* Task Description */}
+                            {task.description && (
+                              <p className="text-sm text-gray-400 line-clamp-2">{task.description}</p>
+                            )}
+
+                            {/* Working Status */}
+                            {isWorkingOn && task.workingOnItStartedAt && (
+                              <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-2 flex items-center gap-2">
+                                <Clock className="w-4 h-4 text-blue-300 animate-pulse" />
+                                <div className="flex-1">
+                                  <div className="text-xs font-semibold text-blue-300">Working on it</div>
+                                  <div className="text-xs text-blue-400">
+                                    {Math.floor((Date.now() - task.workingOnItStartedAt) / (1000 * 60))} min
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Task Meta */}
+                            <div className="flex flex-wrap gap-2">
+                              {task.priority && (
+                                <Badge className={`text-xs border ${getPriorityColor(task.priority)}`}>
+                                  <Flag className="w-3 h-3 mr-1" />
+                                  {task.priority}
+                                </Badge>
+                              )}
+
+                              {task.status && (
+                                <Badge className={`text-xs ${getStatusColor(task.status)}`}>
+                                  {task.status === 'Done' && <CheckCircle2 className="w-3 h-3 mr-1" />}
+                                  {task.status === 'In Progress' && <Clock className="w-3 h-3 mr-1" />}
+                                  {task.status}
+                                </Badge>
+                              )}
+
+                              {task.storyPoints && (
+                                <Badge className="bg-purple-500/20 text-purple-300 text-xs">
+                                  {task.storyPoints} pts
+                                </Badge>
+                              )}
+                            </div>
+
+                            {/* Time Tracking */}
+                            {task.actualHours && task.actualHours > 0 && (
+                              <div className="flex items-center gap-2 text-xs text-gray-400">
+                                <Clock className="w-3 h-3" />
+                                <span>{task.actualHours.toFixed(1)}h logged</span>
+                                {task.estimatedHours && (
+                                  <span className="text-gray-500">/ {task.estimatedHours}h est</span>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-2">
+                              {!isWorkingOn ? (
+                                <Button 
+                                  size="sm"
+                                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs disabled:opacity-50"
+                                  onClick={() => handleStartWorkingOn(task._id)}
+                                  disabled={updatingTaskId === task._id}
+                                >
+                                  {updatingTaskId === task._id ? (
+                                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1" />
+                                  ) : (
+                                    <Play className="w-3 h-3 mr-1" />
+                                  )}
+                                  Start Working
+                                </Button>
+                              ) : (
+                                <Button 
+                                  size="sm"
+                                  className="flex-1 bg-orange-600 hover:bg-orange-700 text-white text-xs disabled:opacity-50"
+                                  onClick={() => handleStopWorkingOn(task._id)}
+                                  disabled={updatingTaskId === task._id}
+                                >
+                                  {updatingTaskId === task._id ? (
+                                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1" />
+                                  ) : (
+                                    <Square className="w-3 h-3 mr-1" />
+                                  )}
+                                  Clock Out
+                                </Button>
+                              )}
+                              
+                              {hasMilestone && (
+                                <Button 
+                                  size="sm"
+                                  variant="outline"
+                                  className="flex-1 border-gray-600 hover:bg-gray-700 text-xs"
+                                  onClick={() => window.location.href = `/milestones/${task.milestone._id}/kanban`}
+                                >
+                                  <Target className="w-3 h-3 mr-1" />
+                                  Kanban
+                                  <ArrowRight className="w-3 h-3 ml-1" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
-                
-                {uniqueProjectTasks.length > 6 && (
-                  <div className="text-center mt-4">
-                    <Button 
-                      variant="outline"
-                      className="border-gray-600 hover:bg-gray-700"
-                      onClick={() => window.location.href = '/projects'}
-                    >
-                      View All {uniqueProjectTasks.length} Project Duties
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </div>
-                )}
               </div>
             )}
 

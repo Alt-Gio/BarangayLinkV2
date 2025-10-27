@@ -333,7 +333,7 @@ export const clearAllData = internalMutation({
   args: {},
   handler: async (ctx) => {
     // Delete all records from main tables (keep users, departments, userLevels)
-    const tables = ["projects", "events", "tasks", "eventTasks", "messages", "documents"];
+    const tables = ["projects", "milestones", "events", "tasks", "eventTasks", "messages", "documents"];
     
     for (const table of tables) {
       const records = await ctx.db.query(table as any).collect();
@@ -344,6 +344,38 @@ export const clearAllData = internalMutation({
   },
 });
 
+// Helper function to replace placeholder IDs with actual database IDs
+function replaceUserIds(obj: any, userIdMap: Map<string, string>): any {
+  if (obj === null || obj === undefined) return obj;
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => {
+      // If it's a string that looks like a placeholder user ID
+      if (typeof item === 'string' && userIdMap.has(item)) {
+        return userIdMap.get(item);
+      }
+      return replaceUserIds(item, userIdMap);
+    });
+  }
+  
+  if (typeof obj === 'object') {
+    const newObj: any = {};
+    for (const key in obj) {
+      const value = obj[key];
+      
+      // Replace user ID fields
+      if (typeof value === 'string' && userIdMap.has(value)) {
+        newObj[key] = userIdMap.get(value);
+      } else {
+        newObj[key] = replaceUserIds(value, userIdMap);
+      }
+    }
+    return newObj;
+  }
+  
+  return obj;
+}
+
 // Restore data from backup
 export const restoreData = internalMutation({
   args: {
@@ -351,46 +383,114 @@ export const restoreData = internalMutation({
   },
   handler: async (ctx, args) => {
     const data = args.data;
+    let totalInserted = 0;
     
+    // Create a map to store clerkId -> actual database ID
+    const userIdMap = new Map<string, string>();
+    
+    console.log('Restoring userLevels...');
     // Restore userLevels first (dependencies)
-    if (data.userLevels) {
+    if (data.userLevels && Array.isArray(data.userLevels)) {
       for (const level of data.userLevels) {
-        const { _id, _creationTime, ...levelData } = level;
-        await ctx.db.insert("userLevels", levelData);
+        try {
+          const { _id, _creationTime, ...levelData } = level;
+          await ctx.db.insert("userLevels", levelData);
+          totalInserted++;
+        } catch (e) {
+          console.warn('Failed to insert userLevel:', e);
+        }
       }
+      console.log(`Restored ${data.userLevels.length} userLevels`);
     }
     
+    console.log('Restoring departments...');
     // Restore departments
-    if (data.departments) {
+    if (data.departments && Array.isArray(data.departments)) {
       for (const dept of data.departments) {
-        const { _id, _creationTime, ...deptData } = dept;
-        await ctx.db.insert("departments", deptData);
+        try {
+          const { _id, _creationTime, ...deptData } = dept;
+          await ctx.db.insert("departments", deptData);
+          totalInserted++;
+        } catch (e) {
+          console.warn('Failed to insert department:', e);
+        }
       }
+      console.log(`Restored ${data.departments.length} departments`);
     }
     
-    // Restore users
-    if (data.users) {
+    console.log('Restoring users and building ID map...');
+    // Restore users (check for duplicates by clerkId) and build ID map
+    if (data.users && Array.isArray(data.users)) {
       for (const user of data.users) {
-        const { _id, _creationTime, ...userData } = user;
-        await ctx.db.insert("users", userData);
+        try {
+          const { _id, _creationTime, ...userData } = user;
+          
+          // Check if user already exists by clerkId
+          const existingUser = await ctx.db
+            .query("users")
+            .filter((q) => q.eq(q.field("clerkId"), userData.clerkId))
+            .first();
+          
+          if (!existingUser) {
+            // Insert new user and map clerkId to actual ID
+            const newUserId = await ctx.db.insert("users", userData);
+            userIdMap.set(userData.clerkId, newUserId);
+            totalInserted++;
+            console.log(`Mapped ${userData.clerkId} -> ${newUserId}`);
+          } else {
+            // User exists, map clerkId to existing ID
+            userIdMap.set(userData.clerkId, existingUser._id);
+            console.log(`User ${userData.clerkId} already exists, mapped to ${existingUser._id}`);
+          }
+        } catch (e) {
+          console.warn('Failed to insert user:', e);
+        }
       }
+      console.log(`Restored ${data.users.length} users, created ${userIdMap.size} ID mappings`);
     }
     
-    // Restore projects
-    if (data.projects) {
+    console.log('Restoring projects with ID mapping...');
+    // Restore projects (replace placeholder IDs with real ones)
+    if (data.projects && Array.isArray(data.projects)) {
       for (const project of data.projects) {
-        const { _id, _creationTime, ...projectData } = project;
-        await ctx.db.insert("projects", projectData);
+        try {
+          const { _id, _creationTime, ...projectData } = project;
+          
+          // Replace all user IDs in the project data
+          const mappedProjectData = replaceUserIds(projectData, userIdMap);
+          
+          await ctx.db.insert("projects", mappedProjectData);
+          totalInserted++;
+        } catch (e) {
+          console.warn('Failed to insert project:', e);
+          console.error('Project data:', project);
+        }
       }
+      console.log(`Restored ${data.projects.length} projects`);
     }
     
-    // Restore events
-    if (data.events) {
+    console.log('Restoring events with ID mapping...');
+    // Restore events (replace placeholder IDs with real ones)
+    if (data.events && Array.isArray(data.events)) {
       for (const event of data.events) {
-        const { _id, _creationTime, ...eventData } = event;
-        await ctx.db.insert("events", eventData);
+        try {
+          const { _id, _creationTime, ...eventData } = event;
+          
+          // Replace all user IDs in the event data
+          const mappedEventData = replaceUserIds(eventData, userIdMap);
+          
+          await ctx.db.insert("events", mappedEventData);
+          totalInserted++;
+        } catch (e) {
+          console.warn('Failed to insert event:', e);
+          console.error('Event data:', event);
+        }
       }
+      console.log(`Restored ${data.events.length} events`);
     }
+    
+    console.log(`✅ Total records inserted: ${totalInserted}`);
+    console.log(`📊 Breakdown: Users mapped: ${userIdMap.size}`);
   },
 });
 
@@ -426,28 +526,41 @@ export const importBackup = action({
     message: string;
   }> => {
     try {
+      console.log('Starting import...');
       const backupData = JSON.parse(args.backupJson);
+      
+      // Validate backup data structure
+      if (!backupData || typeof backupData !== 'object') {
+        throw new Error('Invalid backup format: Expected object with data tables');
+      }
+      
+      console.log('Backup data validated, tables found:', Object.keys(backupData));
       
       // If clearExisting, archive current data first
       if (args.clearExisting) {
+        console.log('Clearing existing data...');
         await ctx.runAction(api.backup.createFullBackup, {
           type: "archive",
           description: "Archive before import",
         });
         
         await ctx.runMutation(internal.backup.clearAllData);
+        console.log('Existing data cleared');
       }
       
       // Restore the imported data
+      console.log('Starting data restore...');
       await ctx.runMutation(internal.backup.restoreData, {
         data: backupData,
       });
+      console.log('Data restore completed');
       
       return {
         success: true,
         message: "Backup imported successfully",
       };
     } catch (error: any) {
+      console.error('Import error:', error);
       return {
         success: false,
         message: `Import failed: ${error.message}`,
@@ -462,6 +575,105 @@ export const deleteBackup = mutation({
   handler: async (ctx, args) => {
     await ctx.db.delete(args.backupId);
     return { success: true };
+  },
+});
+
+// Remove duplicate users (keep the oldest one for each clerkId)
+export const removeDuplicateUsers = action({
+  args: {},
+  handler: async (ctx): Promise<{
+    success: boolean;
+    message: string;
+    duplicatesRemoved?: number;
+  }> => {
+    try {
+      const result = await ctx.runMutation(internal.backup.cleanupDuplicateUsers);
+      return {
+        success: true,
+        message: `Removed ${result.duplicatesRemoved} duplicate users`,
+        duplicatesRemoved: result.duplicatesRemoved,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  },
+});
+
+// Internal mutation to clean up duplicate users
+export const cleanupDuplicateUsers = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const allUsers = await ctx.db.query("users").collect();
+    
+    // Group users by clerkId
+    const usersByClerkId = new Map<string, any[]>();
+    for (const user of allUsers) {
+      const existing = usersByClerkId.get(user.clerkId) || [];
+      existing.push(user);
+      usersByClerkId.set(user.clerkId, existing);
+    }
+    
+    // Remove duplicates (keep oldest one)
+    let duplicatesRemoved = 0;
+    for (const [clerkId, users] of usersByClerkId.entries()) {
+      if (users.length > 1) {
+        // Sort by _creationTime to keep the oldest
+        users.sort((a, b) => a._creationTime - b._creationTime);
+        
+        // Delete all except the first (oldest) one
+        for (let i = 1; i < users.length; i++) {
+          await ctx.db.delete(users[i]._id);
+          duplicatesRemoved++;
+        }
+      }
+    }
+    
+    return { duplicatesRemoved };
+  },
+});
+
+// Clear all messages with archiving
+export const clearAllMessagesWithArchive = action({
+  args: {},
+  handler: async (ctx): Promise<{
+    success: boolean;
+    message: string;
+    archivedCount?: number;
+  }> => {
+    try {
+      // Create archive first
+      await ctx.runAction(api.backup.createFullBackup, {
+        type: "archive",
+        description: "Archive before clearing all messages",
+      });
+      
+      // Clear all messages
+      await ctx.runMutation(internal.backup.clearAllMessages);
+      
+      return {
+        success: true,
+        message: "All messages cleared and archived successfully",
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  },
+});
+
+// Internal mutation to clear all messages
+export const clearAllMessages = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const messages = await ctx.db.query("messages").collect();
+    for (const message of messages) {
+      await ctx.db.delete(message._id);
+    }
   },
 });
 

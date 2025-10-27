@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import RippleLoader from '@/components/ui/RippleLoader';
 
 export default function OAuthCallbackPage() {
   const { user, isLoaded, isSignedIn } = useUser();
@@ -18,15 +18,15 @@ export default function OAuthCallbackPage() {
       return;
     }
 
-    // If user exists and is signed in, proceed to setup
+    // If user exists and is signed in, proceed to dashboard
     if (user && isSignedIn) {
       console.log("✅ OAuth successful! User loaded:", user.firstName, user.lastName);
-      console.log("✅ Redirecting to setup page...");
+      console.log("✅ Redirecting to dashboard...");
       setWaitingForUser(false);
       
       // Small delay to ensure everything is synced
       const timer = setTimeout(() => {
-        router.push('/oauth-setup');
+        router.push('/dashboard');
       }, 1000);
 
       return () => clearTimeout(timer);
@@ -53,21 +53,17 @@ export default function OAuthCallbackPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
       <div className="text-center max-w-md px-6">
-        <div className="mb-6">
-          <Loader2 className="w-16 h-16 text-emerald-500 animate-spin mx-auto" />
-        </div>
-        <h1 className="text-2xl font-bold text-white mb-2">
-          {!isLoaded ? "Connecting to Facebook..." : 
-           waitingForUser ? `Loading your account... (${retryCount + 1}/5)` :
-           "Authentication Successful!"}
-        </h1>
-        <p className="text-gray-400">
-          {!isLoaded ? "Please wait..." :
-           waitingForUser ? "Syncing your session..." :
-           "Redirecting to setup..."}
-        </p>
+        <RippleLoader 
+          size="lg" 
+          color="emerald" 
+          text={
+            !isLoaded ? "Connecting to Facebook..." : 
+            waitingForUser ? `Loading your account... (${retryCount + 1}/5)` :
+            "Authentication Successful! Redirecting..."
+          }
+        />
         {retryCount > 2 && waitingForUser && (
-          <p className="text-yellow-400 text-sm mt-4">
+          <p className="text-yellow-400 text-sm mt-6 animate-pulse">
             This is taking longer than usual. Please wait...
           </p>
         )}

@@ -10,7 +10,7 @@ const getCurrentUser = async (ctx: any) => {
   const user = await ctx.db
     .query("users")
     .filter((q: any) => q.eq(q.field("clerkId"), identity.subject))
-    .unique();
+    .first();
 
   if (!user || user.status !== "active") throw new Error("User not found or inactive");
 

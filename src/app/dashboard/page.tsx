@@ -8,6 +8,7 @@ import { useOfflineData } from '@/contexts/OfflineDataContext';
 import { api } from '../../../convex/_generated/api';
 import { useEffect, useState } from 'react';
 import { errorHandler } from '@/lib/errorHandler';
+import RippleLoader from '@/components/ui/RippleLoader';
 
 // Force dynamic rendering for authenticated pages
 export const dynamic = 'force-dynamic';
@@ -40,20 +41,8 @@ export default function DashboardPage() {
       return;
     }
     
-    // If user doesn't exist in Convex, redirect to setup
-    if (currentUserStatus === null) {
-      console.log("⚠️ User not in database, redirecting to oauth-setup");
-      router.replace('/oauth-setup');
-      return;
-    }
-    
-    // If profile incomplete, redirect to setup
-    if (!currentUserStatus.department || !currentUserStatus.position || 
-        currentUserStatus.department === "General" || currentUserStatus.position === "Community Member") {
-      console.log("⚠️ Profile incomplete, redirecting to oauth-setup");
-      router.replace('/oauth-setup');
-      return;
-    }
+    // Allow users to access dashboard even if profile is incomplete
+    // They will be prompted to complete profile within the dashboard
     
     // If pending or rejected, redirect to pending approval page
     if (currentUserStatus.status === "pending" || currentUserStatus.status === "rejected") {
@@ -95,22 +84,14 @@ export default function DashboardPage() {
     }
   }, [isLoaded, isSignedIn, router]);
   
-  // If user exists but profile incomplete, redirect to setup
-  useEffect(() => {
-    if (isLoaded && isSignedIn && currentUserStatus === null) {
-      console.log("🔄 No user in Convex, redirecting to setup");
-      router.replace('/oauth-setup');
-    }
-  }, [isLoaded, isSignedIn, currentUserStatus, router]);
+  // User profile is handled by the user creation webhook
+  // No need for manual redirects to setup pages
 
   // Wait for user status to be loaded AND verified before rendering dashboard
   if (!isLoaded || !isSignedIn || !user || !isInitialized) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading your personalized dashboard...</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+        <RippleLoader size="lg" color="emerald" text="Loading your personalized dashboard..." />
       </div>
     );
   }
@@ -118,11 +99,8 @@ export default function DashboardPage() {
   // Final safety check - if status is not active, show loading (redirect will happen in useEffect)
   if (currentUser.status !== "active") {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400">Verifying account status...</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+        <RippleLoader size="lg" color="emerald" text="Verifying account status..." />
       </div>
     );
   }
