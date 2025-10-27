@@ -13,7 +13,22 @@ const nextConfig: NextConfig = {
         hostname: '**.convex.cloud',
       },
     ],
+    // OPTIMIZED: Enable Next.js image optimization for faster loading
+    formats: ['image/avif', 'image/webp'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256],
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
   },
+  // OPTIMIZED: Compiler options for faster builds
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production' ? {
+      exclude: ['error', 'warn'],
+    } : false,
+  },
+  // OPTIMIZED: Production optimizations
+  compress: true, // Enable gzip compression
+  poweredByHeader: false, // Remove X-Powered-By header
+  generateEtags: true, // Enable ETags for caching
   // Allow build to succeed with ESLint warnings
   eslint: {
     ignoreDuringBuilds: true,
@@ -21,6 +36,11 @@ const nextConfig: NextConfig = {
   // Allow build to succeed with TypeScript errors (use cautiously)
   typescript: {
     ignoreBuildErrors: true,
+  },
+  // OPTIMIZED: Experimental features for Railway
+  experimental: {
+    optimizeCss: true, // Enable CSS optimization
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
   // PWA configuration
   reactStrictMode: true,

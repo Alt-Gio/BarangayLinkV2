@@ -22,7 +22,7 @@ export const getProjectMilestones = query({
       .query("milestones")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .order("asc") // Order by creation
-      .collect();
+      .take(50); // OPTIMIZED: Limit milestones per project
 
     // Get tasks for each milestone and calculate progress
     const milestonesWithProgress = await Promise.all(
@@ -30,7 +30,7 @@ export const getProjectMilestones = query({
         const tasks = await ctx.db
           .query("tasks")
           .withIndex("by_milestone", (q) => q.eq("milestoneId", milestone._id))
-          .collect();
+          .take(200); // OPTIMIZED: Limit tasks per milestone
 
         const totalTasks = tasks.length;
         const completedTasks = tasks.filter(t => t.completed).length;
@@ -86,7 +86,7 @@ export const createMilestone = mutation({
     const existingMilestones = await ctx.db
       .query("milestones")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .collect();
+      .take(100); // OPTIMIZED
 
     const nextOrder = existingMilestones.length + 1;
 
@@ -385,7 +385,7 @@ export const getActiveMilestones = query({
     if (!identity) return [];
 
     const now = Date.now();
-    const allMilestones = await ctx.db.query("milestones").collect();
+    const allMilestones = await ctx.db.query("milestones").take(100); // OPTIMIZED
 
     // Filter active milestones (have targetDate and not completed)
     const activeMilestones = allMilestones.filter(
@@ -448,7 +448,7 @@ export const getUpcomingMilestones = query({
     if (!identity) return [];
 
     const now = Date.now();
-    const allMilestones = await ctx.db.query("milestones").collect();
+    const allMilestones = await ctx.db.query("milestones").take(100); // OPTIMIZED
 
     // Get milestones with future target dates
     const upcomingMilestones = allMilestones.filter(
@@ -526,7 +526,7 @@ export const getMilestoneStats = query({
     if (!identity) return { active: 0, upcoming: 0, completed: 0, total: 0 };
 
     const now = Date.now();
-    const allMilestones = await ctx.db.query("milestones").collect();
+    const allMilestones = await ctx.db.query("milestones").take(100); // OPTIMIZED
 
     const active = allMilestones.filter(
       (m: any) =>

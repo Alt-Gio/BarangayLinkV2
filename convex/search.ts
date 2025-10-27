@@ -21,7 +21,7 @@ export const globalSearch = query({
     if (!types || types.includes('project')) {
       const projects = await ctx.db
         .query("projects")
-        .collect();
+        .take(100); // OPTIMIZED: Limit search results
       
       const matchedProjects = projects
         .filter(p => 
@@ -46,7 +46,7 @@ export const globalSearch = query({
     if (!types || types.includes('task')) {
       const tasks = await ctx.db
         .query("tasks")
-        .collect();
+        .take(200); // OPTIMIZED: Limit search results
       
       const matchedTasks = tasks
         .filter(t => 
@@ -71,7 +71,7 @@ export const globalSearch = query({
     if (!types || types.includes('user')) {
       const users = await ctx.db
         .query("users")
-        .collect();
+        .take(100); // OPTIMIZED: Limit search results
       
       const matchedUsers = users
         .filter(u => 
@@ -97,7 +97,7 @@ export const globalSearch = query({
     if (!types || types.includes('event')) {
       const events = await ctx.db
         .query("events")
-        .collect();
+        .take(50); // OPTIMIZED: Limit search results
       
       const matchedEvents = events
         .filter(e => 
@@ -123,7 +123,7 @@ export const globalSearch = query({
     if (!types || types.includes('document')) {
       const documents = await ctx.db
         .query("documents")
-        .collect();
+        .take(100); // OPTIMIZED: Limit search results
       
       const matchedDocuments = documents
         .filter(d => 
@@ -175,7 +175,7 @@ export const advancedSearch = query({
 
     // Filter by type
     if (!type || type === 'task') {
-      let tasks = await ctx.db.query("tasks").collect();
+      let tasks = await ctx.db.query("tasks").take(100); // OPTIMIZED
       
       if (query) {
         tasks = tasks.filter(t => 
@@ -218,7 +218,7 @@ export const advancedSearch = query({
     }
 
     if (!type || type === 'project') {
-      let projects = await ctx.db.query("projects").collect();
+      let projects = await ctx.db.query("projects").take(100); // OPTIMIZED
       
       if (query) {
         projects = projects.filter(p => 
@@ -253,7 +253,7 @@ export const advancedSearch = query({
     }
 
     if (!type || type === 'user') {
-      let users = await ctx.db.query("users").collect();
+      let users = await ctx.db.query("users").take(100); // OPTIMIZED
       
       if (query) {
         users = users.filter(u => 
@@ -274,7 +274,7 @@ export const advancedSearch = query({
     }
 
     if (!type || type === 'event') {
-      let events = await ctx.db.query("events").collect();
+      let events = await ctx.db.query("events").take(50); // OPTIMIZED
       
       if (query) {
         events = events.filter(e => 
@@ -380,7 +380,7 @@ export const addSearchHistory = mutation({
       .query("searchHistory")
       .filter((q) => q.eq(q.field("userId"), user._id))
       .order("desc")
-      .collect();
+      .take(100); // OPTIMIZED: Limit history
 
     if (allHistory.length > 50) {
       for (const item of allHistory.slice(50)) {

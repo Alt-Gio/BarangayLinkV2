@@ -11,10 +11,10 @@ export const getPublicStats = query({
       const [publicProjects, publicEvents] = await Promise.all([
         ctx.db.query("projects")
           .filter((q) => q.eq(q.field("isPublic"), true))
-          .collect(),
+          .take(20), // OPTIMIZED: Limit to 20 featured public projects
         ctx.db.query("events")
           .filter((q) => q.eq(q.field("isPublic"), true))
-          .collect()
+          .take(10) // OPTIMIZED: Limit to 10 upcoming events
       ]);
 
       const activeProjects = publicProjects.filter(p => p.status === "active");
@@ -191,12 +191,12 @@ export const getAdminDashboard = query({
     }
 
     const [users, projects, tasks, events, notifications, sessions] = await Promise.all([
-      ctx.db.query("users").collect(),
-      ctx.db.query("projects").collect(),
-      ctx.db.query("tasks").collect(),
-      ctx.db.query("events").collect(),
-      ctx.db.query("notifications").collect(),
-      ctx.db.query("userSessions").filter((q: any) => q.eq(q.field("isActive"), true)).collect()
+      ctx.db.query("users").take(100), // OPTIMIZED: Limit users for stats
+      ctx.db.query("projects").take(100), // OPTIMIZED
+      ctx.db.query("tasks").take(500), // OPTIMIZED
+      ctx.db.query("events").take(50), // OPTIMIZED
+      ctx.db.query("notifications").take(100), // OPTIMIZED
+      ctx.db.query("userSessions").filter((q: any) => q.eq(q.field("isActive"), true)).take(50) // OPTIMIZED
     ]);
 
     const now = Date.now();
@@ -233,14 +233,14 @@ export const getManagerDashboard = query({
     const department = currentUser.department;
     
     const [departmentUsers, departmentProjects, allTasks, pendingApprovals, departmentEvents] = await Promise.all([
-      ctx.db.query("users").filter((q: any) => q.eq(q.field("department"), department)).collect(),
-      ctx.db.query("projects").filter((q: any) => q.eq(q.field("department"), department)).collect(),
-      ctx.db.query("tasks").collect(),
+      ctx.db.query("users").filter((q: any) => q.eq(q.field("department"), department)).take(50), // OPTIMIZED
+      ctx.db.query("projects").filter((q: any) => q.eq(q.field("department"), department)).take(50), // OPTIMIZED
+      ctx.db.query("tasks").take(200), // OPTIMIZED: Limit to recent tasks
       ctx.db.query("projects")
         .filter((q: any) => q.eq(q.field("status"), "draft"))
         .filter((q: any) => q.eq(q.field("department"), department))
-        .collect(),
-      ctx.db.query("events").filter((q: any) => q.eq(q.field("organizer"), currentUser._id)).collect()
+        .take(20), // OPTIMIZED
+      ctx.db.query("events").filter((q: any) => q.eq(q.field("organizer"), currentUser._id)).take(20) // OPTIMIZED
     ]);
 
     // Get tasks for department projects
@@ -295,9 +295,9 @@ export const getBuilderDashboard = query({
     }
 
     const [myProjects, myTasks, myEvents] = await Promise.all([
-      ctx.db.query("projects").filter((q: any) => q.eq(q.field("createdBy"), currentUser._id)).collect(),
-      ctx.db.query("tasks").filter((q: any) => q.eq(q.field("createdBy"), currentUser._id)).collect(),
-      ctx.db.query("events").filter((q: any) => q.eq(q.field("organizer"), currentUser._id)).collect()
+      ctx.db.query("projects").filter((q: any) => q.eq(q.field("createdBy"), currentUser._id)).take(50), // OPTIMIZED
+      ctx.db.query("tasks").filter((q: any) => q.eq(q.field("createdBy"), currentUser._id)).take(100), // OPTIMIZED
+      ctx.db.query("events").filter((q: any) => q.eq(q.field("organizer"), currentUser._id)).take(20) // OPTIMIZED
     ]);
 
     // Get assigned workers for my projects - with additional safety checks
@@ -307,7 +307,7 @@ export const getBuilderDashboard = query({
     if (myProjectIds.length > 0) {
       try {
         // Get all tasks and filter by project IDs
-        const allTasks = await ctx.db.query("tasks").collect();
+        const allTasks = await ctx.db.query("tasks").take(200); // OPTIMIZED: Limit tasks for builder
         projectTasks = allTasks.filter(task => task.projectId && myProjectIds.includes(task.projectId));
       } catch (error) {
         console.error("Error querying project tasks:", error);
@@ -389,12 +389,12 @@ export const getWorkerDashboard = query({
     }
 
     const [myTasks, availableEvents, myNotifications] = await Promise.all([
-      ctx.db.query("tasks").filter((q: any) => q.eq(q.field("assignedTo"), currentUser._id)).collect(),
-      ctx.db.query("events").filter((q: any) => q.eq(q.field("isPublic"), true)).collect(),
+      ctx.db.query("tasks").filter((q: any) => q.eq(q.field("assignedTo"), currentUser._id)).take(50), // OPTIMIZED
+      ctx.db.query("events").filter((q: any) => q.eq(q.field("isPublic"), true)).take(10), // OPTIMIZED
       ctx.db.query("notifications")
         .filter((q: any) => q.eq(q.field("userId"), currentUser._id))
         .filter((q: any) => q.eq(q.field("isRead"), false))
-        .collect()
+        .take(20) // OPTIMIZED: Limit to recent unread
     ]);
 
     // Get projects I'm involved in
