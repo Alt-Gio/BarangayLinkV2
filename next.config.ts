@@ -39,7 +39,7 @@ const nextConfig: NextConfig = {
   },
   // OPTIMIZED: Experimental features for Railway
   experimental: {
-    optimizeCss: true, // Enable CSS optimization
+    // optimizeCss: true, // DISABLED: Not compatible with Turbopack builds (requires critters module)
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
   // PWA configuration
