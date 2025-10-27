@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 
@@ -31,6 +31,7 @@ export default function ProjectsPage() {
     status: "all",
     department: "all"
   });
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Get current user from offline context (cached, saves bandwidth)
   const { currentUser, isOnline } = useOfflineData();
@@ -51,20 +52,46 @@ export default function ProjectsPage() {
     return true;
   }) || [];
 
-  // Calculate pending approvals from filtered data (for managers/admins)
-  const pendingApprovals = currentUser?.userLevel?.name && ["MANAGER", "ADMIN"].includes(currentUser.userLevel.name)
+  // Calculate pending approvals from filtered data (for managers/admins/captains)
+  const pendingApprovals = currentUser?.userLevel?.name && ["MANAGER", "CAPTAIN", "ADMIN"].includes(currentUser.userLevel.name)
     ? projects?.filter((p: any) => p.status === 'pending_approval' || p.status === 'planning') || []
     : [];
 
-  // Check if user can create projects
+  // Check if user can create projects (ADMIN, CAPTAIN, MANAGER, BUILDER)
   const canCreateProjects = currentUser?.userLevel?.name && 
-    ["ADMIN", "MANAGER", "BUILDER"].includes(currentUser.userLevel.name);
+    ["ADMIN", "CAPTAIN", "MANAGER", "BUILDER"].includes(currentUser.userLevel.name);
+
+  // Pull-to-refresh handler
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    // Trigger re-fetch by changing a state momentarily
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setIsRefreshing(false);
+  }, []);
 
   // Export handler
   const handleExport = (format: 'pdf' | 'excel') => {
     if (!filteredProjects || filteredProjects.length === 0) return;
     exportProjectsReport(filteredProjects, format);
   };
+
+  // Loading skeleton component
+  const LoadingSkeleton = () => (
+    <div className="space-y-4 animate-in fade-in duration-300">
+      {[...Array(3)].map((_, i) => (
+        <div key={i} className="bg-white/5 rounded-xl p-6 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-white/10 rounded-full animate-pulse" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 bg-white/10 rounded animate-pulse w-3/4" />
+              <div className="h-3 bg-white/10 rounded animate-pulse w-1/2" />
+            </div>
+          </div>
+          <div className="h-20 bg-white/10 rounded animate-pulse" />
+        </div>
+      ))}
+    </div>
+  );
 
   if (!currentUser) {
     return (
@@ -128,7 +155,7 @@ export default function ProjectsPage() {
             {canCreateProjects && (
               <button
                 onClick={() => setShowWizard(true)}
-                className="md:hidden p-2 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white rounded-xl shadow-lg"
+                className="md:hidden p-2 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 active:scale-95 text-white rounded-xl shadow-lg transition-all duration-150"
               >
                 <Plus className="w-5 h-5" />
               </button>
@@ -141,7 +168,7 @@ export default function ProjectsPage() {
               <Button
                 variant="outline"
                 onClick={() => setActiveView('pending')}
-                className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10 text-xs sm:text-sm flex-1 sm:flex-none"
+                className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10 active:scale-95 text-xs sm:text-sm flex-1 sm:flex-none transition-all duration-150"
               >
                 <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                 <span className="hidden sm:inline">{pendingApprovals.length} Pending Approval</span>
@@ -158,7 +185,7 @@ export default function ProjectsPage() {
             {canCreateProjects && (
               <Button
                 onClick={() => setShowWizard(true)}
-                className="hidden md:flex bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-white text-xs sm:text-sm"
+                className="hidden md:flex bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 active:scale-95 text-white text-xs sm:text-sm transition-all duration-150"
               >
                 <Plus className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-2" />
                 <span>Create Project</span>
@@ -167,19 +194,26 @@ export default function ProjectsPage() {
           </div>
         </div>
 
+        {/* Pull to Refresh Indicator */}
+        {isRefreshing && (
+          <div className="flex justify-center py-2">
+            <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
+
         {/* Quick View Tabs */}
         <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-2 sm:pb-0">
           <Button
             variant={activeView === 'all' ? 'default' : 'outline'}
             onClick={() => setActiveView('all')}
-            className={`text-xs sm:text-sm whitespace-nowrap ${activeView === 'all' ? 'bg-blue-600' : ''}`}
+            className={`text-xs sm:text-sm whitespace-nowrap active:scale-95 transition-all duration-150 ${activeView === 'all' ? 'bg-blue-600' : ''}`}
           >
             All Projects
           </Button>
           <Button
             variant={activeView === 'pending' ? 'default' : 'outline'}
             onClick={() => setActiveView('pending')}
-            className={`text-xs sm:text-sm whitespace-nowrap ${activeView === 'pending' ? 'bg-yellow-600' : ''}`}
+            className={`text-xs sm:text-sm whitespace-nowrap active:scale-95 transition-all duration-150 ${activeView === 'pending' ? 'bg-yellow-600' : ''}`}
           >
             <Clock className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
             <span className="hidden sm:inline">Pending Approval</span>
@@ -188,14 +222,14 @@ export default function ProjectsPage() {
           <Button
             variant={activeView === 'active' ? 'default' : 'outline'}
             onClick={() => setActiveView('active')}
-            className={`text-xs sm:text-sm whitespace-nowrap ${activeView === 'active' ? 'bg-emerald-600' : ''}`}
+            className={`text-xs sm:text-sm whitespace-nowrap active:scale-95 transition-all duration-150 ${activeView === 'active' ? 'bg-emerald-600' : ''}`}
           >
             Active
           </Button>
           <Button
             variant={activeView === 'completed' ? 'default' : 'outline'}
             onClick={() => setActiveView('completed')}
-            className={`text-xs sm:text-sm whitespace-nowrap ${activeView === 'completed' ? 'bg-green-600' : ''}`}
+            className={`text-xs sm:text-sm whitespace-nowrap active:scale-95 transition-all duration-150 ${activeView === 'completed' ? 'bg-green-600' : ''}`}
           >
             <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
             <span className="hidden sm:inline">Completed</span>
@@ -212,11 +246,25 @@ export default function ProjectsPage() {
         />
 
         {/* Projects List */}
-        <ProjectsList 
-          projects={filteredProjects as any}
-          userRole={currentUser.userLevel.name}
-          currentUserId={currentUser._id}
-        />
+        {!projects ? (
+          <LoadingSkeleton />
+        ) : filteredProjects.length === 0 ? (
+          <div className="text-center py-12 animate-in fade-in duration-300">
+            <div className="w-16 h-16 mx-auto mb-4 bg-white/5 rounded-full flex items-center justify-center">
+              <AlertCircle className="w-8 h-8 text-gray-400" />
+            </div>
+            <p className="text-gray-400 text-lg mb-2">No projects found</p>
+            <p className="text-gray-500 text-sm">Try adjusting your filters or create a new project</p>
+          </div>
+        ) : (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <ProjectsList 
+              projects={filteredProjects as any}
+              userRole={currentUser.userLevel.name}
+              currentUserId={currentUser._id}
+            />
+          </div>
+        )}
           </div>
         </div>
       </div>

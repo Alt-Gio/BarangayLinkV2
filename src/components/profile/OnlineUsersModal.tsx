@@ -3,9 +3,10 @@
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { X, Users as UsersIcon, User, MessageCircle, Bell, Briefcase, Award } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { createPortal } from 'react-dom';
 
 interface OnlineUsersModalProps {
   isOpen: boolean;
@@ -32,12 +33,18 @@ const STATUS_COLORS = {
 
 export function OnlineUsersModal({ isOpen, onClose }: OnlineUsersModalProps) {
   const router = useRouter();
-  // Get actual online users from presence tracking
-  const onlineUsers = useQuery(api.presence.getOnlineUsers) || [];
+  const [mounted, setMounted] = useState(false);
+  
+  // Get actual online users from presence tracking (include away users)
+  const onlineUsers = useQuery(api.presence.getOnlineUsers, { includeAway: true }) || [];
   const sendPing = useMutation(api.quickActions.sendPing);
   const currentUser = useQuery(api.users.getCurrentUser);
   
-  if (!isOpen) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
+  if (!isOpen || !mounted) return null;
 
   const handleMessage = async (userId: string, userName: string) => {
     // Navigate to messages - you can enhance this to open a specific DM
@@ -58,30 +65,35 @@ export function OnlineUsersModal({ isOpen, onClose }: OnlineUsersModalProps) {
     }
   };
   
-  // Group users by role
-  const usersByRole = onlineUsers.reduce((acc, user) => {
-    const role = user.userLevel?.name || 'WORKER';
+  // Filter out any null users and group by role
+  const validUsers = onlineUsers.filter((user): user is NonNullable<typeof user> => user !== null);
+  
+  const usersByRole = validUsers.reduce((acc, user) => {
+    // userLevel is already a string from the query (e.g., "ADMIN", "WORKER")
+    const role = user.userLevel || 'WORKER';
     if (!acc[role]) acc[role] = [];
     acc[role].push(user);
     return acc;
-  }, {} as Record<string, typeof onlineUsers>);
+  }, {} as Record<string, typeof validUsers>);
 
   // Sort roles by hierarchy
   const roleOrder = ['ADMIN', 'CAPTAIN', 'MANAGER', 'BUILDER', 'WORKER'];
   const sortedRoles = roleOrder.filter(role => usersByRole[role]?.length > 0);
 
-  return (
-    <div className="fixed inset-0 z-[9999]" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' }}>
-      {/* Backdrop with blur */}
+  const modalContent = (
+    <div className="fixed inset-0" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh', zIndex: 999999 }}>
+      {/* Backdrop with subtle blur - lighter and more elegant */}
       <div 
-        className="absolute inset-0 bg-black/70 backdrop-blur-md animate-fadeIn"
+        className="absolute inset-0 bg-black/50 backdrop-blur-md animate-fadeIn"
+        style={{ zIndex: 99999 }}
         onClick={onClose}
       />
       
       {/* Modal Container - Centered */}
-      <div className="absolute inset-0 flex items-center justify-center p-4">
+      <div className="absolute inset-0 flex items-center justify-center p-4" style={{ zIndex: 100000 }}>
         <div 
-          className="bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-2xl max-h-[80vh] overflow-hidden animate-scaleIn"
+          className="bg-gray-800/95 backdrop-blur-sm rounded-xl shadow-2xl border border-gray-700 w-full max-w-2xl max-h-[80vh] overflow-hidden animate-scaleIn relative"
+          style={{ zIndex: 100001 }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -93,7 +105,7 @@ export function OnlineUsersModal({ isOpen, onClose }: OnlineUsersModalProps) {
               <div>
                 <h2 className="text-xl font-bold text-white">Online Users</h2>
                 <p className="text-sm text-gray-400">
-                  {onlineUsers.length} {onlineUsers.length === 1 ? 'user' : 'users'} currently active
+                  {validUsers.length} {validUsers.length === 1 ? 'user' : 'users'} currently active
                 </p>
               </div>
             </div>
@@ -107,7 +119,7 @@ export function OnlineUsersModal({ isOpen, onClose }: OnlineUsersModalProps) {
 
           {/* Content */}
           <div className="overflow-y-auto max-h-[calc(80vh-120px)] p-6">
-            {onlineUsers.length === 0 ? (
+            {validUsers.length === 0 ? (
               <div className="text-center py-12">
                 <UsersIcon className="w-16 h-16 text-gray-600 mx-auto mb-4" />
                 <p className="text-gray-400">No users online right now</p>
@@ -286,4 +298,6 @@ export function OnlineUsersModal({ isOpen, onClose }: OnlineUsersModalProps) {
       `}</style>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

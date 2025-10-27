@@ -218,6 +218,7 @@ export const seedSampleData = mutation({
           userLevel: workerLevel._id,
           department: "General",
           position: "Worker",
+          role: "worker" as const, // Default role
           phone: `+63912345678${i}`,
           isActive: true,
           status: "active" as const,

@@ -49,8 +49,8 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
   const userRole = currentUser?.userLevel?.name;
   const userDepartment = (currentUser as any)?.department;
   
-  // ADMIN/MANAGER can choose department, BUILDER is locked to their own
-  const canChooseDepartment = userRole === "ADMIN" || userRole === "MANAGER";
+  // ADMIN/CAPTAIN can choose any department, MANAGER/BUILDER locked to their own
+  const canChooseDepartment = userRole === "ADMIN" || userRole === "CAPTAIN";
   
   const [formData, setFormData] = useState({
     // Step 1: Basic Info
@@ -70,10 +70,13 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
     estimatedBeneficiaries: 0,
     impactAreas: [] as string[],
     
-    // Step 4: Success Criteria
+    // Step 4: Assign Team Members
+    assignedTo: [] as string[],
+    
+    // Step 5: Success Criteria
     successCriteria: [] as Array<{ criterion: string; targetValue: string }>,
     
-    // Step 5: Visibility & Settings
+    // Step 6: Visibility & Settings
     isPublic: true,
     publicVisibility: "internal" as "public" | "internal" | "private",
     projectLevel: 5,
@@ -84,6 +87,7 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
   const [currentTag, setCurrentTag] = useState("");
 
   const departmentsFromDB = useQuery(api.departments.getAllDepartments);
+  const allUsers = useQuery(api.users.getAllUsers); // Get all users for team assignment
   
   // Fallback departments - ALWAYS show these if DB is empty or loading
   const fallbackDepartments = [
@@ -98,6 +102,15 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
   const departments = (departmentsFromDB?.length ?? 0) > 0 ? departmentsFromDB : fallbackDepartments;
   
   const createProject = useMutation(api.projects.createProject);
+  
+  // Toggle team member assignment
+  const toggleTeamMember = (userId: string) => {
+    if (formData.assignedTo.includes(userId)) {
+      updateField("assignedTo", formData.assignedTo.filter(id => id !== userId));
+    } else {
+      updateField("assignedTo", [...formData.assignedTo, userId]);
+    }
+  };
 
   const updateField = (field: string, value: any) => {
     setFormData({ ...formData, [field]: value });
@@ -164,6 +177,8 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
         impactArea: formData.impactAreas,
         estimatedBeneficiaries: formData.estimatedBeneficiaries,
         successCriteria: formData.successCriteria,
+        assignedTo: formData.assignedTo, // Add team members
+        milestones: [], // Empty for now
       });
       
       onComplete(String(projectId));
@@ -178,12 +193,16 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
       case 1:
         return formData.title && formData.description && formData.department;
       case 2:
-        return formData.startDate && formData.endDate;
+        // Validate dates: end date must be after start date
+        if (!formData.startDate || !formData.endDate) return false;
+        return new Date(formData.endDate) > new Date(formData.startDate);
       case 3:
         return formData.budget > 0;
       case 4:
-        return formData.successCriteria.length > 0;
+        return formData.assignedTo.length > 0; // At least one team member
       case 5:
+        return formData.successCriteria.length > 0;
+      case 6:
         return true;
       default:
         return false;
@@ -207,7 +226,7 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
       <div className="mb-8">
         {/* Progress Indicator */}
         <div className="flex justify-between mb-4">
-          {[1, 2, 3, 4, 5].map((s) => (
+          {[1, 2, 3, 4, 5, 6].map((s) => (
             <div
               key={s}
               className={`flex items-center justify-center w-10 h-10 rounded-full font-bold transition-all ${
@@ -225,7 +244,7 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
         <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-blue-600 to-emerald-600 transition-all duration-300"
-            style={{ width: `${(step / 5) * 100}%` }}
+            style={{ width: `${(step / 6) * 100}%` }}
           />
         </div>
       </div>
@@ -237,15 +256,17 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
             {step === 1 && "Basic Information"}
             {step === 2 && "Timeline & Priority"}
             {step === 3 && "Budget & Impact"}
-            {step === 4 && "Success Criteria"}
-            {step === 5 && "Visibility & Settings"}
+            {step === 4 && "Assign Team Members"}
+            {step === 5 && "Success Criteria"}
+            {step === 6 && "Visibility & Settings"}
           </CardTitle>
           <CardDescription className="text-gray-400">
             {step === 1 && "Let's start with the basics"}
             {step === 2 && "When will this project take place?"}
             {step === 3 && "Define the resources and impact"}
-            {step === 4 && "What defines success?"}
-            {step === 5 && "Final touches"}
+            {step === 4 && "Who will work on this project?"}
+            {step === 5 && "What defines success?"}
+            {step === 6 && "Final touches"}
           </CardDescription>
         </CardHeader>
 
@@ -377,9 +398,13 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
                     id="endDate"
                     type="date"
                     value={formData.endDate}
+                    min={formData.startDate || undefined}
                     onChange={(e) => updateField("endDate", e.target.value)}
                     className="bg-gray-800 border-gray-700 text-white"
                   />
+                  {formData.startDate && formData.endDate && new Date(formData.endDate) <= new Date(formData.startDate) && (
+                    <p className="text-xs text-red-400">End date must be after start date</p>
+                  )}
                 </div>
               </div>
 
@@ -498,8 +523,85 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
             </>
           )}
 
-          {/* Step 4: Success Criteria */}
+          {/* Step 4: Assign Team Members */}
           {step === 4 && (
+            <>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-white flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    Select Team Members *
+                  </Label>
+                  <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/30">
+                    {formData.assignedTo.length} selected
+                  </Badge>
+                </div>
+                
+                <div className="max-h-96 overflow-y-auto space-y-2 bg-gray-800/30 rounded-lg p-4">
+                  {allUsers && allUsers.length > 0 ? (
+                    allUsers.map((user: any) => {
+                      const isSelected = formData.assignedTo.includes(user._id);
+                      const isCurrentUser = user._id === currentUser?._id;
+                      
+                      return (
+                        <div
+                          key={user._id}
+                          onClick={() => toggleTeamMember(user._id)}
+                          className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                            isSelected
+                              ? "bg-emerald-600/20 border-emerald-500 ring-2 ring-emerald-500/50"
+                              : "bg-gray-800/50 border-gray-700 hover:bg-gray-700/50"
+                          }`}
+                        >
+                          <div className="relative">
+                            <img
+                              src={user.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`}
+                              alt={user.name}
+                              className="w-10 h-10 rounded-full object-cover"
+                            />
+                            {isSelected && (
+                              <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
+                                <Check className="w-3 h-3 text-white" />
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-white">
+                              {user.name} {isCurrentUser && "(You)"}
+                            </p>
+                            <p className="text-xs text-gray-400">{user.position || "Team Member"}</p>
+                            <p className="text-xs text-gray-500">{user.department || "Unassigned"}</p>
+                          </div>
+                          
+                          <div>
+                            <Badge variant="outline" className={`text-xs ${
+                              user.userLevel?.name === "ADMIN" ? "bg-red-500/10 text-red-400 border-red-500/30" :
+                              user.userLevel?.name === "CAPTAIN" ? "bg-orange-500/10 text-orange-400 border-orange-500/30" :
+                              user.userLevel?.name === "MANAGER" ? "bg-purple-500/10 text-purple-400 border-purple-500/30" :
+                              user.userLevel?.name === "BUILDER" ? "bg-blue-500/10 text-blue-400 border-blue-500/30" :
+                              "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                            }`}>
+                              {user.userLevel?.name || "WORKER"}
+                            </Badge>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-center text-gray-400 py-8">Loading users...</p>
+                  )}
+                </div>
+                
+                {formData.assignedTo.length === 0 && (
+                  <p className="text-xs text-yellow-400">Please select at least one team member</p>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Step 5: Success Criteria */}
+          {step === 5 && (
             <>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-2">
@@ -550,8 +652,8 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
             </>
           )}
 
-          {/* Step 5: Visibility & Settings */}
-          {step === 5 && (
+          {/* Step 6: Visibility & Settings */}
+          {step === 6 && (
             <>
               <div className="space-y-4">
                 <div className="space-y-2">

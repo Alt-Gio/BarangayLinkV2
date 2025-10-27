@@ -526,16 +526,17 @@ export const createProject = mutation({
     projectLevel: v.number(),
     impactArea: v.array(v.string()),
     estimatedBeneficiaries: v.optional(v.number()),
+    assignedTo: v.optional(v.array(v.string())), // Team members
     successCriteria: v.array(v.object({
       criterion: v.string(),
       targetValue: v.optional(v.string()),
     })),
-    milestones: v.array(v.object({
+    milestones: v.optional(v.array(v.object({
       title: v.string(),
       description: v.string(),
       dueDate: v.number(),
       order: v.number(),
-    })),
+    }))),
   },
   handler: async (ctx, args) => {
     const currentUser = await checkPermission(ctx, ["BUILDER", "MANAGER", "ADMIN"]);
@@ -556,7 +557,9 @@ export const createProject = mutation({
       endDate: args.endDate,
       location: args.location,
       createdBy: currentUser._id,
-      assignedTo: [currentUser._id],
+      assignedTo: args.assignedTo && args.assignedTo.length > 0 
+        ? args.assignedTo.map(id => id as any) 
+        : [currentUser._id], // Use provided team or default to creator
       department: args.department,
       tags: args.tags,
       attachments: [],
@@ -565,11 +568,11 @@ export const createProject = mutation({
       isPublic: args.isPublic,
       approvalStatus: currentUser.userLevel.name === "BUILDER" ? "pending" : "approved",
       successCriteria: args.successCriteria.map(sc => ({ ...sc, achieved: false })),
-      milestones: args.milestones.map(m => ({
+      milestones: args.milestones ? args.milestones.map(m => ({
         id: `milestone-${Date.now()}-${Math.random().toString(36).substring(7)}`,
         ...m,
         completed: false,
-      })),
+      })) : [],
       totalExperienceReward,
       projectLevel: args.projectLevel,
       impactArea: args.impactArea,

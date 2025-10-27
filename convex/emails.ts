@@ -13,7 +13,7 @@ export const sendInvitationEmail = action({
   },
   handler: async (ctx, args) => {
     const RESEND_API_KEY = process.env.RESEND_API_KEY;
-    const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "BarangayLink <noreply@yourdomain.com>";
+    const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "BarangayLink <notifications@barangaylink.com>";
     
     if (!RESEND_API_KEY) {
       console.error("RESEND_API_KEY not configured");

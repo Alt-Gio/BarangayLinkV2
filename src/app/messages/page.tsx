@@ -34,6 +34,7 @@ export default function MessagesPage() {
   const currentUser = useQuery(api.users.getCurrentUser);
   const onlineUsers = useQuery(api.messaging.getOnlineUsers);
   const updateOnlineStatus = useMutation(api.messaging.updateOnlineStatus);
+  const getOrCreateDirectChat = useMutation(api.messaging.getOrCreateDirectChat);
 
   // Update online status every 2 minutes
   useEffect(() => {
@@ -71,6 +72,22 @@ export default function MessagesPage() {
   const handleBackToList = () => {
     setSelectedRoomId(null);
     setShowMobileChatList(true);
+  };
+
+  const handleClickOnlineUser = async (userId: Id<"users">) => {
+    try {
+      // Don't start a chat with yourself
+      if (userId === currentUser._id) return;
+      
+      // Get or create direct message room with this user
+      const roomId = await getOrCreateDirectChat({ participantId: userId });
+      
+      // Select the room to open the chat
+      setSelectedRoomId(roomId);
+      setShowMobileChatList(false);
+    } catch (error) {
+      console.error("Failed to start chat:", error);
+    }
   };
 
   return (
@@ -133,22 +150,45 @@ export default function MessagesPage() {
                     Online ({onlineUsers.length})
                   </span>
                 </div>
-                <div className="flex overflow-x-auto gap-3 pb-2">
-                  {onlineUsers.slice(0, 10).map((user: any) => (
-                    <div key={user._id} className="flex flex-col items-center gap-1 min-w-[60px]">
-                      <div className="relative">
-                        <img
-                          src={user.imageUrl || "/default-avatar.png"}
-                          alt={user.name}
-                          className="w-12 h-12 rounded-full object-cover border-2 border-emerald-500"
-                        />
-                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-gray-800 rounded-full"></div>
-                      </div>
-                      <span className="text-xs text-gray-400 truncate w-full text-center">
-                        {user.name.split(" ")[0]}
-                      </span>
-                    </div>
-                  ))}
+                <div className="flex overflow-x-auto gap-3 pb-2 scrollbar-hide">
+                  {onlineUsers.slice(0, 10).map((user: any) => {
+                    const isCurrentUser = user._id === currentUser._id;
+                    return (
+                      <button
+                        key={user._id}
+                        onClick={() => handleClickOnlineUser(user._id)}
+                        disabled={isCurrentUser}
+                        className={`flex flex-col items-center gap-1 min-w-[60px] rounded-lg p-2 transition-all ${
+                          isCurrentUser 
+                            ? 'cursor-default bg-emerald-500/10' 
+                            : 'cursor-pointer hover:bg-white/5 group'
+                        }`}
+                        title={isCurrentUser ? 'This is you' : `Chat with ${user.name}`}
+                      >
+                        <div className="relative">
+                          <img
+                            src={user.imageUrl || "/default-avatar.png"}
+                            alt={user.name}
+                            className={`w-12 h-12 rounded-full object-cover border-2 transition-colors ${
+                              isCurrentUser 
+                                ? 'border-emerald-400' 
+                                : 'border-emerald-500 group-hover:border-emerald-400'
+                            }`}
+                          />
+                          <div className={`absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-gray-800 rounded-full ${
+                            !isCurrentUser && 'group-hover:animate-pulse'
+                          }`}></div>
+                        </div>
+                        <span className={`text-xs truncate w-full text-center transition-colors ${
+                          isCurrentUser 
+                            ? 'text-emerald-400 font-semibold' 
+                            : 'text-gray-400 group-hover:text-gray-200'
+                        }`}>
+                          {isCurrentUser ? 'You' : user.name.split(" ")[0]}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

@@ -540,9 +540,9 @@ export function EnhancedChatRoom({ roomId, onBack }: EnhancedChatRoomProps) {
   });
 
   return (
-    <div className="h-full flex flex-col bg-gray-900">
-      {/* Header */}
-      <div className="bg-gray-800/50 border-b border-white/10 p-4 flex items-center justify-between">
+    <div className="h-full flex flex-col bg-gray-900 relative">
+      {/* Header - Fixed on mobile */}
+      <div className="bg-gray-800/50 border-b border-white/10 p-3 md:p-4 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
         <div className="flex items-center gap-3">
           {onBack && (
             <button
@@ -714,20 +714,16 @@ export function EnhancedChatRoom({ roomId, onBack }: EnhancedChatRoomProps) {
               ))}
             </div>
           )}
-          
-          {searchQuery && searchResults && searchResults.length === 0 && (
-            <p className="text-sm text-gray-400 mt-4">No messages found</p>
-          )}
         </div>
       )}
 
-      {/* Pinned Messages Section */}
+      {/* Pinned Messages */}
       {pinnedMessages && pinnedMessages.length > 0 && showPinnedMessages && (
-        <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border-b border-blue-500/30 p-4">
+        <div className="bg-yellow-500/10 border-b border-yellow-500/30 p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-white flex items-center gap-2">
-              <Pin className="w-4 h-4 text-blue-400" />
-              Pinned Messages ({pinnedMessages.length})
+            <h3 className="text-sm font-semibold text-yellow-400 flex items-center gap-2">
+              <Pin className="w-4 h-4" />
+              Pinned Messages
             </h3>
             <button
               onClick={() => setShowPinnedMessages(false)}
@@ -758,8 +754,8 @@ export function EnhancedChatRoom({ roomId, onBack }: EnhancedChatRoomProps) {
         </div>
       )}
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      {/* Messages Area - Mobile keyboard responsive */}
+      <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4 overscroll-contain">
         {messages?.map((msg: any, index: number) => {
           const isOwn = msg.sender === currentUser._id;
           const isRead = msg.readBy.length > 1;
@@ -1064,19 +1060,19 @@ export function EnhancedChatRoom({ roomId, onBack }: EnhancedChatRoomProps) {
         </div>
       )}
 
-      {/* Input Area */}
-      <div className="bg-gray-800/50 border-t border-white/10 p-4">
+      {/* Input Area - Keyboard responsive on mobile */}
+      <div className="bg-gray-800/50 border-t border-white/10 p-3 md:p-4 flex-shrink-0 sticky bottom-0 z-10 safe-bottom">
         <div className="flex items-center gap-2">
           {/* Attach Button */}
           <Button 
             variant="ghost" 
             size="sm" 
-            className="text-gray-400 hover:text-white hover:bg-gray-700 transition-all"
+            className="text-gray-400 hover:text-white hover:bg-gray-700 transition-all flex-shrink-0"
             onClick={() => setShowFileUpload(!showFileUpload)}
             disabled={uploading}
             title="Attach file"
           >
-            <Paperclip className="w-5 h-5" />
+            <Paperclip className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
           
           {/* Message Input */}
@@ -1088,18 +1084,19 @@ export function EnhancedChatRoom({ roomId, onBack }: EnhancedChatRoomProps) {
               handleTyping();
             }}
             onKeyPress={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
-            placeholder="Type a message... (use @ to mention)"
-            className="flex-1 bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus:border-emerald-500 transition-all"
+            placeholder="Type a message..."
+            className="flex-1 bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus:border-emerald-500 transition-all text-base"
             disabled={uploading}
+            autoComplete="off"
           />
           
           {/* Send Button */}
           <Button
             onClick={handleSendMessage}
             disabled={!message.trim() || uploading}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0"
           >
-            <Send className="w-5 h-5" />
+            <Send className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
         </div>
       </div>

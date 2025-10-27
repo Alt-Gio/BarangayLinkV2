@@ -11,14 +11,22 @@ export const savePushSubscription = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    if (!identity) {
+      // Silently skip if not authenticated - user may be registering
+      console.log("Push subscription skipped: User not authenticated");
+      return { success: false, reason: "not_authenticated" };
+    }
 
     const user = await ctx.db
       .query("users")
       .filter((q) => q.eq(q.field("clerkId"), identity.subject))
       .first();
 
-    if (!user) throw new Error("User not found");
+    if (!user) {
+      // Silently skip if user not found - may still be creating account
+      console.log("Push subscription skipped: User not found in database");
+      return { success: false, reason: "user_not_found" };
+    }
 
     const now = Date.now();
 

@@ -580,6 +580,7 @@ export const syncUserFromClerk = mutation({
         userLevel: workerLevel._id,
         department: "General",
         position: "Community Member",
+        role: "worker", // Default role
         isActive: false,
         status: "pending",
         level: 1,

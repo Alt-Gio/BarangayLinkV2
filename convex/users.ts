@@ -84,6 +84,7 @@ export const createOrUpdateUser = mutation({
         userLevel: selectedUserLevel._id,
         department: department || "General",
         position: jobTitle || "Community Member",
+        role: "worker", // Default role
         phone: phone || undefined,
         isActive: false,
         status: "pending",
@@ -193,6 +194,7 @@ export const createOrUpdateFromClerk = internalMutation({
       // Use exact user selections - only default if truly not provided
       department: department || "General",
       position: jobTitle || "Community Member", // jobTitle → position (this is the Job Title they entered)
+      role: "worker" as const, // Default role
       phone: phone || user.phone_numbers?.[0]?.phone_number || undefined,
       isActive: false,
       status: "pending" as const,
@@ -319,6 +321,7 @@ export const syncUserFromClerk = mutation({
       // Use exact values provided by user - position is the Job Title
       department: args.department || "General",
       position: args.jobTitle || "Community Member", // jobTitle from form → position in database
+      role: "worker" as const, // Default role
       phone: args.phone || undefined,
       isActive: false,
       status: "pending" as const,
@@ -972,6 +975,7 @@ export const ensureUserExists = mutation({
       // Use exact user selections from registration
       department: finalDepartment,
       position: finalPosition,
+      role: "worker", // Default role
       phone: phone || validInvitation?.phone || undefined,
       imageUrl: imageUrl || undefined,
       isActive: isActive,
@@ -1341,5 +1345,61 @@ export const getCurrentUserStatus = query({
       ...user,
       userLevel: userLevel,
     };
+  },
+});
+
+// Complete OAuth user profile (for new OAuth users)
+export const completeOAuthProfile = mutation({
+  args: {
+    department: v.string(),
+    position: v.string(),
+    phone: v.optional(v.string()),
+    status: v.optional(v.union(v.literal("active"), v.literal("pending"))),
+    isActive: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    // Find user by clerkId
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkId"), identity.subject))
+      .first();
+
+    if (!user) {
+      throw new Error("User not found in database");
+    }
+
+    // Update user with profile information
+    const updateData: any = {
+      department: args.department,
+      position: args.position,
+      name: user.name, // Keep existing name
+      metadata: {
+        ...user.metadata,
+        lastUpdated: Date.now(),
+        profileCompleted: true,
+      },
+    };
+
+    if (args.phone) {
+      updateData.phone = args.phone;
+    }
+
+    if (args.status) {
+      updateData.status = args.status;
+    }
+
+    if (args.isActive !== undefined) {
+      updateData.isActive = args.isActive;
+    }
+
+    await ctx.db.patch(user._id, updateData);
+
+    console.log(`✅ Updated profile for user: ${user.email}`);
+    return { success: true };
   },
 });

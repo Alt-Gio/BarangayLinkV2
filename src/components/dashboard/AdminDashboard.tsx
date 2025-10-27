@@ -264,16 +264,16 @@ export function AdminDashboard({ user, permissions }: AdminDashboardProps) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <button 
               onClick={() => router.push('/admin/users')}
-              className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left"
+              className="p-4 bg-gradient-to-br from-blue-700 to-blue-600 hover:from-blue-600 hover:to-blue-500 rounded-lg transition-all text-left border-2 border-blue-500/50 shadow-lg shadow-blue-500/20"
             >
-              <Users className="w-8 h-8 text-blue-400 mb-2" />
-              <p className="text-white font-medium">Manage Users</p>
-              <p className="text-gray-400 text-sm">Add, edit, assign roles</p>
+              <Users className="w-8 h-8 text-blue-100 mb-2" />
+              <p className="text-white font-semibold">Manage Users</p>
+              <p className="text-blue-100 text-sm">Add, edit, assign roles</p>
             </button>
             
             <button 
               onClick={() => router.push('/dashboard/team-workload')}
-              className="p-4 bg-gradient-to-br from-teal-700 to-teal-600 hover:from-teal-600 hover:to-teal-500 rounded-lg transition-all text-left border-2 border-teal-500/50"
+              className="p-4 bg-gradient-to-br from-teal-700 to-teal-600 hover:from-teal-600 hover:to-teal-500 rounded-lg transition-all text-left border-2 border-teal-500/50 shadow-lg shadow-teal-500/20"
             >
               <TrendingUp className="w-8 h-8 text-teal-100 mb-2" />
               <p className="text-white font-semibold">Team Workload</p>
@@ -282,20 +282,20 @@ export function AdminDashboard({ user, permissions }: AdminDashboardProps) {
             
             <button 
               onClick={() => router.push('/admin/settings')}
-              className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left"
+              className="p-4 bg-gradient-to-br from-gray-700 to-gray-600 hover:from-gray-600 hover:to-gray-500 rounded-lg transition-all text-left border-2 border-gray-500/50 shadow-lg shadow-gray-500/20"
             >
-              <Settings className="w-8 h-8 text-gray-400 mb-2" />
-              <p className="text-white font-medium">System Settings</p>
-              <p className="text-gray-400 text-sm">Configure system</p>
+              <Settings className="w-8 h-8 text-gray-100 mb-2" />
+              <p className="text-white font-semibold">System Settings</p>
+              <p className="text-gray-100 text-sm">Configure system</p>
             </button>
             
             <button 
               onClick={() => router.push('/dashboard/analytics')}
-              className="p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left"
+              className="p-4 bg-gradient-to-br from-purple-700 to-purple-600 hover:from-purple-600 hover:to-purple-500 rounded-lg transition-all text-left border-2 border-purple-500/50 shadow-lg shadow-purple-500/20"
             >
-              <BarChart3 className="w-8 h-8 text-purple-400 mb-2" />
-              <p className="text-white font-medium">Analytics</p>
-              <p className="text-gray-400 text-sm">System reports</p>
+              <BarChart3 className="w-8 h-8 text-purple-100 mb-2" />
+              <p className="text-white font-semibold">Analytics</p>
+              <p className="text-purple-100 text-sm">System reports</p>
             </button>
           </div>
         </CardContent>

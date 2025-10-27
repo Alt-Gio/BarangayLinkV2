@@ -102,7 +102,7 @@ export default function DocumentsPage() {
           <h1 className="text-lg font-semibold text-white">Documents</h1>
           <button
             onClick={() => setShowUpload(true)}
-            className="p-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+            className="p-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all"
           >
             <Upload className="w-5 h-5" />
           </button>
@@ -122,7 +122,7 @@ export default function DocumentsPage() {
                 </div>
                 <Button
                   onClick={() => setShowUpload(!showUpload)}
-                  className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white text-sm sm:text-base"
+                  className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-sm sm:text-base transition-transform"
                 >
                   <Upload className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                   <span className="hidden sm:inline">Upload Document</span>
@@ -210,14 +210,14 @@ export default function DocumentsPage() {
                   <Button
                     variant={viewMode === "list" ? "default" : "outline"}
                     onClick={() => setViewMode("list")}
-                    className={viewMode === "list" ? "bg-emerald-600" : "border-white/20 text-white"}
+                    className={`${viewMode === "list" ? "bg-emerald-600" : "border-white/20 text-white"} active:scale-95 transition-transform`}
                   >
                     <List className="w-4 h-4" />
                   </Button>
                   <Button
                     variant={viewMode === "grid" ? "default" : "outline"}
                     onClick={() => setViewMode("grid")}
-                    className={viewMode === "grid" ? "bg-emerald-600" : "border-white/20 text-white"}
+                    className={`${viewMode === "grid" ? "bg-emerald-600" : "border-white/20 text-white"} active:scale-95 transition-transform`}
                   >
                     <Grid3x3 className="w-4 h-4" />
                   </Button>
@@ -245,7 +245,7 @@ export default function DocumentsPage() {
                         <button
                           key={category.name}
                           onClick={() => setSelectedCategory(category.value)}
-                          className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors ${
+                          className={`w-full flex items-center justify-between p-3 rounded-lg active:scale-95 transition-all ${
                             selectedCategory === category.value
                               ? "bg-emerald-600 text-white"
                               : "hover:bg-white/10 text-gray-300"

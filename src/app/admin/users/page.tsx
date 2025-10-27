@@ -192,7 +192,7 @@ export default function AdminUsersPage() {
               />
               <Button
                 onClick={() => setIsInviteModalOpen(true)}
-                className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg flex items-center justify-center gap-2 transition-all hover:scale-105 text-sm sm:text-base"
+                className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg flex items-center justify-center gap-2 transition-all hover:scale-105 text-sm sm:text-base"
               >
                 <UserPlus className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="hidden sm:inline">Send Invitation</span>
@@ -288,7 +288,7 @@ export default function AdminUsersPage() {
               <div className="flex gap-2 w-full sm:w-auto">
                 <Button
                   onClick={() => handleBulkAction("delete")}
-                  className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm"
+                  className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 active:scale-95 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm transition-transform"
                 >
                   <Trash2 className="w-4 h-4" />
                   <span className="hidden sm:inline">Delete Selected</span>
@@ -296,7 +296,7 @@ export default function AdminUsersPage() {
                 </Button>
                 <Button
                   onClick={() => setSelectedUsers([])}
-                  className="flex-1 sm:flex-none bg-gray-600 hover:bg-gray-700 text-white px-3 sm:px-4 py-2 rounded-lg text-sm"
+                  className="flex-1 sm:flex-none bg-gray-600 hover:bg-gray-700 active:scale-95 text-white px-3 sm:px-4 py-2 rounded-lg text-sm transition-transform"
                 >
                   Cancel
                 </Button>
@@ -470,21 +470,21 @@ export default function AdminUsersPage() {
               <div className="flex gap-2 mt-4 pt-3 border-t border-white/10">
                 <Button
                   onClick={() => setViewingUser(user)}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm transition-transform"
                 >
                   <Eye className="w-4 h-4" />
                   View
                 </Button>
                 <Button
                   onClick={() => setEditingUser(user)}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm transition-transform"
                 >
                   <Edit className="w-4 h-4" />
                   Edit
                 </Button>
                 <Button
                   onClick={() => handleDeleteUser(user._id)}
-                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg flex items-center justify-center"
+                  className="bg-red-600 hover:bg-red-700 active:scale-95 text-white px-3 py-2 rounded-lg flex items-center justify-center transition-transform"
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>

@@ -363,9 +363,192 @@ export const getMilestoneDetails = query({
       })
     );
 
+    // Get project details
+    const project = await ctx.db.get(milestone.projectId);
+
     return {
       ...milestone,
       tasks: tasksWithAssignees,
+      projectName: project?.title || "Unknown Project",
+      projectDepartment: project?.department || "Unassigned",
+    };
+  },
+});
+
+/**
+ * Get all active milestones (for Sprint Board)
+ */
+export const getActiveMilestones = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
+    const now = Date.now();
+    const allMilestones = await ctx.db.query("milestones").collect();
+
+    // Filter active milestones (have targetDate and not completed)
+    const activeMilestones = allMilestones.filter(
+      (m: any) =>
+        m.targetDate &&
+        m.targetDate >= now &&
+        m.status !== "completed"
+    );
+
+    // Enrich with project and task data
+    const enriched = await Promise.all(
+      activeMilestones.map(async (milestone) => {
+        const project = await ctx.db.get(milestone.projectId);
+        const tasks = await ctx.db
+          .query("tasks")
+          .withIndex("by_milestone", (q) => q.eq("milestoneId", milestone._id))
+          .collect();
+
+        const totalTasks = tasks.length;
+        const completedTasks = tasks.filter((t) => t.completed).length;
+        const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+        // Calculate health
+        const daysLeft = milestone.targetDate 
+          ? Math.ceil((milestone.targetDate - now) / (1000 * 60 * 60 * 24))
+          : 0;
+        let health: "on-track" | "at-risk" | "behind" = "on-track";
+        if (milestone.targetDate) {
+          if (daysLeft <= 3 && progress < 80) {
+            health = "behind";
+          } else if (daysLeft <= 7 && progress < 50) {
+            health = "at-risk";
+          }
+        }
+
+        return {
+          ...milestone,
+          projectName: project?.title || "Unknown",
+          projectDepartment: project?.department || "Unassigned",
+          totalTasks,
+          completedTasks,
+          progress,
+          health,
+          daysLeft,
+        };
+      })
+    );
+
+    return enriched.sort((a, b) => a.targetDate! - b.targetDate!);
+  },
+});
+
+/**
+ * Get upcoming milestones (for Sprint Board)
+ */
+export const getUpcomingMilestones = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
+    const now = Date.now();
+    const allMilestones = await ctx.db.query("milestones").collect();
+
+    // Get milestones with future target dates
+    const upcomingMilestones = allMilestones.filter(
+      (m: any) =>
+        m.targetDate &&
+        m.targetDate > now &&
+        m.status === "not_started"
+    );
+
+    const enriched = await Promise.all(
+      upcomingMilestones.map(async (milestone) => {
+        const project = await ctx.db.get(milestone.projectId);
+        const tasks = await ctx.db
+          .query("tasks")
+          .withIndex("by_milestone", (q) => q.eq("milestoneId", milestone._id))
+          .collect();
+
+        return {
+          ...milestone,
+          projectName: project?.title || "Unknown",
+          projectDepartment: project?.department || "Unassigned",
+          totalTasks: tasks.length,
+        };
+      })
+    );
+
+    return enriched.sort((a, b) => a.targetDate! - b.targetDate!);
+  },
+});
+
+/**
+ * Get completed milestones (for Sprint Board)
+ */
+export const getCompletedMilestones = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
+    const allMilestones = await ctx.db.query("milestones").collect();
+
+    const completedMilestones = allMilestones.filter(
+      (m: any) => m.status === "completed"
+    );
+
+    const enriched = await Promise.all(
+      completedMilestones.map(async (milestone) => {
+        const project = await ctx.db.get(milestone.projectId);
+        const tasks = await ctx.db
+          .query("tasks")
+          .withIndex("by_milestone", (q) => q.eq("milestoneId", milestone._id))
+          .collect();
+
+        return {
+          ...milestone,
+          projectName: project?.title || "Unknown",
+          projectDepartment: project?.department || "Unassigned",
+          totalTasks: tasks.length,
+          completedTasks: tasks.filter((t) => t.completed).length,
+        };
+      })
+    );
+
+    return enriched.sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+  },
+});
+
+/**
+ * Get milestone statistics (for Sprint Board)
+ */
+export const getMilestoneStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return { active: 0, upcoming: 0, completed: 0, total: 0 };
+
+    const now = Date.now();
+    const allMilestones = await ctx.db.query("milestones").collect();
+
+    const active = allMilestones.filter(
+      (m: any) =>
+        m.targetDate &&
+        m.targetDate >= now &&
+        m.status !== "completed"
+    );
+
+    const upcoming = allMilestones.filter(
+      (m: any) =>
+        m.targetDate &&
+        m.targetDate > now &&
+        m.status === "not_started"
+    );
+
+    const completed = allMilestones.filter((m: any) => m.status === "completed");
+
+    return {
+      active: active.length,
+      upcoming: upcoming.length,
+      completed: completed.length,
+      total: allMilestones.length,
     };
   },
 });

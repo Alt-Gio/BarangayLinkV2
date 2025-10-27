@@ -141,7 +141,8 @@ export const acceptInvitation = mutation({
       name: `${invitation.firstName} ${invitation.lastName}`,
       userLevel: invitation.userLevelId,
       department: invitation.department,
-      position: invitation.position,
+      position: invitation.position ?? "Team Member",
+      role: "worker", // Default role
       phone: invitation.phone,
       isActive: true,
       status: "active",

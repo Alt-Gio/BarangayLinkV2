@@ -141,6 +141,7 @@ export const syncAllClerkUsers = mutation({
             userLevel: invitation?.userLevelId || workerLevel._id,
             department: invitation?.department || "General",
             position: invitation?.position || "Community Member",
+            role: "worker", // Default role for new users
             isActive: isActive,
             status: userStatus,
             registeredViaInvitation: invitation ? true : false,

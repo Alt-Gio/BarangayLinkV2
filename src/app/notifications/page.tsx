@@ -164,7 +164,7 @@ export default function NotificationsPage() {
               {unreadCount > 0 && (
                 <button
                   onClick={() => markAllRead()}
-                  className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all shadow-lg hover:shadow-teal-500/50"
+                  className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 active:scale-95 text-white rounded-lg transition-all shadow-lg hover:shadow-teal-500/50"
                 >
                   <CheckCheck className="w-4 h-4" />
                   Mark All Read
@@ -177,7 +177,7 @@ export default function NotificationsPage() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setFilter('all')}
-              className={`px-4 py-2 rounded-lg transition-all ${
+              className={`px-4 py-2 rounded-lg active:scale-95 transition-all ${
                 filter === 'all'
                   ? 'bg-teal-600 text-white shadow-lg'
                   : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-white'
@@ -187,7 +187,7 @@ export default function NotificationsPage() {
             </button>
             <button
               onClick={() => setFilter('unread')}
-              className={`px-4 py-2 rounded-lg transition-all ${
+              className={`px-4 py-2 rounded-lg active:scale-95 transition-all ${
                 filter === 'unread'
                   ? 'bg-teal-600 text-white shadow-lg'
                   : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-white'
@@ -204,7 +204,7 @@ export default function NotificationsPage() {
                   <button
                     key={cat}
                     onClick={() => setCategoryFilter(categoryFilter === cat ? null : (cat as string))}
-                    className={`px-3 py-2 rounded-lg text-sm transition-all ${
+                    className={`px-3 py-2 rounded-lg text-sm active:scale-95 transition-all ${
                       categoryFilter === cat
                         ? 'bg-emerald-600 text-white shadow-lg'
                         : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-white'
@@ -216,7 +216,7 @@ export default function NotificationsPage() {
                 {categoryFilter && (
                   <button
                     onClick={() => setCategoryFilter(null)}
-                    className="px-2 py-2 rounded-lg bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-white transition-all"
+                    className="px-2 py-2 rounded-lg bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-white active:scale-95 transition-all"
                     title="Clear filter"
                   >
                     <X className="w-4 h-4" />
@@ -233,7 +233,7 @@ export default function NotificationsPage() {
             notifications.map((notification) => (
               <div
                 key={notification._id}
-                className={`bg-gray-800 rounded-lg p-5 border-l-4 transition-all hover:shadow-xl hover:scale-[1.01] cursor-pointer ${
+                className={`bg-gray-800 rounded-lg p-5 border-l-4 transition-all hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] cursor-pointer ${
                   getPriorityColor(notification.metadata?.priority, notification.isRead)
                 } ${!notification.isRead ? 'shadow-lg shadow-teal-500/10' : ''}`}
                 onClick={() => handleNotificationClick(notification)}

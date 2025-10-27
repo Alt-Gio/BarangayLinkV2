@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
@@ -40,21 +40,35 @@ export const dynamic = "force-dynamic";
 export default function CompleteProfilePage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [invitationCode, setInvitationCode] = useState("");
   const [isValidating, setIsValidating] = useState(false);
   const [invitationValid, setInvitationValid] = useState<any>(null);
   
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
+    firstName: user?.firstName || "",
+    lastName: user?.lastName || "",
     department: "",
     position: "",
     phone: "",
   });
 
+  // Pre-fill OAuth data
+  useEffect(() => {
+    if (user && isLoaded) {
+      setFormData(prev => ({
+        ...prev,
+        firstName: user.firstName || prev.firstName,
+        lastName: user.lastName || prev.lastName,
+      }));
+    }
+  }, [user, isLoaded]);
+
   const departments = useQuery(api.departments.getAllDepartments);
   const userLevels = useQuery(api.userLevels.getAllUserLevels);
+  const convexUser = useQuery(api.users.getCurrentUser, isLoaded && user ? {} : "skip");
+  const completeOAuthProfile = useMutation(api.users.completeOAuthProfile);
 
   // Validate invitation code
   const validateInvitation = async () => {
@@ -95,13 +109,21 @@ export default function CompleteProfilePage() {
 
   const handleSubmit = async () => {
     // Validate required fields
-    if (!formData.department || !formData.position) {
-      toast.error("Please fill in all required fields");
+    if (!formData.firstName || !formData.lastName || !formData.department || !formData.position) {
+      toast.error("Please fill in all required fields (Name, Department, Position)");
       return;
     }
 
+    if (!user?.primaryEmailAddress?.emailAddress) {
+      toast.error("No email address found");
+      return;
+    }
+
+    setIsSubmitting(true);
+    
     try {
-      // Update Clerk metadata
+      // Step 1: Update Clerk metadata first
+      console.log("📝 Updating Clerk metadata...");
       await user?.update({
         unsafeMetadata: {
           ...user.unsafeMetadata,
@@ -115,13 +137,45 @@ export default function CompleteProfilePage() {
           profileCompleted: true,
         },
       });
+      console.log("✅ Clerk metadata updated");
 
-      toast.success("Profile completed! Redirecting...");
+      // Step 2: Update existing Convex user (created by webhook)
+      console.log("📝 Updating Convex user profile...");
       
-      // Redirect to dashboard (ensureUserExists will create user with proper status)
-      router.push("/dashboard");
+      if (!convexUser) {
+        throw new Error("User not found in database. Please try signing in again.");
+      }
+
+      await completeOAuthProfile({
+        department: formData.department,
+        position: formData.position,
+        phone: formData.phone || undefined,
+        // Activate user if they have invitation code
+        status: invitationValid ? "active" : "pending",
+        isActive: invitationValid ? true : false,
+      });
+      console.log("✅ Convex user updated");
+
+      toast.success(
+        invitationValid
+          ? "Profile completed! Welcome to BarangayLink!"
+          : "Registration submitted! Waiting for admin approval."
+      );
+      
+      // Small delay to ensure updates propagate
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Redirect to appropriate page
+      if (invitationValid) {
+        router.push("/dashboard");
+      } else {
+        router.push("/pending-approval");
+      }
     } catch (error: any) {
-      toast.error(error.message || "Failed to complete profile");
+      console.error("Profile completion error:", error);
+      toast.error(error.message || "Failed to complete profile. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -253,9 +307,8 @@ export default function CompleteProfilePage() {
                 onValueChange={(value) =>
                   setFormData({ ...formData, department: value })
                 }
-                disabled={invitationValid}
               >
-                <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                <SelectTrigger className="bg-white/5 border-white/10 text-white" disabled={invitationValid}>
                   <SelectValue placeholder="Select department" />
                 </SelectTrigger>
                 <SelectContent>
@@ -319,10 +372,20 @@ export default function CompleteProfilePage() {
           {/* Submit Button */}
           <Button
             onClick={handleSubmit}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-6 text-lg"
+            disabled={isSubmitting}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <CheckCircle2 className="w-5 h-5 mr-2" />
-            {invitationValid ? "Activate Account" : "Complete Registration"}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Creating your account...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-5 h-5 mr-2" />
+                {invitationValid ? "Activate Account" : "Complete Registration"}
+              </>
+            )}
           </Button>
 
           {/* Social Login Info */}

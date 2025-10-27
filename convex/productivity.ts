@@ -13,15 +13,19 @@ export const createProject = mutation({
     budget: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const currentUser = await checkPermission(ctx, ["BUILDER", "MANAGER", "ADMIN"]);
+    // Check permission - ADMIN, CAPTAIN, MANAGER, BUILDER can create projects
+    const currentUser = await checkPermission(ctx, ["BUILDER", "MANAGER", "CAPTAIN", "ADMIN"]);
     
-    // BUILDERs can only create projects in their department
-    if (currentUser.userLevel.name === "BUILDER") {
+    const userRole = currentUser.userLevel.name;
+    
+    // MANAGER and BUILDER can only create projects in their own department
+    if (userRole === "MANAGER" || userRole === "BUILDER") {
       checkDepartmentAccess(currentUser, args.department);
     }
+    // ADMIN and CAPTAIN can create projects in any department (no restriction)
     
     // Set initial status based on role
-    const initialStatus = currentUser.userLevel.name === "BUILDER" ? "draft" : "active";
+    const initialStatus = userRole === "BUILDER" ? "draft" : "active";
 
     const projectId = await ctx.db.insert("projects", {
       title: args.title,
@@ -292,19 +296,32 @@ export const getProjects = query({
     
     let query = ctx.db.query("projects");
     
-    // Apply role-based filtering
+    // Apply role-based filtering based on user requirements
     // NOTE: assignedTo is now an array, so we need to filter in JS
     const allProjects = await query.collect();
+    
+    // Get all users to check creator roles for BUILDER filtering
+    const allUsers = await ctx.db.query("users").collect();
+    const userRoles = new Map();
+    for (const user of allUsers) {
+      if (user.userLevel) {
+        const level = await ctx.db.get(user.userLevel);
+        if (level) {
+          userRoles.set(user._id, level.name);
+        }
+      }
+    }
     
     let filteredProjects = allProjects;
     
     switch(userLevel) {
       case "ADMIN":
-        // ADMIN can see all projects
+      case "CAPTAIN":
+        // ADMIN and CAPTAIN can see ALL projects
         break;
         
       case "MANAGER":
-        // MANAGER can see department projects OR projects they're assigned to
+        // MANAGER can see all projects in THEIR department OR projects they're assigned to
         filteredProjects = allProjects.filter(project => 
           project.department === currentUser.department || 
           project.assignedTo.includes(currentUser._id)
@@ -312,15 +329,27 @@ export const getProjects = query({
         break;
         
       case "BUILDER":
-        // BUILDER can see projects they created OR are assigned to
-        filteredProjects = allProjects.filter(project => 
-          project.createdBy === currentUser._id || 
-          project.assignedTo.includes(currentUser._id)
-        );
+        // BUILDER can see:
+        // 1. Projects in their department created by MANAGER or higher
+        // 2. Projects they're assigned to (any department)
+        filteredProjects = allProjects.filter(project => {
+          // Always show if assigned
+          if (project.assignedTo.includes(currentUser._id)) {
+            return true;
+          }
+          
+          // Show projects in their department created by MANAGER, CAPTAIN, or ADMIN
+          if (project.department === currentUser.department) {
+            const creatorRole = userRoles.get(project.createdBy);
+            return creatorRole && ["MANAGER", "CAPTAIN", "ADMIN"].includes(creatorRole);
+          }
+          
+          return false;
+        });
         break;
         
       case "WORKER":
-        // WORKER can see projects they're assigned to
+        // WORKER can only see projects they're assigned to
         filteredProjects = allProjects.filter(project => 
           project.assignedTo.includes(currentUser._id)
         );

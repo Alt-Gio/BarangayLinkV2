@@ -37,7 +37,7 @@ export default function ProjectApprovalPage() {
   const { currentUser, isOnline } = useOfflineData();
   
   // Get pending projects
-  const pendingProjects = useQuery(api.projects.getPendingApprovals);
+  const pendingProjects = useQuery(api.projects.getPendingApprovals as any);
   
   // Review mutation
   const reviewProject = useMutation(api.projects.reviewProject);

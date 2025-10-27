@@ -53,4 +53,25 @@ crons.daily(
   internal.dailyDigest.sendDailyDigestToAll
 );
 
+// Check for overdue and due-soon tasks every hour
+crons.hourly(
+  "check overdue tasks",
+  { minuteUTC: 15 }, // Run at :15 past each hour
+  internal.taskNotifications.checkOverdueTasks
+);
+
+// SECURITY: Auto-fix missing roles every hour
+crons.hourly(
+  "security: auto-fix missing roles",
+  { minuteUTC: 5 }, // Run at :05 past each hour
+  internal.migrations.autoFixMissingRoles
+);
+
+// Update user statistics daily at 6 AM Philippine Time (10 PM UTC previous day)
+crons.daily(
+  "update user statistics",
+  { hourUTC: 22, minuteUTC: 0 }, // 6:00 AM PHT = 22:00 UTC (previous day)
+  internal.userStats.recalculateAllUserStatsInternal
+);
+
 export default crons;

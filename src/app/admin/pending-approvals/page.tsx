@@ -39,11 +39,28 @@ export default function PendingApprovalsPage() {
   const [activeFilter, setActiveFilter] = useState<'pending' | 'approved' | 'rejected' | 'invitations'>('pending');
 
   const currentUser = useQuery(api.users.getCurrentUser);
-  const pendingUsers = useQuery(api.userApproval.getPendingUsers);
-  const rejectedUsers = useQuery(api.userApproval.getRejectedUsers);
-  const approvedUsers = useQuery(api.userApproval.getApprovedUsers);
-  const approvalStats = useQuery(api.userApproval.getApprovalStats);
-  const invitations = useQuery(api.userApproval.getAllInvitations, { status: 'pending' });
+  
+  // Only fetch data after currentUser is loaded to avoid authentication errors
+  const pendingUsers = useQuery(
+    api.userApproval.getPendingUsers,
+    currentUser ? {} : "skip"
+  );
+  const rejectedUsers = useQuery(
+    api.userApproval.getRejectedUsers,
+    currentUser ? {} : "skip"
+  );
+  const approvedUsers = useQuery(
+    api.userApproval.getApprovedUsers,
+    currentUser ? {} : "skip"
+  );
+  const approvalStats = useQuery(
+    api.userApproval.getApprovalStats,
+    currentUser ? {} : "skip"
+  );
+  const invitations = useQuery(
+    api.userApproval.getAllInvitations,
+    currentUser ? { status: 'pending' as const } : "skip"
+  );
 
   const approveUser = useMutation(api.userApproval.approveUser);
   const rejectUser = useMutation(api.userApproval.rejectUser);
@@ -54,7 +71,7 @@ export default function PendingApprovalsPage() {
     return null;
   }
 
-  if (!isLoaded || !pendingUsers || !approvalStats || !rejectedUsers || !approvedUsers) {
+  if (!isLoaded || !currentUser || !pendingUsers || !approvalStats || !rejectedUsers || !approvedUsers) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
         <div className="text-center">

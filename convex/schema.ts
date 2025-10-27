@@ -35,6 +35,13 @@ export default defineSchema({
     userLevel: v.id("userLevels"),
     department: v.optional(v.string()),
     position: v.string(),
+    role: v.optional(v.union(
+      v.literal("admin"),
+      v.literal("captain"),
+      v.literal("manager"),
+      v.literal("builder"),
+      v.literal("worker")
+    )), // Role-based permissions for kanban (optional temporarily for migration)
     phone: v.optional(v.string()),
     isActive: v.boolean(),
     // Registration approval system
@@ -240,10 +247,17 @@ export default defineSchema({
     eventId: v.optional(v.id("events")),
     type: v.union(v.literal("todo"), v.literal("daily"), v.literal("habit"), v.literal("milestone"), v.literal("reward")), // Task types: todo, daily, habit, milestone, reward
     difficulty: v.union(v.literal("trivial"), v.literal("easy"), v.literal("medium"), v.literal("hard")),
-    status: v.union(v.literal("todo"), v.literal("in_progress"), v.literal("review"), v.literal("completed"), v.literal("cancelled")),
+    status: v.string(), // Allow any status for custom columns
     priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent")),
     completed: v.boolean(),
     completedAt: v.optional(v.number()),
+    completedBy: v.optional(v.id("users")), // Who marked it as done
+    completedByRole: v.optional(v.string()), // Role of person who marked done
+    checkedBy: v.optional(v.id("users")), // Who checked/approved it
+    workingOnIt: v.optional(v.id("users")), // Who is currently working on it
+    workingOnItStartedAt: v.optional(v.number()), // When they started working
+    lastMovedBy: v.optional(v.id("users")), // Who last moved the task
+    lockedInReview: v.optional(v.boolean()), // Task locked in review column
     dueDate: v.optional(v.number()),
     createdAt: v.number(),
     // Habit-specific
@@ -291,6 +305,30 @@ export default defineSchema({
   .index("by_type", ["type"])
   .index("by_due_date", ["dueDate"])
   .index("by_priority", ["priority"]),
+
+  // Kanban columns (customizable per milestone)
+  kanbanColumns: defineTable({
+    milestoneId: v.id("milestones"),
+    title: v.string(),
+    statusKey: v.string(), // Unique key for this status (e.g., "in_progress", "custom_review")
+    color: v.string(), // Tailwind color class (e.g., "blue", "purple", "green")
+    order: v.number(), // Display order (0, 1, 2, etc.)
+    isDefault: v.boolean(), // Cannot be deleted if true
+    rules: v.object({
+      requiresAssignment: v.optional(v.boolean()),
+      requiresDescription: v.optional(v.boolean()),
+      requiresStoryPoints: v.optional(v.boolean()),
+      minStoryPoints: v.optional(v.number()),
+      requiresPriority: v.optional(v.boolean()),
+      requiresDueDate: v.optional(v.boolean()),
+      requiresReviewer: v.optional(v.boolean()),
+    }),
+    createdAt: v.number(),
+    createdBy: v.id("users"),
+  })
+  .index("by_milestone", ["milestoneId"])
+  .index("by_order", ["milestoneId", "order"])
+  .index("by_status_key", ["statusKey"]),
 
   // User stats for gamification (Habitica-style)
   userStats: defineTable({
@@ -514,23 +552,49 @@ export default defineSchema({
       v.literal("task_assigned"),
       v.literal("task_completed"),
       v.literal("task_verified"),
-      v.literal("task_rejected")
+      v.literal("task_rejected"),
+      v.literal("project_overdue"),
+      v.literal("project_reminder"),
+      v.literal("project_completed"),
+      // New task notification types
+      v.literal("assigned"),
+      v.literal("due_soon"),
+      v.literal("overdue"),
+      v.literal("working_on_it"),
+      v.literal("ready_for_review"),
+      v.literal("review_approved"),
+      v.literal("review_rejected"),
+      v.literal("unassigned"),
+      v.literal("task_updated")
     ),
+    priority: v.optional(v.string()), // "low", "medium", "high", "urgent"
     category: v.optional(v.string()),
     isRead: v.boolean(),
+    readAt: v.optional(v.number()), // When notification was read
     actionUrl: v.optional(v.string()),
     relatedId: v.optional(v.string()),
     relatedType: v.optional(v.string()),
+    relatedTaskId: v.optional(v.id("tasks")), // Direct reference to task
     metadata: v.optional(v.object({
       priority: v.optional(v.string()),
       category: v.optional(v.string()),
       relatedId: v.optional(v.string()),
+      projectId: v.optional(v.string()),
+      dueDate: v.optional(v.number()),
+      completedAt: v.optional(v.number()),
       data: v.optional(v.any()),
     })),
     createdAt: v.number(),
+    // Resend tracking
+    resentAt: v.optional(v.number()),
+    resentCount: v.optional(v.number()),
+    emailSent: v.optional(v.boolean()),
+    emailSentAt: v.optional(v.number()),
   })
   .index("by_user", ["userId"])
-  .index("by_read_status", ["userId", "isRead"]),
+  .index("by_user_read", ["userId", "isRead"])
+  .index("by_type", ["type"])
+  .index("by_priority", ["priority"]),
 
   // User sessions for tracking login/logout (OPTIMIZED)
   userSessions: defineTable({
@@ -682,7 +746,8 @@ export default defineSchema({
     firstName: v.string(),
     lastName: v.string(),
     department: v.string(),
-    position: v.string(),
+    position: v.optional(v.string()), // Job position/title
+    address: v.optional(v.string()),
     phone: v.optional(v.string()),
     userLevelId: v.id("userLevels"),
     invitedBy: v.id("users"),
@@ -700,6 +765,25 @@ export default defineSchema({
   .index("by_invited_by", ["invitedBy"])
   .index("by_expires_at", ["expiresAt"])
   .index("by_token", ["invitationToken"]),
+
+  // Invitation codes for bulk user registration
+  invitationCodes: defineTable({
+    code: v.string(), // Unique code like "ADMIN2024", "BUILD123"
+    description: v.string(),
+    userLevelId: v.id("userLevels"),
+    department: v.string(),
+    maxUses: v.number(), // -1 for unlimited
+    usedCount: v.number(),
+    status: v.union(v.literal("active"), v.literal("inactive"), v.literal("expired")),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    expiresAt: v.optional(v.number()), // Optional expiration
+    usedBy: v.array(v.id("users")), // Track who used this code
+  })
+  .index("by_code", ["code"])
+  .index("by_status", ["status"])
+  .index("by_created_by", ["createdBy"])
+  .index("by_expires_at", ["expiresAt"]),
 
   // PRODUCTIVITY & PROJECT MANAGEMENT ENHANCEMENTS
 
@@ -1228,4 +1312,46 @@ export default defineSchema({
   .index("by_user", ["userId"])
   .index("by_parent", ["parentId"])
   .index("by_resolved", ["resolved"]),
+
+  // System backups for data backup and restore
+  systemBackups: defineTable({
+    type: v.union(v.literal("manual"), v.literal("automatic"), v.literal("archive")),
+    description: v.optional(v.string()),
+    status: v.string(), // "in_progress", "completed", "failed"
+    recordCount: v.number(),
+    tables: v.object({
+      users: v.number(),
+      departments: v.number(),
+      userLevels: v.number(),
+      projects: v.number(),
+      events: v.number(),
+    }),
+    dataJson: v.string(), // Full JSON backup data
+    timestamp: v.number(),
+    createdBy: v.optional(v.id("users")),
+    creatorName: v.string(),
+  })
+  .index("by_type", ["type"])
+  .index("by_timestamp", ["timestamp"])
+  .index("by_creator", ["createdBy"]),
+
+  // Security settings for system-wide security configuration
+  securitySettings: defineTable({
+    sessionTimeout: v.number(), // Minutes before auto-logout
+    passwordMinLength: v.number(),
+    requireMFA: v.boolean(),
+    allowPublicRegistration: v.boolean(),
+    maxLoginAttempts: v.number(),
+    lockoutDuration: v.number(), // Minutes
+    passwordRequireUppercase: v.boolean(),
+    passwordRequireNumbers: v.boolean(),
+    passwordRequireSpecialChars: v.boolean(),
+    forcePasswordChange: v.boolean(), // Force users to change password on next login
+    passwordExpiryDays: v.number(), // Days until password expires
+    enableIPWhitelist: v.boolean(),
+    ipWhitelist: v.array(v.string()),
+    enable2FA: v.boolean(),
+    updatedAt: v.number(),
+    updatedBy: v.optional(v.id("users")),
+  }),
 });

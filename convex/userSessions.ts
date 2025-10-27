@@ -65,6 +65,7 @@ export const startSession = mutation({
           userLevel: workerLevel._id,
           department: "General",
           position: "Community Member",
+          role: "worker", // Default role
           phone: undefined,
           isActive: false,
           status: "pending",

@@ -25,7 +25,12 @@ import {
   Search,
   Plus,
   Target,
-  Flame
+  Flame,
+  CheckCheck,
+  AlertTriangle,
+  Briefcase,
+  ListTodo,
+  ArrowRight
 } from 'lucide-react';
 import { Id } from '../../../../convex/_generated/dataModel';
 
@@ -34,6 +39,13 @@ export default function MyTasksPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [filterProject, setFilterProject] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterType, setFilterType] = useState<'all' | 'event' | 'project'>('all');
+  const [showOverdueOnly, setShowOverdueOnly] = useState(false);
+  const [sortBy, setSortBy] = useState<'dueDate' | 'priority' | 'status'>('dueDate');
+  const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Get current user from offline context (cached, saves bandwidth!)
   const { currentUser, isOnline } = useOfflineData();
@@ -52,6 +64,24 @@ export default function MyTasksPage() {
 
   // Mutations
   const updateTaskStatus = useMutation(api.gamifiedTasks.updateTaskStatus);
+  const updateEventTaskStatus = useMutation(api.eventControl.updateTaskStatus);
+
+  // Loading skeleton
+  const LoadingSkeleton = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in duration-300">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="bg-white/5 rounded-xl p-4 space-y-3">
+          <div className="h-4 bg-white/10 rounded animate-pulse w-2/3" />
+          {[...Array(3)].map((_, j) => (
+            <div key={j} className="bg-white/10 rounded-lg p-3 space-y-2">
+              <div className="h-3 bg-white/15 rounded animate-pulse" />
+              <div className="h-3 bg-white/15 rounded animate-pulse w-4/5" />
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
 
   if (!currentUser) {
     return (
@@ -96,12 +126,62 @@ export default function MyTasksPage() {
     completed: filteredTasks.filter((t: any) => t.status === 'completed'),
   };
   
+  // Process event tasks
+  const eventTasks = myEventTasks || [];
+  
+  // Filter event tasks
+  let filteredEventTasks = eventTasks;
+  
+  if (searchQuery) {
+    filteredEventTasks = filteredEventTasks.filter((task: any) =>
+      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      task.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      task.event?.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }
+  
+  if (filterPriority !== 'all') {
+    filteredEventTasks = filteredEventTasks.filter((task: any) => task.priority === filterPriority);
+  }
+  
+  if (filterStatus !== 'all') {
+    filteredEventTasks = filteredEventTasks.filter((task: any) => task.status === filterStatus);
+  }
+  
+  if (showOverdueOnly) {
+    filteredEventTasks = filteredEventTasks.filter((task: any) => 
+      task.dueDate && task.dueDate < Date.now() && task.status !== 'done'
+    );
+  }
+  
+  // Sort event tasks
+  filteredEventTasks = [...filteredEventTasks].sort((a: any, b: any) => {
+    if (sortBy === 'dueDate') {
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      return a.dueDate - b.dueDate;
+    } else if (sortBy === 'priority') {
+      const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+      return (priorityOrder[a.priority as keyof typeof priorityOrder] || 99) - (priorityOrder[b.priority as keyof typeof priorityOrder] || 99);
+    } else {
+      const statusOrder = { blocked: 0, in_progress: 1, in_review: 2, todo: 3, done: 4 };
+      return (statusOrder[a.status as keyof typeof statusOrder] || 99) - (statusOrder[b.status as keyof typeof statusOrder] || 99);
+    }
+  });
+  
   // Stats
-  const totalTasks = uniqueTasks.length;
+  const totalTasks = uniqueTasks.length + eventTasks.length;
   const completedTasks = tasksByStatus.completed.length;
   const inProgressTasks = tasksByStatus.in_progress.length;
   const todoTasks = tasksByStatus.todo.length;
   const reviewTasks = tasksByStatus.review.length;
+  const eventTaskCount = eventTasks.length;
+  const projectTaskCount = uniqueTasks.length;
+  const overdueEventTasks = eventTasks.filter((t: any) => 
+    t.dueDate && t.dueDate < Date.now() && t.status !== 'done'
+  ).length;
+  const completedEventTasks = eventTasks.filter((t: any) => t.status === 'done').length;
+  const inProgressEventTasks = eventTasks.filter((t: any) => t.status === 'in_progress').length;
 
   // User stats
   const level = userStats?.user?.level || 1;
@@ -119,6 +199,23 @@ export default function MyTasksPage() {
       });
     } catch (error) {
       console.error('Failed to update status:', error);
+    }
+  };
+
+  const handleEventTaskStatusChange = async (taskId: Id<"eventTasks">, newStatus: string) => {
+    setUpdatingTaskId(taskId);
+    try {
+      await updateEventTaskStatus({ 
+        taskId, 
+        newStatus: newStatus as "backlog" | "todo" | "in_progress" | "in_review" | "done" | "blocked"
+      });
+      setSuccessMessage(`Task ${newStatus === 'done' ? 'completed' : 'updated'} successfully!`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      alert('Failed to update task status. Please try again.');
+    } finally {
+      setUpdatingTaskId(null);
     }
   };
 
@@ -206,10 +303,10 @@ export default function MyTasksPage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
               <div>
                 <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                  <Target className="w-8 h-8 text-emerald-400" />
+                  <Briefcase className="w-8 h-8 text-emerald-400" />
                   My Tasks
                 </h1>
-                <p className="text-gray-400 mt-1">Track and manage all your assigned tasks</p>
+                <p className="text-gray-400 mt-1">All your tasks from events and projects in one place</p>
               </div>
             </div>
 
@@ -278,7 +375,74 @@ export default function MyTasksPage() {
               </Card>
             </div>
 
-            {/* Stats Overview */}
+            {/* Success Message */}
+            {successMessage && (
+              <div className="mb-4 p-4 bg-emerald-500/20 border border-emerald-500/50 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                <span className="text-emerald-300">{successMessage}</span>
+              </div>
+            )}
+
+            {/* Quick Stats Overview */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <Card className="bg-gray-800/50 border-gray-700/50">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-emerald-500/20 rounded-lg">
+                      <ListTodo className="w-6 h-6 text-emerald-400" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-400">Total Tasks</div>
+                      <div className="text-2xl font-bold text-white">{totalTasks}</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gray-800/50 border-gray-700/50">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-purple-500/20 rounded-lg">
+                      <Calendar className="w-6 h-6 text-purple-400" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-400">Event Tasks</div>
+                      <div className="text-2xl font-bold text-white">{eventTaskCount}</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gray-800/50 border-gray-700/50">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-blue-500/20 rounded-lg">
+                      <Target className="w-6 h-6 text-blue-400" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-400">Project Tasks</div>
+                      <div className="text-2xl font-bold text-white">{projectTaskCount}</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gray-800/50 border-gray-700/50">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-red-500/20 rounded-lg">
+                      <AlertTriangle className="w-6 h-6 text-red-400" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-400">Overdue</div>
+                      <div className="text-2xl font-bold text-white">{overdueEventTasks}</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Detailed Stats Overview */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
               <Card className="bg-gray-800/50 border-gray-700/50">
                 <CardContent className="p-4">
@@ -327,7 +491,8 @@ export default function MyTasksPage() {
             </div>
 
             {/* Filters */}
-            <div className="flex flex-wrap gap-3 mb-6">
+            <div className="space-y-3 mb-6">
+              <div className="flex flex-wrap gap-3">
               <div className="flex-1 min-w-[200px]">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -365,6 +530,62 @@ export default function MyTasksPage() {
                   </option>
                 ))}
               </select>
+
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="all">All Statuses</option>
+                <option value="todo">To Do</option>
+                <option value="in_progress">In Progress</option>
+                <option value="in_review">In Review</option>
+                <option value="done">Done</option>
+                <option value="blocked">Blocked</option>
+              </select>
+
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'dueDate' | 'priority' | 'status')}
+                className="px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="dueDate">Sort by Due Date</option>
+                <option value="priority">Sort by Priority</option>
+                <option value="status">Sort by Status</option>
+              </select>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowOverdueOnly(!showOverdueOnly)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium active:scale-95 transition-all ${
+                    showOverdueOnly 
+                      ? 'bg-red-500/20 text-red-300 border border-red-500/50' 
+                      : 'bg-gray-800/50 text-gray-400 border border-gray-700 hover:border-gray-600'
+                  }`}
+                >
+                  <AlertTriangle className="w-4 h-4 inline mr-2" />
+                  {showOverdueOnly ? 'Showing Overdue Only' : 'Show Overdue Only'}
+                  {overdueEventTasks > 0 && (
+                    <Badge className="ml-2 bg-red-500 text-white">{overdueEventTasks}</Badge>
+                  )}
+                </button>
+                
+                {(searchQuery || filterPriority !== 'all' || filterStatus !== 'all' || filterProject !== 'all' || showOverdueOnly) && (
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setFilterPriority('all');
+                      setFilterStatus('all');
+                      setFilterProject('all');
+                      setShowOverdueOnly(false);
+                    }}
+                    className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-800/50 text-gray-400 border border-gray-700 hover:border-gray-600 active:scale-95 transition-all"
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Kanban Board */}
@@ -495,23 +716,23 @@ export default function MyTasksPage() {
             </div>
 
             {/* Event Tasks Section */}
-            {myEventTasks && myEventTasks.length > 0 && (
+            {filteredEventTasks && filteredEventTasks.length > 0 && (
               <div className="mt-12">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="p-3 bg-emerald-500/20 rounded-lg">
                     <Calendar className="w-6 h-6 text-emerald-400" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-white">Event Duties</h2>
-                    <p className="text-sm text-gray-400">Tasks assigned to you from events</p>
+                    <h2 className="text-2xl font-bold text-white">Event Tasks</h2>
+                    <p className="text-sm text-gray-400">Tasks from events - quick actions available</p>
                   </div>
                   <Badge className="bg-emerald-500/20 text-emerald-300 ml-auto">
-                    {myEventTasks.length} tasks
+                    {filteredEventTasks.length} tasks
                   </Badge>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {myEventTasks.map((task: any) => {
+                  {filteredEventTasks.map((task: any) => {
                     const isPastDue = task.dueDate && task.dueDate < Date.now() && task.status !== 'done';
                     const isEventSoon = task.event?.startDate && task.event.startDate < Date.now() + (7 * 24 * 60 * 60 * 1000);
 
@@ -621,17 +842,60 @@ export default function MyTasksPage() {
                               </div>
                             )}
 
-                            {/* Action Button */}
-                            <Button 
-                              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                window.location.href = `/events/${task.event._id}/control`;
-                              }}
-                            >
-                              <Target className="w-4 h-4 mr-2" />
-                              Go to Event Board
-                            </Button>
+                            {/* Status Update Buttons */}
+                            <div className="flex gap-2">
+                              {task.status !== 'in_progress' && task.status !== 'done' && (
+                                <Button 
+                                  size="sm"
+                                  className="flex-1 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs disabled:opacity-50 transition-transform"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEventTaskStatusChange(task._id, 'in_progress');
+                                  }}
+                                  disabled={updatingTaskId === task._id}
+                                >
+                                  {updatingTaskId === task._id ? (
+                                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1" />
+                                  ) : (
+                                    <Zap className="w-3 h-3 mr-1" />
+                                  )}
+                                  Start
+                                </Button>
+                              )}
+                              
+                              {task.status === 'in_progress' && (
+                                <Button 
+                                  size="sm"
+                                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs disabled:opacity-50 transition-transform"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEventTaskStatusChange(task._id, 'done');
+                                  }}
+                                  disabled={updatingTaskId === task._id}
+                                >
+                                  {updatingTaskId === task._id ? (
+                                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1" />
+                                  ) : (
+                                    <CheckCheck className="w-3 h-3 mr-1" />
+                                  )}
+                                  Complete
+                                </Button>
+                              )}
+                              
+                              <Button 
+                                size="sm"
+                                variant="outline"
+                                className="flex-1 border-gray-600 hover:bg-gray-700 active:scale-95 text-xs transition-transform"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.location.href = `/events/${task.event._id}/control`;
+                                }}
+                              >
+                                <Target className="w-3 h-3 mr-1" />
+                                Event Board
+                                <ArrowRight className="w-3 h-3 ml-1" />
+                              </Button>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>

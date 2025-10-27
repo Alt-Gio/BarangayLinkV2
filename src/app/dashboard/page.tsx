@@ -26,32 +26,55 @@ export default function DashboardPage() {
   const { currentUser, isOnline } = useOfflineData();
   const currentUserStatus = useQuery(api.users.getCurrentUserStatus);
   
-  // PRIORITY CHECK: Redirect pending/rejected users IMMEDIATELY
+  // PRIORITY CHECK: Check user status and redirect appropriately
   useEffect(() => {
-    if (currentUser && !hasCheckedStatus) {
-      setHasCheckedStatus(true);
-      if (currentUser.status === "pending" || currentUser.status === "rejected") {
-        // Immediate redirect - don't even show loading
-        router.replace('/pending-approval');
-      }
+    // Only check if we have loaded and checked for user
+    if (hasCheckedStatus || !isLoaded || !user) return;
+    
+    // Mark that we've checked
+    setHasCheckedStatus(true);
+    
+    // If no user status yet, they might be in setup - don't redirect!
+    if (currentUserStatus === undefined) {
+      console.log("⏳ User status loading...");
+      return;
     }
-  }, [currentUser, router, hasCheckedStatus]);
+    
+    // If user doesn't exist in Convex, redirect to setup
+    if (currentUserStatus === null) {
+      console.log("⚠️ User not in database, redirecting to oauth-setup");
+      router.replace('/oauth-setup');
+      return;
+    }
+    
+    // If profile incomplete, redirect to setup
+    if (!currentUserStatus.department || !currentUserStatus.position || 
+        currentUserStatus.department === "General" || currentUserStatus.position === "Community Member") {
+      console.log("⚠️ Profile incomplete, redirecting to oauth-setup");
+      router.replace('/oauth-setup');
+      return;
+    }
+    
+    // If pending or rejected, redirect to pending approval page
+    if (currentUserStatus.status === "pending" || currentUserStatus.status === "rejected") {
+      console.log("⚠️ User status:", currentUserStatus.status, "redirecting to pending-approval");
+      router.replace('/pending-approval');
+      return;
+    }
+    
+    console.log("✅ User status:", currentUserStatus.status, "showing dashboard");
+  }, [currentUserStatus, router, hasCheckedStatus, isLoaded, user]);
   
-  // Initialize database and user if functions are available
+  // Initialize database and check user status
   useEffect(() => {
     const initializeApp = async () => {
       try {
         // First ensure user levels are seeded
         await initDb();
-        // Then ensure current user exists in database
-        await ensureUserExists();
+        // Don't call ensureUserExists - webhook already created user
+        // Just mark as initialized
         setIsInitialized(true);
       } catch (error) {
-        // Check if error is about pending approval
-        if (error instanceof Error && (error.message.includes('pending') || error.message.includes('rejected'))) {
-          router.push('/pending-approval');
-          return;
-        }
         // Log error in development only
         if (process.env.NODE_ENV === 'development') {
           errorHandler.logErrorPublic(error, 'Dashboard initialization');
@@ -63,17 +86,25 @@ export default function DashboardPage() {
     if (user && isLoaded && isSignedIn && !isInitialized) {
       initializeApp();
     }
-  }, [user, isLoaded, isSignedIn, initDb, ensureUserExists, router, isInitialized]);
+  }, [user, isLoaded, isSignedIn, initDb, router, isInitialized]);
 
-  // Redirect if not authenticated
+  // Redirect if not authenticated (but don't interfere with setup flow)
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
       router.push('/login');
     }
   }, [isLoaded, isSignedIn, router]);
+  
+  // If user exists but profile incomplete, redirect to setup
+  useEffect(() => {
+    if (isLoaded && isSignedIn && currentUserStatus === null) {
+      console.log("🔄 No user in Convex, redirecting to setup");
+      router.replace('/oauth-setup');
+    }
+  }, [isLoaded, isSignedIn, currentUserStatus, router]);
 
   // Wait for user status to be loaded AND verified before rendering dashboard
-  if (!isLoaded || !isSignedIn || !user || !isInitialized || !currentUser) {
+  if (!isLoaded || !isSignedIn || !user || !isInitialized) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">

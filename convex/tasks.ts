@@ -94,8 +94,19 @@ export const createTask = mutation({
       v.literal("medium"),
       v.literal("hard")
     ),
+    priority: v.optional(v.union(
+      v.literal("low"),
+      v.literal("medium"),
+      v.literal("high"),
+      v.literal("urgent")
+    )),
+    storyPoints: v.optional(v.number()),
     projectId: v.id("projects"), // Required: every task must be linked to a project
+    milestoneId: v.optional(v.id("milestones")), // Optional: link to a milestone
     dueDate: v.optional(v.number()),
+    assignedTo: v.optional(v.array(v.id("users"))), // Optional: assigned users
+    status: v.optional(v.string()), // Allow any status for custom columns
+    tags: v.optional(v.array(v.string())), // Optional: task tags
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -123,19 +134,21 @@ export const createTask = mutation({
       description: args.description || "",
       type: args.type,
       difficulty: args.difficulty,
-      status: "todo",
-      priority: "medium",
+      status: args.status || "todo",
+      priority: args.priority || "medium",
+      storyPoints: args.storyPoints || 3,
       projectId: args.projectId,
+      milestoneId: args.milestoneId,
       dueDate: args.dueDate,
       completed: false,
       habitScore: undefined,
       createdAt: Date.now(),
-      assignedTo: [user._id], // Wrap in array for multiple assignment support
+      assignedTo: args.assignedTo && args.assignedTo.length > 0 ? args.assignedTo : [user._id],
       createdBy: user._id,
       experienceReward: reward.xp,
       goldReward: reward.gold,
       completionCount: 0,
-      tags: [],
+      tags: args.tags || [],
       attachments: [],
       dependencies: [],
       subtasks: [],
@@ -367,5 +380,133 @@ export const resetDailies = mutation({
     }
 
     return { reset: dailyTasks.length };
+  },
+});
+
+/**
+ * Update task status and other fields (for kanban drag & drop)
+ */
+export const updateTask = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    status: v.optional(v.string()), // Allow any status for custom columns
+    completed: v.optional(v.boolean()),
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    priority: v.optional(v.union(
+      v.literal("low"),
+      v.literal("medium"),
+      v.literal("high"),
+      v.literal("urgent")
+    )),
+    storyPoints: v.optional(v.number()),
+    dueDate: v.optional(v.number()),
+    assignedTo: v.optional(v.array(v.id("users"))),
+    difficulty: v.optional(v.union(
+      v.literal("trivial"),
+      v.literal("easy"),
+      v.literal("medium"),
+      v.literal("hard")
+    )),
+    tags: v.optional(v.array(v.string())),
+    type: v.optional(v.union(
+      v.literal("todo"),
+      v.literal("daily"),
+      v.literal("habit"),
+      v.literal("milestone"),
+      v.literal("reward")
+    )),
+    // Role-based permission fields
+    completedBy: v.optional(v.id("users")),
+    completedByRole: v.optional(v.string()),
+    lastMovedBy: v.optional(v.id("users")),
+    lockedInReview: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+
+    // Build update object with only provided fields
+    const updates: any = {};
+    if (args.status !== undefined) updates.status = args.status;
+    if (args.completed !== undefined) {
+      updates.completed = args.completed;
+      if (args.completed) {
+        updates.completedAt = Date.now();
+        
+        // Update stats for all assigned users
+        if (task.assignedTo && task.assignedTo.length > 0) {
+          for (const userId of task.assignedTo) {
+            const user = await ctx.db.get(userId);
+            if (user) {
+              await ctx.db.patch(userId, {
+                totalTasksCompleted: ((user as any).totalTasksCompleted || 0) + 1,
+              });
+            }
+          }
+        }
+      }
+    }
+    if (args.title !== undefined) updates.title = args.title;
+    if (args.description !== undefined) updates.description = args.description;
+    if (args.priority !== undefined) updates.priority = args.priority;
+    if (args.storyPoints !== undefined) updates.storyPoints = args.storyPoints;
+    if (args.dueDate !== undefined) updates.dueDate = args.dueDate;
+    if (args.assignedTo !== undefined) updates.assignedTo = args.assignedTo;
+    if (args.difficulty !== undefined) updates.difficulty = args.difficulty;
+    if (args.tags !== undefined) updates.tags = args.tags;
+    if (args.type !== undefined) updates.type = args.type;
+    if (args.completedBy !== undefined) updates.completedBy = args.completedBy;
+    if (args.completedByRole !== undefined) updates.completedByRole = args.completedByRole;
+    if (args.lastMovedBy !== undefined) updates.lastMovedBy = args.lastMovedBy;
+    if (args.lockedInReview !== undefined) updates.lockedInReview = args.lockedInReview;
+
+    // Update the task
+    await ctx.db.patch(args.taskId, updates);
+
+    return { success: true };
+  },
+});
+
+/**
+ * Toggle "Working On It" status
+ */
+export const toggleWorkingOnIt = mutation({
+  args: {
+    taskId: v.id("tasks"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkId"), identity.subject))
+      .first();
+
+    if (!user) throw new Error("User not found");
+
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+
+    // Toggle working status
+    if (task.workingOnIt === user._id) {
+      // Stop working
+      await ctx.db.patch(args.taskId, {
+        workingOnIt: undefined,
+        workingOnItStartedAt: undefined,
+      });
+      return { working: false, message: "Stopped working on task" };
+    } else {
+      // Start working
+      await ctx.db.patch(args.taskId, {
+        workingOnIt: user._id,
+        workingOnItStartedAt: Date.now(),
+      });
+      return { working: true, message: "Started working on task" };
+    }
   },
 });
