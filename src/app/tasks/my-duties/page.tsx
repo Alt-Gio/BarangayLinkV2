@@ -57,6 +57,11 @@ export default function MyDutiesPage() {
   const updateEventTaskStatus = useMutation(api.eventControl.updateTaskStatus);
   const startWorkingOn = useMutation(api.gamifiedTasks.startWorkingOnTask);
   const stopWorkingOn = useMutation(api.gamifiedTasks.stopWorkingOnTask);
+  const clockIn = useMutation(api.eventTaskTimeTracking.clockIn);
+  const clockOut = useMutation(api.eventTaskTimeTracking.clockOut);
+  
+  // Get active time entries
+  const activeTimeEntry = useQuery(api.eventTaskTimeTracking.getActiveTimeEntry);
 
   if (!currentUser) {
     return (
@@ -164,11 +169,40 @@ export default function MyDutiesPage() {
     setUpdatingTaskId(taskId);
     try {
       const result = await stopWorkingOn({ taskId });
-      setSuccessMessage(`Clocked out! Logged ${result.hoursWorked?.toFixed(1) || 0}h of work.`);
+      if (result?.completionXp) {
+        setSuccessMessage(`Task completed! +${result.completionXp} XP 🎉`);
+        setTimeout(() => setSuccessMessage(null), 5000);
+      }
+    } catch (error: any) {
+      console.error('Error stopping work:', error);
+    } finally {
+      setUpdatingTaskId(null);
+    }
+  };
+
+  const handleClockIn = async (taskId: Id<"eventTasks">) => {
+    setUpdatingTaskId(taskId);
+    try {
+      await clockIn({ taskId });
+      setSuccessMessage('Clocked in! Timer started ⏱️');
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error: any) {
-      console.error('Failed to stop working:', error);
-      alert(error.message || 'Failed to clock out. Please try again.');
+      console.error('Error clocking in:', error);
+      alert(error.message || 'Failed to clock in');
+    } finally {
+      setUpdatingTaskId(null);
+    }
+  };
+
+  const handleClockOut = async (taskId: Id<"eventTasks">) => {
+    setUpdatingTaskId(taskId);
+    try {
+      await clockOut({ taskId, description: 'Work completed from My Duties', markComplete: false });
+      setSuccessMessage('Clocked out! Time logged ✅');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error: any) {
+      console.error('Error clocking out:', error);
+      alert(error.message || 'Failed to clock out');
     } finally {
       setUpdatingTaskId(null);
     }
@@ -496,37 +530,36 @@ export default function MyDutiesPage() {
                               </div>
                             )}
 
-                            {/* Status Update Buttons */}
+                            {/* Clock In/Out Buttons */}
                             <div className="flex gap-2">
-                              {task.status !== 'in_progress' && task.status !== 'done' && (
+                              {/* Check if THIS user is clocked in to THIS task */}
+                              {activeTimeEntry && activeTimeEntry.taskId === task._id && activeTimeEntry.userId === currentUser._id ? (
                                 <Button 
                                   size="sm"
-                                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs disabled:opacity-50"
-                                  onClick={() => handleEventTaskStatusChange(task._id, 'in_progress')}
+                                  className="flex-1 bg-orange-600 hover:bg-orange-700 text-white text-xs disabled:opacity-50"
+                                  onClick={() => handleClockOut(task._id)}
                                   disabled={updatingTaskId === task._id}
                                 >
                                   {updatingTaskId === task._id ? (
                                     <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1" />
                                   ) : (
-                                    <Zap className="w-3 h-3 mr-1" />
+                                    <Square className="w-3 h-3 mr-1" />
                                   )}
-                                  Start
+                                  Clock Out
                                 </Button>
-                              )}
-                              
-                              {task.status === 'in_progress' && (
+                              ) : task.status !== 'done' && (
                                 <Button 
                                   size="sm"
                                   className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs disabled:opacity-50"
-                                  onClick={() => handleEventTaskStatusChange(task._id, 'done')}
+                                  onClick={() => handleClockIn(task._id)}
                                   disabled={updatingTaskId === task._id}
                                 >
                                   {updatingTaskId === task._id ? (
                                     <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1" />
                                   ) : (
-                                    <CheckCheck className="w-3 h-3 mr-1" />
+                                    <Play className="w-3 h-3 mr-1" />
                                   )}
-                                  Complete
+                                  Clock In
                                 </Button>
                               )}
                               

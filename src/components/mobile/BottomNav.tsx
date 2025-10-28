@@ -38,7 +38,7 @@ export function BottomNav() {
     { 
       icon: CheckSquare, 
       label: "Tasks", 
-      path: "/tasks",
+      path: "/tasks/my-duties",
       color: "purple",
       priority: 2
     },

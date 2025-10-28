@@ -161,7 +161,12 @@ export default function EventsPage() {
             </button>
             <h1 className="text-lg font-semibold text-white">Events & Calendar</h1>
             <button
-              onClick={() => setIsCreateModalOpen(true)}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                console.log('Create Event button clicked!');
+                setIsCreateModalOpen(true);
+              }}
               className="p-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
             >
               <Plus className="w-5 h-5" />
@@ -511,12 +516,13 @@ export default function EventsPage() {
       </div>
 
       {/* Modals */}
-      {isCreateModalOpen && (
-        <CreateEventModal
-          isOpen={isCreateModalOpen}
-          onClose={() => setIsCreateModalOpen(false)}
-        />
-      )}
+      <CreateEventModal
+        isOpen={isCreateModalOpen}
+        onClose={() => {
+          console.log('Closing Create Event modal');
+          setIsCreateModalOpen(false);
+        }}
+      />
       
       {editingEvent && (
         <EditEventModal

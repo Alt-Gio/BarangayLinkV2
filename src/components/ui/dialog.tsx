@@ -72,9 +72,10 @@ const DialogOverlay = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/80 backdrop-blur-sm",
+      "fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm",
       className
     )}
+    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
     {...props}
   />
 ))
@@ -98,12 +99,12 @@ const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
     if (!context.open) return null
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={handleOverlayClick}>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center" onClick={handleOverlayClick} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
         <DialogOverlay />
         <div
           ref={ref}
           className={cn(
-            "relative z-50 grid w-full max-w-lg gap-4 border bg-white p-6 shadow-lg duration-200 rounded-lg",
+            "relative z-[101] grid w-full max-w-lg gap-4 border bg-white p-6 shadow-lg duration-200 rounded-lg",
             className
           )}
           {...props}

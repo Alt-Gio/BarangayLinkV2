@@ -28,13 +28,14 @@ export function MobileModal({
     <>
       {/* Overlay */}
       <div 
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 md:block"
+        className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] md:block"
         onClick={onClose}
+        style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
       />
       
       {/* Modal */}
       <div className={`
-        fixed z-50
+        fixed z-[101]
         
         /* Mobile: Full screen */
         inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900
