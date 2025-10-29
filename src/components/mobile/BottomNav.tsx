@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useSidebar } from "@/contexts/SidebarContext";
+import { useAuth } from "@clerk/nextjs";
 import { 
   Home, 
   Briefcase, 
@@ -18,6 +19,15 @@ export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { sidebarOpen } = useSidebar();
+  const { isSignedIn, isLoaded } = useAuth();
+
+  // Don't show BottomNav if:
+  // 1. User is not authenticated
+  // 2. On landing page (root path)
+  // 3. Auth is still loading
+  if (!isLoaded || !isSignedIn || pathname === "/") {
+    return null;
+  }
 
   // Organized by hierarchy: Dashboard > Work Items > Communication
   const navItems = [
@@ -85,6 +95,12 @@ export function BottomNav() {
       default: return "bg-emerald-500 shadow-emerald-500/50";
     }
   };
+
+  // Additional check: Don't show on auth pages
+  const isAuthPage = pathname?.startsWith("/sign-in") || pathname?.startsWith("/sign-up");
+  if (isAuthPage) {
+    return null;
+  }
 
   return (
     <div className={`

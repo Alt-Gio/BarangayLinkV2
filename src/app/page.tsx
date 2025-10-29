@@ -50,18 +50,7 @@ const Map = dynamicImport(() => import('@/components/landing/MapboxMap'), {
 });
 
 export default function Home() {
-  return (
-    <>
-      <Authenticated>
-        <Link href="/dashboard">
-          <Button className="fixed top-4 right-4 z-50 bg-emerald-600 hover:bg-emerald-700">
-            Go to Dashboard
-          </Button>
-        </Link>
-      </Authenticated>
-      <PublicLandingPage />
-    </>
-  );
+  return <PublicLandingPage />;
 }
 
 function PublicLandingPage() {

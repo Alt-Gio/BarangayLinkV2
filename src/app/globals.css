@@ -342,6 +342,32 @@ body {
   scrollbar-width: none;
 }
 
+/* Alternative scrollbar-hide class for Safari compatibility */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overflow: auto;
+}
+
+/* Smooth horizontal scrolling for mobile tabs (Safari optimized) */
+.mobile-tab-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.mobile-tab-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 /* Mobile-friendly buttons - larger touch targets */
 @media (max-width: 640px) {
   button, a, input[type="button"], input[type="submit"] {

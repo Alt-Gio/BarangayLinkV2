@@ -685,9 +685,9 @@ export default function ProjectPage({ params }: ProjectPageProps) {
         </div>
 
         {/* Enhanced Stats Cards */}
-        <div className="grid grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
           <Card className="bg-gradient-to-br from-emerald-600/10 to-blue-600/10 border-emerald-700/50 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 transition-all duration-300 hover:scale-105">
-            <CardContent className="p-6">
+            <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 text-emerald-400 text-sm mb-3 font-medium">
@@ -696,8 +696,8 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                     </div>
                     <span>Total Tasks</span>
                   </div>
-                  <div className="text-4xl font-bold text-white mb-2">{totalTasks}</div>
-                  <div className="text-xs text-gray-400">
+                  <div className="text-2xl md:text-4xl font-bold text-white mb-1 md:mb-2">{totalTasks}</div>
+                  <div className="text-xs text-gray-400 hidden md:block">
                     {completedTasks} completed • {totalTasks - completedTasks} in progress
                   </div>
                 </div>
@@ -706,7 +706,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           </Card>
 
           <Card className="bg-gradient-to-br from-blue-600/10 to-purple-600/10 border-blue-700/50 shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 transition-all duration-300 hover:scale-105">
-            <CardContent className="p-6">
+            <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 text-blue-400 text-sm mb-3 font-medium">
@@ -715,8 +715,8 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                     </div>
                     <span>Progress</span>
                   </div>
-                  <div className="text-4xl font-bold text-white mb-2">{progress}%</div>
-                  <div className="text-xs text-gray-400">
+                  <div className="text-2xl md:text-4xl font-bold text-white mb-1 md:mb-2">{progress}%</div>
+                  <div className="text-xs text-gray-400 hidden md:block">
                     {progress === 100 ? '✅ Completed!' : `${100 - progress}% remaining`}
                   </div>
                 </div>
@@ -725,7 +725,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           </Card>
 
           <Card className="bg-gradient-to-br from-yellow-600/10 to-orange-600/10 border-yellow-700/50 shadow-lg shadow-yellow-500/10 hover:shadow-yellow-500/20 transition-all duration-300 hover:scale-105">
-            <CardContent className="p-6">
+            <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 text-yellow-400 text-sm mb-3 font-medium">
@@ -734,8 +734,8 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                     </div>
                     <span>Budget Used</span>
                   </div>
-                  <div className="text-4xl font-bold text-white mb-2">₱{budgetUsed.toLocaleString()}</div>
-                  <div className="text-xs text-gray-400">
+                  <div className="text-xl md:text-4xl font-bold text-white mb-1 md:mb-2">₱{budgetUsed.toLocaleString()}</div>
+                  <div className="text-xs text-gray-400 hidden md:block">
                     {Math.round((budgetUsed / budgetTotal) * 100)}% of ₱{budgetTotal.toLocaleString()}
                   </div>
                 </div>
@@ -744,7 +744,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           </Card>
 
           <Card className="bg-gradient-to-br from-purple-600/10 to-pink-600/10 border-purple-700/50 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/20 transition-all duration-300 hover:scale-105">
-            <CardContent className="p-6">
+            <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 text-purple-400 text-sm mb-3 font-medium">
@@ -753,8 +753,8 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                     </div>
                     <span>Days Remaining</span>
                   </div>
-                  <div className="text-4xl font-bold text-white mb-2">{daysRemaining}</div>
-                  <div className="text-xs text-gray-400">
+                  <div className="text-2xl md:text-4xl font-bold text-white mb-1 md:mb-2">{daysRemaining}</div>
+                  <div className="text-xs text-gray-400 hidden md:block">
                     Until {new Date(project.endDate).toLocaleDateString()}
                   </div>
                 </div>
@@ -764,8 +764,66 @@ export default function ProjectPage({ params }: ProjectPageProps) {
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 bg-gray-800/50 border border-gray-700/50 p-2 rounded-xl gap-2">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 md:space-y-6">
+          {/* Mobile Tabs - Horizontal Scroll */}
+          <div className="md:hidden">
+            <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
+              <TabsList className="inline-flex min-w-full bg-gray-800/50 border border-gray-700/50 p-2 rounded-xl gap-2">
+                <TabsTrigger 
+                  value="overview"
+                  className="flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-gray-700/50 transition-all duration-200 rounded-lg font-medium text-sm px-4 py-2"
+                >
+                  <LayoutDashboard className="w-4 h-4 mr-2" />
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="milestones"
+                  className="flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-gray-700/50 transition-all duration-200 rounded-lg font-medium text-sm px-4 py-2"
+                >
+                  <Target className="w-4 h-4 mr-2" />
+                  Milestones
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="documents"
+                  className="flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-gray-700/50 transition-all duration-200 rounded-lg font-medium text-sm px-4 py-2"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Documents
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="events"
+                  className="flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-gray-700/50 transition-all duration-200 rounded-lg font-medium text-sm px-4 py-2"
+                >
+                  <CalendarDays className="w-4 h-4 mr-2" />
+                  Events
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="team"
+                  className="flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-gray-700/50 transition-all duration-200 rounded-lg font-medium text-sm px-4 py-2"
+                >
+                  <Users className="w-4 h-4 mr-2" />
+                  Team
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="budget"
+                  className="flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-gray-700/50 transition-all duration-200 rounded-lg font-medium text-sm px-4 py-2"
+                >
+                  <DollarSign className="w-4 h-4 mr-2" />
+                  Budget
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="settings"
+                  className="flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-gray-700/50 transition-all duration-200 rounded-lg font-medium text-sm px-4 py-2"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Settings
+                </TabsTrigger>
+              </TabsList>
+            </div>
+          </div>
+
+          {/* Desktop Tabs - Grid Layout */}
+          <TabsList className="hidden md:grid w-full grid-cols-7 bg-gray-800/50 border border-gray-700/50 p-2 rounded-xl gap-2">
             <TabsTrigger 
               value="overview"
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-gray-700/50 hover:scale-105 transition-all duration-200 cursor-pointer rounded-lg font-medium"
