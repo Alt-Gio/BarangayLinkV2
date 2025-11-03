@@ -17,6 +17,7 @@ import {
   Save,
   ArrowUp,
   ArrowDown,
+  Menu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -153,11 +154,20 @@ export default function LandingPageManagementPage() {
         onToggle={() => setSidebarOpen(!sidebarOpen)}
       />
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8">
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="md:hidden fixed top-4 left-4 z-30 p-2.5 bg-green-600 hover:bg-green-700 text-white rounded-full shadow-lg transition-colors"
+            aria-label="Toggle Menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">Landing Page Management</h1>
-            <p className="text-gray-400">
+          <div className="mb-8 mt-16 md:mt-0">
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Landing Page Management</h1>
+            <p className="text-sm md:text-base text-gray-400">
               Select which projects appear on the landing page and customize their images
             </p>
           </div>
@@ -185,30 +195,30 @@ export default function LandingPageManagementPage() {
               <div className="space-y-4">
                 {featuredProjects.map((project, index) => (
                   <Card key={project._id} className="bg-white/5 border-white/10">
-                    <CardContent className="p-6">
-                      <div className="flex items-start gap-6">
+                    <CardContent className="p-4 md:p-6">
+                      <div className="flex flex-col md:flex-row items-start gap-4 md:gap-6">
                         {/* Drag Handle & Order */}
-                        <div className="flex flex-col items-center gap-2">
-                          <GripVertical className="w-5 h-5 text-gray-500 cursor-move" />
-                          <div className="flex flex-col gap-1">
+                        <div className="flex md:flex-col items-center gap-2 w-full md:w-auto">
+                          <GripVertical className="w-5 h-5 text-gray-500 cursor-move hidden md:block" />
+                          <div className="flex md:flex-col gap-2 md:gap-1">
                             <Button
                               variant="ghost"
                               size="icon"
                               onClick={() => handleMoveUp(project._id, project.featuredOrder!)}
                               disabled={index === 0}
-                              className="h-6 w-6 text-gray-400 hover:text-white"
+                              className="h-8 w-8 md:h-6 md:w-6 text-gray-400 hover:text-white"
                             >
                               <ArrowUp className="w-4 h-4" />
                             </Button>
-                            <span className="text-sm font-bold text-gray-400 text-center">
-                              {project.featuredOrder}
+                            <span className="text-sm font-bold text-gray-400 text-center px-2">
+                              #{project.featuredOrder}
                             </span>
                             <Button
                               variant="ghost"
                               size="icon"
                               onClick={() => handleMoveDown(project._id, project.featuredOrder!)}
                               disabled={index === featuredProjects.length - 1}
-                              className="h-6 w-6 text-gray-400 hover:text-white"
+                              className="h-8 w-8 md:h-6 md:w-6 text-gray-400 hover:text-white"
                             >
                               <ArrowDown className="w-4 h-4" />
                             </Button>
@@ -216,7 +226,7 @@ export default function LandingPageManagementPage() {
                         </div>
 
                         {/* Project Image */}
-                        <div className="relative w-48 h-32 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
+                        <div className="relative w-full md:w-48 h-40 md:h-32 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
                           {project.imageUrl ? (
                             <>
                               <img
@@ -255,20 +265,20 @@ export default function LandingPageManagementPage() {
                         </div>
 
                         {/* Project Details */}
-                        <div className="flex-1">
-                          <h3 className="text-lg font-bold text-white mb-2">{project.title}</h3>
-                          <p className="text-gray-400 text-sm line-clamp-2 mb-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base md:text-lg font-bold text-white mb-2">{project.title}</h3>
+                          <p className="text-gray-400 text-xs md:text-sm line-clamp-2 mb-3">
                             {project.description}
                           </p>
-                          <div className="flex flex-wrap gap-2">
-                            <Badge className="bg-blue-500/20 text-blue-300">{project.department}</Badge>
-                            <Badge className="bg-emerald-500/20 text-emerald-300">
+                          <div className="flex flex-wrap gap-1.5 md:gap-2">
+                            <Badge className="bg-blue-500/20 text-blue-300 text-xs">{project.department}</Badge>
+                            <Badge className="bg-emerald-500/20 text-emerald-300 text-xs">
                               {formatCurrency(project.budget)}
                             </Badge>
-                            <Badge className="bg-purple-500/20 text-purple-300">
+                            <Badge className="bg-purple-500/20 text-purple-300 text-xs">
                               {project.progress}% Complete
                             </Badge>
-                            <Badge className={`${
+                            <Badge className={`text-xs ${
                               project.isPublic ? "bg-green-500/20 text-green-300" : "bg-gray-500/20 text-gray-300"
                             }`}>
                               {project.isPublic ? <Eye className="w-3 h-3 mr-1" /> : <EyeOff className="w-3 h-3 mr-1" />}
@@ -278,12 +288,12 @@ export default function LandingPageManagementPage() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex flex-col gap-2">
+                        <div className="flex md:flex-col gap-2 w-full md:w-auto">
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleToggleFeatured(project._id, true)}
-                            className="bg-yellow-600 hover:bg-yellow-700"
+                            className="bg-yellow-600 hover:bg-yellow-700 flex-1 md:flex-none"
                           >
                             <StarOff className="w-4 h-4 mr-2" />
                             Unfeature

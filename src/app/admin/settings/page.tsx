@@ -593,29 +593,26 @@ export default function SystemSettingsPage() {
           onToggle={() => setSidebarOpen(!sidebarOpen)}
         />
         <div className="flex-1 overflow-y-auto">
-          {/* Mobile Header */}
-          <div className="md:hidden bg-gray-800 p-4 flex items-center justify-between sticky top-0 z-10">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="p-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600 transition-colors"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            <h1 className="text-lg font-semibold text-white">System Settings</h1>
-            <div className="w-9" />
-          </div>
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="md:hidden fixed top-4 left-4 z-30 p-2 bg-green-600 hover:bg-green-700 text-white rounded-lg shadow-lg transition-colors"
+            aria-label="Toggle Menu"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
 
           <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
             {/* Header */}
-            <div className="hidden md:block bg-white/5 backdrop-blur-md border-b border-white/10 md:sticky md:top-0 z-40">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                <div className="flex items-center justify-between">
+            <div className="bg-white/5 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6">
+                <div className="flex items-center justify-between mt-12 md:mt-0">
                   <div>
-                    <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                      <Settings className="w-8 h-8 text-emerald-500" />
+                    <h1 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-3">
+                      <Settings className="w-6 h-6 md:w-8 md:h-8 text-emerald-500" />
                       System Settings
                     </h1>
-                    <p className="text-gray-400 mt-1">Configure and manage system preferences</p>
+                    <p className="text-sm md:text-base text-gray-400 mt-1">Configure and manage system preferences</p>
                   </div>
                   <Button
                     onClick={handleSave}

@@ -423,15 +423,19 @@ export function Sidebar({
         {/* Header */}
         <div className="p-4 border-b border-gray-700">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
+            <button 
+              onClick={() => router.push('/')}
+              className="flex items-center space-x-2 hover:bg-gray-800/50 rounded-lg px-2 py-1 transition-all duration-200 group"
+              title="Go to Landing Page"
+            >
+              <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center group-hover:bg-green-500 transition-colors">
                 <span className="text-white font-bold text-sm">BL</span>
               </div>
               <div>
-                <h1 className="font-semibold text-lg">BarangayLink</h1>
+                <h1 className="font-semibold text-lg text-white group-hover:text-green-400 transition-colors">BarangayLink</h1>
                 <p className="text-xs text-green-400">v2.0.0</p>
               </div>
-            </div>
+            </button>
             
             {/* Mobile Close Button */}
             {isMobile && onToggle && (

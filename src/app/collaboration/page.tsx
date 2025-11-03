@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useUser } from '@clerk/nextjs';
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Sidebar } from '@/components/layout/Sidebar';
 import RippleLoader from '@/components/ui/RippleLoader';
@@ -38,23 +38,47 @@ export default function CollaborationPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [resourceFilter, setResourceFilter] = useState<'all' | 'project' | 'task' | 'event' | 'sprint'>('all');
   const [activeTab, setActiveTab] = useState<'comments' | 'public'>('comments');
+  const [showPendingFeedback, setShowPendingFeedback] = useState(false);
 
   const currentUser = useQuery(api.users.getCurrentUser);
   // OPTIMIZED: Use better query that already has role-based filtering and limits
   const projects = useQuery(api.productivity.getProjects, { limit: 100 });
   const events = useQuery(api.events.getAllEvents, { status: "published" });
   
-  // Get public feedback for selected project
+  // Get public feedback for selected project (approved only)
   const publicFeedback = useQuery(
     api.projectFeedback.getProjectFeedback,
     selectedResource?.type === 'project' ? { projectId: selectedResource.id as any } : "skip"
   );
+  
+  // Get pending feedback for THIS project (admin/manager only)
+  const pendingProjectFeedback = useQuery(
+    api.projectFeedback.getAllFeedback,
+    selectedResource?.type === 'project' && (currentUser?.userLevel?.name === 'ADMIN' || currentUser?.userLevel?.name === 'MANAGER')
+      ? { status: "pending", limit: 50 } : "skip"
+  );
+  
+  // Filter pending feedback for the selected project only
+  const selectedProjectPendingFeedback = pendingProjectFeedback?.filter(
+    (f: any) => f.projectId === selectedResource?.id
+  ) || [];
   
   // Get feedback stats
   const feedbackCount = useQuery(
     api.projectFeedback.getProjectFeedbackCount,
     selectedResource?.type === 'project' ? { projectId: selectedResource.id as any } : "skip"
   );
+  
+  // Get pending feedback for admins/managers
+  const pendingFeedback = useQuery(
+    api.projectFeedback.getAllFeedback,
+    showPendingFeedback ? { status: "pending", limit: 50 } : "skip"
+  );
+  
+  // Mutations for feedback moderation
+  const approveFeedbackMut = useMutation(api.projectFeedback.approveFeedback);
+  const rejectFeedbackMut = useMutation(api.projectFeedback.rejectFeedback);
+  const markAsSpamMut = useMutation(api.projectFeedback.markAsSpam);
 
   if (!isLoaded || !currentUser) {
     return (
@@ -101,31 +125,42 @@ export default function CollaborationPage() {
       />
 
       <div className="flex-1 overflow-y-auto">
-        {/* Mobile Header */}
-        <div className="md:hidden bg-gray-800 p-4 flex items-center justify-between sticky top-0 z-10">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600 transition-colors"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-          <h1 className="text-lg font-semibold text-white">Collaboration</h1>
-          <LiveNotifications userId={currentUser._id} />
-        </div>
+        {/* Mobile Menu Button */}
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="md:hidden fixed top-4 left-4 z-30 p-2.5 bg-green-600 hover:bg-green-700 text-white rounded-full shadow-lg transition-colors"
+          aria-label="Toggle Menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
 
         <div className="p-6 space-y-6">
           <div className="max-w-[1920px] mx-auto">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 mt-12 md:mt-0">
               <div>
-                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                  <MessageSquare className="w-8 h-8 text-blue-400" />
+                <h1 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-3">
+                  <MessageSquare className="w-6 h-6 md:w-8 md:h-8 text-blue-400" />
                   Collaboration Workspace
                 </h1>
-                <p className="text-gray-400 mt-1">Real-time comments and discussions</p>
+                <p className="text-sm md:text-base text-gray-400 mt-1">Real-time comments and discussions</p>
               </div>
-              <div className="hidden md:block">
-                <LiveNotifications userId={currentUser._id} />
+              <div className="flex items-center gap-3">
+                {(currentUser?.userLevel?.name === 'ADMIN' || currentUser?.userLevel?.name === 'MANAGER') && (
+                  <Button
+                    onClick={() => setShowPendingFeedback(!showPendingFeedback)}
+                    className={`${showPendingFeedback ? 'bg-emerald-600' : 'bg-gray-700'} hover:bg-emerald-700`}
+                  >
+                    <AlertCircle className="w-4 h-4 mr-2" />
+                    {showPendingFeedback ? 'Hide' : 'Show'} Pending Feedback
+                    {pendingFeedback && pendingFeedback.length > 0 && (
+                      <Badge className="ml-2 bg-red-600">{pendingFeedback.length}</Badge>
+                    )}
+                  </Button>
+                )}
+                <div className="hidden md:block">
+                  <LiveNotifications userId={currentUser._id} />
+                </div>
               </div>
             </div>
 
@@ -159,6 +194,117 @@ export default function CollaborationPage() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Pending Feedback Moderation Panel */}
+            {showPendingFeedback && pendingFeedback && pendingFeedback.length > 0 && (
+              <Card className="bg-orange-900/20 border-orange-500/30 mb-6">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-orange-400" />
+                    Pending Feedback Moderation ({pendingFeedback.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 max-h-[500px] overflow-y-auto">
+                  {pendingFeedback.map((feedback: any) => {
+                    const handleApprove = async () => {
+                      try {
+                        await approveFeedbackMut({ feedbackId: feedback._id });
+                        alert('✅ Feedback approved!');
+                      } catch (error: any) {
+                        alert('❌ ' + error.message);
+                      }
+                    };
+
+                    const handleReject = async () => {
+                      const reason = prompt('Reason for rejection (optional):');
+                      try {
+                        await rejectFeedbackMut({ feedbackId: feedback._id, reason: reason || undefined });
+                        alert('✅ Feedback rejected!');
+                      } catch (error: any) {
+                        alert('❌ ' + error.message);
+                      }
+                    };
+
+                    const handleSpam = async () => {
+                      if (confirm('Mark this as spam?')) {
+                        try {
+                          await markAsSpamMut({ feedbackId: feedback._id });
+                          alert('✅ Marked as spam!');
+                        } catch (error: any) {
+                          alert('❌ ' + error.message);
+                        }
+                      }
+                    };
+
+                    return (
+                      <div key={feedback._id} className="bg-gray-800/70 border border-orange-500/20 rounded-lg p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <p className="text-white font-semibold">{feedback.submitterName}</p>
+                            <p className="text-xs text-gray-400">
+                              {feedback.project?.title} • {new Date(feedback.submittedAt).toLocaleString()}
+                            </p>
+                          </div>
+                          <Badge className={`${
+                            feedback.feedbackType === 'comment' ? 'bg-blue-600' :
+                            feedback.feedbackType === 'suggestion' ? 'bg-purple-600' :
+                            feedback.feedbackType === 'concern' ? 'bg-orange-600' :
+                            'bg-green-600'
+                          }`}>
+                            {feedback.feedbackType}
+                          </Badge>
+                        </div>
+                        
+                        <p className="text-gray-300 text-sm mb-3">{feedback.message}</p>
+                        
+                        {feedback.rating && (
+                          <div className="flex items-center gap-1 mb-3">
+                            {[...Array(feedback.rating)].map((_, i) => (
+                              <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                            ))}
+                          </div>
+                        )}
+                        
+                        {(feedback.submitterEmail || feedback.submitterPhone) && (
+                          <div className="text-xs text-gray-500 mb-3 pb-3 border-b border-gray-700">
+                            {feedback.submitterEmail && <span>📧 {feedback.submitterEmail}</span>}
+                            {feedback.submitterEmail && feedback.submitterPhone && <span className="mx-2">•</span>}
+                            {feedback.submitterPhone && <span>📱 {feedback.submitterPhone}</span>}
+                          </div>
+                        )}
+                        
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={handleApprove}
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 flex-1"
+                          >
+                            <ThumbsUp className="w-4 h-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            onClick={handleReject}
+                            size="sm"
+                            variant="outline"
+                            className="border-red-500 text-red-400 hover:bg-red-500/20 flex-1"
+                          >
+                            Reject
+                          </Button>
+                          <Button
+                            onClick={handleSpam}
+                            size="sm"
+                            variant="outline"
+                            className="border-gray-600 text-gray-400 hover:bg-gray-700"
+                          >
+                            Spam
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Resource Selector */}
@@ -331,7 +477,80 @@ export default function CollaborationPage() {
                             </div>
                           )}
 
-                          {/* Feedback List */}
+                          {/* Pending Feedback Section (Admin/Manager only) */}
+                          {selectedProjectPendingFeedback.length > 0 && (
+                            <div className="bg-orange-900/20 border border-orange-500/30 rounded-lg p-4 mb-6">
+                              <h3 className="text-orange-400 font-semibold mb-3 flex items-center gap-2">
+                                <AlertCircle className="w-5 h-5" />
+                                Pending Approval ({selectedProjectPendingFeedback.length})
+                              </h3>
+                              <div className="space-y-3">
+                                {selectedProjectPendingFeedback.map((feedback: any) => {
+                                  const handleApprove = async () => {
+                                    try {
+                                      await approveFeedbackMut({ feedbackId: feedback._id });
+                                      alert('✅ Feedback approved!');
+                                    } catch (error: any) {
+                                      alert('❌ ' + error.message);
+                                    }
+                                  };
+
+                                  const handleReject = async () => {
+                                    const reason = prompt('Reason for rejection (optional):');
+                                    try {
+                                      await rejectFeedbackMut({ feedbackId: feedback._id, reason: reason || undefined });
+                                      alert('✅ Feedback rejected!');
+                                    } catch (error: any) {
+                                      alert('❌ ' + error.message);
+                                    }
+                                  };
+
+                                  return (
+                                    <div key={feedback._id} className="bg-gray-800/70 border border-orange-500/20 rounded-lg p-3">
+                                      <div className="flex items-start justify-between mb-2">
+                                        <div>
+                                          <p className="text-white font-semibold text-sm">{feedback.submitterName}</p>
+                                          <p className="text-xs text-gray-400">
+                                            {feedback.feedbackType} • {new Date(feedback.submittedAt).toLocaleString()}
+                                          </p>
+                                        </div>
+                                        {feedback.rating && (
+                                          <div className="flex items-center gap-1">
+                                            {[...Array(feedback.rating)].map((_, i) => (
+                                              <Star key={i} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                      
+                                      <p className="text-gray-300 text-sm mb-3">{feedback.message}</p>
+                                      
+                                      <div className="flex gap-2">
+                                        <Button
+                                          onClick={handleApprove}
+                                          size="sm"
+                                          className="bg-green-600 hover:bg-green-700 text-xs flex-1"
+                                        >
+                                          <ThumbsUp className="w-3 h-3 mr-1" />
+                                          Approve
+                                        </Button>
+                                        <Button
+                                          onClick={handleReject}
+                                          size="sm"
+                                          variant="outline"
+                                          className="border-red-500 text-red-400 hover:bg-red-500/20 text-xs flex-1"
+                                        >
+                                          Reject
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Approved Feedback List */}
                           <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
                             {publicFeedback && publicFeedback.length > 0 ? (
                               publicFeedback.map((feedback) => {
@@ -392,10 +611,12 @@ export default function CollaborationPage() {
                               <div className="text-center py-16">
                                 <Globe className="w-16 h-16 text-gray-600 mx-auto mb-4" />
                                 <h3 className="text-lg font-semibold text-white mb-2">
-                                  No Public Feedback Yet
+                                  No Approved Feedback Yet
                                 </h3>
                                 <p className="text-gray-400">
-                                  This project hasn't received any public feedback from the community yet.
+                                  {selectedProjectPendingFeedback.length > 0
+                                    ? `There ${selectedProjectPendingFeedback.length === 1 ? 'is' : 'are'} ${selectedProjectPendingFeedback.length} pending feedback item${selectedProjectPendingFeedback.length === 1 ? '' : 's'} waiting for approval above.`
+                                    : 'This project hasn\'t received any public feedback from the community yet.'}
                                 </p>
                               </div>
                             )}
