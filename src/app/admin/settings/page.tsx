@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { useOfflineData } from '@/contexts/OfflineDataContext';
@@ -33,6 +33,11 @@ import {
   Send,
   AlertTriangle,
   CheckCheck,
+  MapPin,
+  Map,
+  X,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import RippleLoader from "@/components/ui/RippleLoader";
 import { Button } from "@/components/ui/button";
@@ -42,6 +47,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { AdminGuard } from "@/components/admin/AdminGuard";
+import MapCoordinatePicker from "@/components/admin/MapCoordinatePicker";
 
 export const dynamic = "force-dynamic";
 
@@ -92,6 +98,20 @@ export default function SystemSettingsPage() {
   const cleanupProjectActivitiesMut = useMutation(api.performanceOptimization.cleanupOldProjectActivities);
   const cleanupInactiveSessionsMut = useMutation(api.performanceOptimization.cleanupInactiveSessions);
 
+  // Landmarks and Coordinates Management
+  const landmarks = useQuery(api.landmarks.getAllLandmarks);
+  const barangayHallCoords = useQuery(api.landmarks.getBarangayHallCoordinates);
+  const projectsWithoutCoords = useQuery(api.landmarks.getProjectsWithoutCoordinates);
+  const eventsWithoutCoords = useQuery(api.landmarks.getEventsWithoutCoordinates);
+  const updateBarangayHallMut = useMutation(api.landmarks.updateBarangayHallCoordinates);
+  const createLandmarkMut = useMutation(api.landmarks.createLandmark);
+  const updateLandmarkMut = useMutation(api.landmarks.updateLandmark);
+  const deleteLandmarkMut = useMutation(api.landmarks.deleteLandmark);
+  const updateProjectCoordsMut = useMutation(api.landmarks.updateProjectCoordinates);
+  const updateEventCoordsMut = useMutation(api.landmarks.updateEventCoordinates);
+  const toggleProjectVisibility = useMutation(api.mapManagement.toggleProjectVisibility);
+  const toggleEventVisibility = useMutation(api.mapManagement.toggleEventVisibility);
+
   // System settings state
   const [settings, setSettings] = useState({
     // General Settings
@@ -141,6 +161,37 @@ export default function SystemSettingsPage() {
   const [optimizing, setOptimizing] = useState(false);
   const [cleanupResult, setCleanupResult] = useState<any>(null);
   const [notificationStats, setNotificationStats] = useState({ total: 0, overdue: 0 });
+
+  // Landmarks state management
+  const [barangayHallLat, setBarangayHallLat] = useState<number>(13.1469299);
+  const [barangayHallLng, setBarangayHallLng] = useState<number>(123.7494046);
+  const [showAddLandmarkModal, setShowAddLandmarkModal] = useState(false);
+  const [showEditLandmarkModal, setShowEditLandmarkModal] = useState(false);
+  const [showDeleteLandmarkModal, setShowDeleteLandmarkModal] = useState(false);
+  const [selectedLandmark, setSelectedLandmark] = useState<any>(null);
+  const [showProjectsListModal, setShowProjectsListModal] = useState(false);
+  const [showEventsListModal, setShowEventsListModal] = useState(false);
+  const [selectedProjectForMap, setSelectedProjectForMap] = useState<any>(null);
+  const [selectedEventForMap, setSelectedEventForMap] = useState<any>(null);
+  const [landmarkForm, setLandmarkForm] = useState({
+    name: "",
+    icon: "🏛️",
+    color: "#3b82f6",
+    latitude: 13.1466871,
+    longitude: 123.7480647,
+    googleMapsUrl: "",
+    description: "",
+  });
+  const [savingLandmark, setSavingLandmark] = useState(false);
+  const [updatingCoords, setUpdatingCoords] = useState(false);
+
+  // Load Barangay Hall coordinates when they're fetched
+  useEffect(() => {
+    if (barangayHallCoords) {
+      setBarangayHallLat(barangayHallCoords.latitude);
+      setBarangayHallLng(barangayHallCoords.longitude);
+    }
+  }, [barangayHallCoords]);
 
   const handleCreateBackup = async () => {
     if (backupInProgress) return;
@@ -573,6 +624,121 @@ export default function SystemSettingsPage() {
     );
   }
 
+  // Landmarks handlers
+  const handleUpdateBarangayHall = async () => {
+    if (updatingCoords) return;
+    setUpdatingCoords(true);
+    try {
+      await updateBarangayHallMut({
+        latitude: barangayHallLat,
+        longitude: barangayHallLng,
+      });
+      alert('✅ Barangay Hall coordinates updated successfully!');
+    } catch (error: any) {
+      alert(`❌ Failed to update: ${error.message}`);
+    } finally {
+      setUpdatingCoords(false);
+    }
+  };
+
+  const handleAddLandmark = async () => {
+    if (savingLandmark) return;
+    if (!landmarkForm.name || !landmarkForm.googleMapsUrl) {
+      alert("Name and Google Maps URL are required");
+      return;
+    }
+    
+    setSavingLandmark(true);
+    try {
+      await createLandmarkMut({
+        name: landmarkForm.name,
+        icon: landmarkForm.icon,
+        color: landmarkForm.color,
+        latitude: landmarkForm.latitude,
+        longitude: landmarkForm.longitude,
+        googleMapsUrl: landmarkForm.googleMapsUrl,
+      });
+      setShowAddLandmarkModal(false);
+      setLandmarkForm({
+        name: "",
+        icon: "🏛️",
+        color: "#3b82f6",
+        latitude: 13.1466871,
+        longitude: 123.7480647,
+        googleMapsUrl: "",
+        description: "",
+      });
+      alert('✅ Landmark added successfully!');
+    } catch (error: any) {
+      alert(`❌ Failed to add landmark: ${error.message}`);
+    } finally {
+      setSavingLandmark(false);
+    }
+  };
+
+  const handleEditLandmark = async () => {
+    if (savingLandmark || !selectedLandmark) return;
+    
+    setSavingLandmark(true);
+    try {
+      await updateLandmarkMut({
+        id: selectedLandmark._id,
+        name: landmarkForm.name,
+        icon: landmarkForm.icon,
+        color: landmarkForm.color,
+        latitude: landmarkForm.latitude,
+        longitude: landmarkForm.longitude,
+        googleMapsUrl: landmarkForm.googleMapsUrl,
+      });
+      setShowEditLandmarkModal(false);
+      setSelectedLandmark(null);
+      alert('✅ Landmark updated successfully!');
+    } catch (error: any) {
+      alert(`❌ Failed to update landmark: ${error.message}`);
+    } finally {
+      setSavingLandmark(false);
+    }
+  };
+
+  const handleDeleteLandmark = async () => {
+    if (!selectedLandmark) return;
+    
+    try {
+      await deleteLandmarkMut({ id: selectedLandmark._id });
+      setShowDeleteLandmarkModal(false);
+      setSelectedLandmark(null);
+      alert('✅ Landmark deleted successfully!');
+    } catch (error: any) {
+      alert(`❌ Failed to delete landmark: ${error.message}`);
+    }
+  };
+
+  const handleUpdateProjectCoords = async (projectId: any, lat: number, lng: number) => {
+    try {
+      await updateProjectCoordsMut({
+        projectId,
+        latitude: lat,
+        longitude: lng,
+      });
+      alert('✅ Project coordinates updated!');
+    } catch (error: any) {
+      alert(`❌ Failed: ${error.message}`);
+    }
+  };
+
+  const handleUpdateEventCoords = async (eventId: any, lat: number, lng: number) => {
+    try {
+      await updateEventCoordsMut({
+        eventId,
+        latitude: lat,
+        longitude: lng,
+      });
+      alert('✅ Event coordinates updated!');
+    } catch (error: any) {
+      alert(`❌ Failed: ${error.message}`);
+    }
+  };
+
   const handleSave = async () => {
     setSaveStatus("saving");
     // Simulate save
@@ -671,6 +837,10 @@ export default function SystemSettingsPage() {
                   <TabsTrigger value="system" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
                     <Info className="w-4 h-4 mr-2" />
                     System Info
+                  </TabsTrigger>
+                  <TabsTrigger value="landmarks" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
+                    <MapPin className="w-4 h-4 mr-2" />
+                    Landmarks & Coordinates
                   </TabsTrigger>
                 </TabsList>
 
@@ -1859,6 +2029,216 @@ export default function SystemSettingsPage() {
                     </div>
                   </div>
                 </TabsContent>
+
+                {/* Landmarks & Coordinates */}
+                <TabsContent value="landmarks" className="space-y-6">
+                  <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-6">
+                    <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                      <MapPin className="w-5 h-5 text-emerald-500" />
+                      Landmarks & Coordinates Management
+                    </h2>
+                    
+                    {/* Info Banner */}
+                    <div className="bg-blue-600/10 border border-blue-500/30 rounded-lg p-4 mb-6">
+                      <p className="text-blue-400 text-sm">
+                        <strong>ℹ️ Note:</strong> Manage custom landmarks and default coordinates for projects/events. Landmarks will appear on the community map with clickable markers showing coordinates and Google Maps links.
+                      </p>
+                    </div>
+
+                    <div className="space-y-8">
+                      {/* Barangay Hall Coordinates */}
+                      <div className="border-b border-white/10 pb-6">
+                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                          🏛️ Barangay Hall (Default Location)
+                        </h3>
+                        <p className="text-gray-400 text-sm mb-4">
+                          Projects and events without coordinates will default to this location.
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                              Latitude
+                            </label>
+                            <Input
+                              type="number"
+                              step="0.0000001"
+                              value={barangayHallLat}
+                              onChange={(e) => setBarangayHallLat(parseFloat(e.target.value))}
+                              placeholder="13.1469299"
+                              className="bg-white/5 border-white/10 text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                              Longitude
+                            </label>
+                            <Input
+                              type="number"
+                              step="0.0000001"
+                              value={barangayHallLng}
+                              onChange={(e) => setBarangayHallLng(parseFloat(e.target.value))}
+                              placeholder="123.7494046"
+                              className="bg-white/5 border-white/10 text-white"
+                            />
+                          </div>
+                        </div>
+                        <Button 
+                          onClick={handleUpdateBarangayHall}
+                          disabled={updatingCoords}
+                          className="mt-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                          {updatingCoords ? (
+                            <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Updating...</>
+                          ) : (
+                            <><Save className="w-4 h-4 mr-2" />Update Barangay Hall Location</>
+                          )}
+                        </Button>
+                      </div>
+
+                      {/* Landmarks Management */}
+                      <div className="border-b border-white/10 pb-6">
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                            <Map className="w-5 h-5" />
+                            Custom Landmarks
+                          </h3>
+                          <Button 
+                            onClick={() => setShowAddLandmarkModal(true)}
+                            className="bg-emerald-600 hover:bg-emerald-700"
+                          >
+                            <MapPin className="w-4 h-4 mr-2" />
+                            Add New Landmark
+                          </Button>
+                        </div>
+                        
+                        {/* Existing Landmarks */}
+                        <div className="space-y-4">
+                          {!landmarks || landmarks.length === 0 ? (
+                            <div className="text-center py-8 text-gray-400">
+                              <MapPin className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                              <p>No landmarks yet. Click "Add New Landmark" to create one.</p>
+                            </div>
+                          ) : (
+                            landmarks.map((landmark: any) => (
+                              <div key={landmark._id} className="bg-white/5 rounded-lg p-4 border border-white/10">
+                                <div className="flex flex-col sm:flex-row justify-between items-start mb-3 gap-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className="text-2xl">{landmark.icon}</div>
+                                    <div>
+                                      <h4 className="text-white font-semibold">{landmark.name}</h4>
+                                      <p className="text-gray-400 text-sm">
+                                        {landmark.latitude.toFixed(6)}°N, {landmark.longitude.toFixed(6)}°E
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline" 
+                                      className="border-white/20 text-white hover:bg-white/10"
+                                      onClick={() => {
+                                        setSelectedLandmark(landmark);
+                                        setLandmarkForm({
+                                          name: landmark.name,
+                                          icon: landmark.icon,
+                                          color: landmark.color,
+                                          latitude: landmark.latitude,
+                                          longitude: landmark.longitude,
+                                          googleMapsUrl: landmark.googleMapsUrl,
+                                          description: landmark.description || "",
+                                        });
+                                        setShowEditLandmarkModal(true);
+                                      }}
+                                    >
+                                      <Edit className="w-3 h-3 mr-1" />
+                                      Edit
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline" 
+                                      className="border-red-500/50 text-red-400 hover:bg-red-600/20"
+                                      onClick={() => {
+                                        setSelectedLandmark(landmark);
+                                        setShowDeleteLandmarkModal(true);
+                                      }}
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                  <div>
+                                    <span className="text-gray-400">Color:</span>
+                                    <span className="ml-2 text-white" style={{ color: landmark.color }}>
+                                      ● {landmark.color}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-400">Icon:</span>
+                                    <span className="ml-2 text-white">{landmark.icon}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Coordinate Editing Tools */}
+                      <div>
+                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                          <MapPin className="w-5 h-5" />
+                          Bulk Coordinate Management
+                        </h3>
+                        <div className="space-y-4">
+                          <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                            <h4 className="text-white font-medium mb-2">Projects Without Coordinates</h4>
+                            <p className="text-gray-400 text-sm mb-3">
+                              Projects without coordinates will automatically use Barangay Hall location
+                            </p>
+                            <div className="flex items-center gap-3">
+                              <Button 
+                                variant="outline" 
+                                className="border-white/20 text-white hover:bg-white/10"
+                                onClick={() => setShowProjectsListModal(true)}
+                              >
+                                <MapPin className="w-4 h-4 mr-2" />
+                                View Projects List
+                              </Button>
+                              {projectsWithoutCoords && (
+                                <Badge variant="secondary" className="bg-orange-600/20 text-orange-400 border-orange-500/30">
+                                  {projectsWithoutCoords.length} Projects
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                            <h4 className="text-white font-medium mb-2">Events Without Coordinates</h4>
+                            <p className="text-gray-400 text-sm mb-3">
+                              Events without coordinates will automatically use Barangay Hall location
+                            </p>
+                            <div className="flex items-center gap-3">
+                              <Button 
+                                variant="outline" 
+                                className="border-white/20 text-white hover:bg-white/10"
+                                onClick={() => setShowEventsListModal(true)}
+                              >
+                                <MapPin className="w-4 h-4 mr-2" />
+                                View Events List
+                              </Button>
+                              {eventsWithoutCoords && (
+                                <Badge variant="secondary" className="bg-orange-600/20 text-orange-400 border-orange-500/30">
+                                  {eventsWithoutCoords.length} Events
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
               </Tabs>
             </div>
           </div>
@@ -2054,6 +2434,560 @@ export default function SystemSettingsPage() {
                   onClick={() => setShowClearMessagesModal(false)}
                   variant="outline"
                   className="flex-1 border-white/20 text-white hover:bg-white/10 active:scale-95 transition-transform"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Landmark Modal */}
+        {showAddLandmarkModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 rounded-xl border border-white/10 p-6 max-w-md w-full max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-emerald-500" />
+                Add New Landmark
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Name</label>
+                  <Input
+                    value={landmarkForm.name}
+                    onChange={(e) => setLandmarkForm({ ...landmarkForm, name: e.target.value })}
+                    placeholder="e.g., City Hall"
+                    className="bg-white/5 border-white/10 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Icon</label>
+                  <select
+                    value={landmarkForm.icon}
+                    onChange={(e) => setLandmarkForm({ ...landmarkForm, icon: e.target.value })}
+                    className="w-full px-3 py-3 bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border-2 border-emerald-500/50 rounded-lg text-white text-2xl font-semibold shadow-lg hover:border-emerald-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/50 transition-all cursor-pointer"
+                  >
+                    <option value="🏛️">🏛️ Government Building</option>
+                    <option value="🏫">🏫 School</option>
+                    <option value="🏥">🏥 Hospital</option>
+                    <option value="🏪">🏪 Store</option>
+                    <option value="🏬">🏬 Mall</option>
+                    <option value="🏭">🏭 Factory</option>
+                    <option value="⛪">⛪ Church</option>
+                    <option value="🕌">🕌 Mosque</option>
+                    <option value="🏟️">🏟️ Stadium</option>
+                    <option value="🏞️">🏞️ Park</option>
+                    <option value="🌳">🌳 Tree/Nature</option>
+                    <option value="🌊">🌊 Water</option>
+                    <option value="🏖️">🏖️ Beach</option>
+                    <option value="⛰️">⛰️ Mountain</option>
+                    <option value="🚉">🚉 Train Station</option>
+                    <option value="🚌">🚌 Bus Stop</option>
+                    <option value="⛽">⛽ Gas Station</option>
+                    <option value="🏨">🏨 Hotel</option>
+                    <option value="🍽️">🍽️ Restaurant</option>
+                    <option value="☕">☕ Cafe</option>
+                    <option value="🏪">🏪 Convenience Store</option>
+                    <option value="🏦">🏦 Bank</option>
+                    <option value="📮">📮 Post Office</option>
+                    <option value="📚">📚 Library</option>
+                    <option value="⚽">⚽ Sports</option>
+                    <option value="🎭">🎭 Theater</option>
+                    <option value="🎪">🎪 Event Venue</option>
+                    <option value="🏗️">🏗️ Construction</option>
+                    <option value="🔔">🔔 Bell/Alert</option>
+                    <option value="📍">📍 Location Pin</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Description (Optional)</label>
+                  <Textarea
+                    value={landmarkForm.description || ''}
+                    onChange={(e) => setLandmarkForm({ ...landmarkForm, description: e.target.value })}
+                    placeholder="Brief description of this landmark..."
+                    rows={3}
+                    className="bg-white/5 border-white/10 text-white resize-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Color (Hex)</label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="color"
+                      value={landmarkForm.color}
+                      onChange={(e) => setLandmarkForm({ ...landmarkForm, color: e.target.value })}
+                      className="w-16 h-10"
+                    />
+                    <Input
+                      value={landmarkForm.color}
+                      onChange={(e) => setLandmarkForm({ ...landmarkForm, color: e.target.value })}
+                      placeholder="#3b82f6"
+                      className="flex-1 bg-white/5 border-white/10 text-white"
+                    />
+                  </div>
+                </div>
+                {/* Map Coordinate Picker */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-3">📍 Select Location on Map</label>
+                  <MapCoordinatePicker
+                    latitude={landmarkForm.latitude}
+                    longitude={landmarkForm.longitude}
+                    onLocationSelect={(lat, lng) => {
+                      setLandmarkForm({ ...landmarkForm, latitude: lat, longitude: lng });
+                    }}
+                    height="350px"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Google Maps URL</label>
+                  <Input
+                    value={landmarkForm.googleMapsUrl}
+                    onChange={(e) => setLandmarkForm({ ...landmarkForm, googleMapsUrl: e.target.value })}
+                    placeholder="https://www.google.com/maps/..."
+                    className="bg-white/5 border-white/10 text-white"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <Button
+                  onClick={handleAddLandmark}
+                  disabled={savingLandmark}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                >
+                  {savingLandmark ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Adding...</> : <><MapPin className="w-4 h-4 mr-2" />Add Landmark</>}
+                </Button>
+                <Button
+                  onClick={() => setShowAddLandmarkModal(false)}
+                  variant="outline"
+                  className="border-white/20 text-white hover:bg-white/10"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Landmark Modal */}
+        {showEditLandmarkModal && selectedLandmark && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 rounded-xl border border-white/10 p-6 max-w-md w-full max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Edit className="w-5 h-5 text-blue-500" />
+                Edit Landmark
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Name</label>
+                  <Input
+                    value={landmarkForm.name}
+                    onChange={(e) => setLandmarkForm({ ...landmarkForm, name: e.target.value })}
+                    className="bg-white/5 border-white/10 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Icon</label>
+                  <select
+                    value={landmarkForm.icon}
+                    onChange={(e) => setLandmarkForm({ ...landmarkForm, icon: e.target.value })}
+                    className="w-full px-3 py-3 bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border-2 border-emerald-500/50 rounded-lg text-white text-2xl font-semibold shadow-lg hover:border-emerald-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/50 transition-all cursor-pointer"
+                  >
+                    <option value="🏛️">🏛️ Government Building</option>
+                    <option value="🏫">🏫 School</option>
+                    <option value="🏥">🏥 Hospital</option>
+                    <option value="🏪">🏪 Store</option>
+                    <option value="🏬">🏬 Mall</option>
+                    <option value="🏭">🏭 Factory</option>
+                    <option value="⛪">⛪ Church</option>
+                    <option value="🕌">🕌 Mosque</option>
+                    <option value="🏟️">🏟️ Stadium</option>
+                    <option value="🏞️">🏞️ Park</option>
+                    <option value="🌳">🌳 Tree/Nature</option>
+                    <option value="🌊">🌊 Water</option>
+                    <option value="🏖️">🏖️ Beach</option>
+                    <option value="⛰️">⛰️ Mountain</option>
+                    <option value="🚉">🚉 Train Station</option>
+                    <option value="🚌">🚌 Bus Stop</option>
+                    <option value="⛽">⛽ Gas Station</option>
+                    <option value="🏨">🏨 Hotel</option>
+                    <option value="🍽️">🍽️ Restaurant</option>
+                    <option value="☕">☕ Cafe</option>
+                    <option value="🏪">🏪 Convenience Store</option>
+                    <option value="🏦">🏦 Bank</option>
+                    <option value="📮">📮 Post Office</option>
+                    <option value="📚">📚 Library</option>
+                    <option value="⚽">⚽ Sports</option>
+                    <option value="🎭">🎭 Theater</option>
+                    <option value="🎪">🎪 Event Venue</option>
+                    <option value="🏗️">🏗️ Construction</option>
+                    <option value="🔔">🔔 Bell/Alert</option>
+                    <option value="📍">📍 Location Pin</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Description (Optional)</label>
+                  <Textarea
+                    value={landmarkForm.description || ''}
+                    onChange={(e) => setLandmarkForm({ ...landmarkForm, description: e.target.value })}
+                    placeholder="Brief description of this landmark..."
+                    rows={3}
+                    className="bg-white/5 border-white/10 text-white resize-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Color (Hex)</label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="color"
+                      value={landmarkForm.color}
+                      onChange={(e) => setLandmarkForm({ ...landmarkForm, color: e.target.value })}
+                      className="w-16 h-10"
+                    />
+                    <Input
+                      value={landmarkForm.color}
+                      onChange={(e) => setLandmarkForm({ ...landmarkForm, color: e.target.value })}
+                      className="flex-1 bg-white/5 border-white/10 text-white"
+                    />
+                  </div>
+                </div>
+                {/* Map Coordinate Picker */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-3">📍 Select Location on Map</label>
+                  <MapCoordinatePicker
+                    latitude={landmarkForm.latitude}
+                    longitude={landmarkForm.longitude}
+                    onLocationSelect={(lat, lng) => {
+                      setLandmarkForm({ ...landmarkForm, latitude: lat, longitude: lng });
+                    }}
+                    height="350px"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Google Maps URL</label>
+                  <Input
+                    value={landmarkForm.googleMapsUrl}
+                    onChange={(e) => setLandmarkForm({ ...landmarkForm, googleMapsUrl: e.target.value })}
+                    className="bg-white/5 border-white/10 text-white"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <Button
+                  onClick={handleEditLandmark}
+                  disabled={savingLandmark}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                >
+                  {savingLandmark ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Updating...</> : <><Save className="w-4 h-4 mr-2" />Save Changes</>}
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowEditLandmarkModal(false);
+                    setSelectedLandmark(null);
+                  }}
+                  variant="outline"
+                  className="border-white/20 text-white hover:bg-white/10"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Landmark Modal */}
+        {showDeleteLandmarkModal && selectedLandmark && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 rounded-xl border border-white/10 p-6 max-w-md w-full animate-in fade-in zoom-in duration-200">
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500" />
+                Delete Landmark
+              </h3>
+              <p className="text-gray-400 mb-6">
+                Are you sure you want to delete <strong className="text-white">{selectedLandmark.name}</strong>? This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  onClick={handleDeleteLandmark}
+                  className="flex-1 bg-red-600 hover:bg-red-700"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowDeleteLandmarkModal(false);
+                    setSelectedLandmark(null);
+                  }}
+                  variant="outline"
+                  className="flex-1 border-white/20 text-white hover:bg-white/10"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Projects Without Coordinates Modal */}
+        {showProjectsListModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 rounded-xl border border-white/10 p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-orange-500" />
+                  Projects Without Coordinates
+                </h3>
+                <Button
+                  onClick={() => setShowProjectsListModal(false)}
+                  variant="outline"
+                  size="sm"
+                  className="border-white/20 text-white hover:bg-white/10"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              {!projectsWithoutCoords || projectsWithoutCoords.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <CheckCircle className="w-12 h-12 mx-auto mb-3 text-green-500" />
+                  <p>All projects have coordinates!</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {projectsWithoutCoords.map((project: any) => (
+                    <div key={project._id} className="bg-white/5 rounded-lg p-4 border border-white/10">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="text-white font-semibold">{project.title}</h4>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-1 rounded ${project.isPublic ? 'bg-green-600/30 text-green-300' : 'bg-gray-600/30 text-gray-300'}`}>
+                            {project.isPublic ? '👁️ Public' : '🔒 Private'}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-gray-400 text-sm mb-3">{project.description?.substring(0, 100)}...</p>
+                      <Button
+                        onClick={() => setSelectedProjectForMap(project)}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                        size="sm"
+                      >
+                        <MapPin className="w-4 h-4 mr-2" />
+                        Set Location on Map
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Events Without Coordinates Modal */}
+        {showEventsListModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 rounded-xl border border-white/10 p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-orange-500" />
+                  Events Without Coordinates
+                </h3>
+                <Button
+                  onClick={() => setShowEventsListModal(false)}
+                  variant="outline"
+                  size="sm"
+                  className="border-white/20 text-white hover:bg-white/10"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              {!eventsWithoutCoords || eventsWithoutCoords.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <CheckCircle className="w-12 h-12 mx-auto mb-3 text-green-500" />
+                  <p>All events have coordinates!</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {eventsWithoutCoords.map((event: any) => (
+                    <div key={event._id} className="bg-white/5 rounded-lg p-4 border border-white/10">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="text-white font-semibold">{event.title}</h4>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-1 rounded ${event.isPublic ? 'bg-green-600/30 text-green-300' : 'bg-gray-600/30 text-gray-300'}`}>
+                            {event.isPublic ? '👁️ Public' : '🔒 Private'}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-gray-400 text-sm mb-3">{event.description?.substring(0, 100)}...</p>
+                      <Button
+                        onClick={() => setSelectedEventForMap(event)}
+                        className="w-full bg-red-600 hover:bg-red-700 text-white"
+                        size="sm"
+                      >
+                        <MapPin className="w-4 h-4 mr-2" />
+                        Set Location on Map
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Project Map Picker Modal */}
+        {selectedProjectForMap && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 rounded-xl border border-white/10 p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-blue-500" />
+                  Set Project Location: {selectedProjectForMap.title}
+                </h3>
+                <Button
+                  onClick={() => setSelectedProjectForMap(null)}
+                  variant="outline"
+                  size="sm"
+                  className="border-white/20 text-white hover:bg-white/10"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              <div className="mb-4 flex items-center gap-3 bg-blue-900/20 border border-blue-500/30 rounded-lg p-3">
+                <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                  <Eye className="w-4 h-4" />
+                  Visibility:
+                </label>
+                <button
+                  onClick={async () => {
+                    await toggleProjectVisibility({ 
+                      projectId: selectedProjectForMap._id, 
+                      isPublic: !selectedProjectForMap.isPublic 
+                    });
+                    setSelectedProjectForMap({...selectedProjectForMap, isPublic: !selectedProjectForMap.isPublic});
+                  }}
+                  className={`px-3 py-1 rounded-lg font-medium text-sm transition-colors ${
+                    selectedProjectForMap.isPublic 
+                      ? 'bg-green-600 text-white hover:bg-green-700' 
+                      : 'bg-gray-600 text-white hover:bg-gray-700'
+                  }`}
+                >
+                  {selectedProjectForMap.isPublic ? '👁️ Public' : '🔒 Private'}
+                </button>
+              </div>
+
+              <MapCoordinatePicker
+                latitude={selectedProjectForMap.coordinates?.latitude || 13.1469299}
+                longitude={selectedProjectForMap.coordinates?.longitude || 123.7494046}
+                onLocationSelect={(lat, lng) => {
+                  setSelectedProjectForMap({
+                    ...selectedProjectForMap,
+                    coordinates: { latitude: lat, longitude: lng }
+                  });
+                }}
+                height="450px"
+              />
+              
+              <div className="flex gap-3 mt-6">
+                <Button
+                  onClick={async () => {
+                    await handleUpdateProjectCoords(
+                      selectedProjectForMap._id,
+                      selectedProjectForMap.coordinates.latitude,
+                      selectedProjectForMap.coordinates.longitude
+                    );
+                    setSelectedProjectForMap(null);
+                  }}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  disabled={updatingCoords}
+                >
+                  {updatingCoords ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save Location</>}
+                </Button>
+                <Button
+                  onClick={() => setSelectedProjectForMap(null)}
+                  variant="outline"
+                  className="border-white/20 text-white hover:bg-white/10"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Event Map Picker Modal */}
+        {selectedEventForMap && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 rounded-xl border border-white/10 p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-red-500" />
+                  Set Event Location: {selectedEventForMap.title}
+                </h3>
+                <Button
+                  onClick={() => setSelectedEventForMap(null)}
+                  variant="outline"
+                  size="sm"
+                  className="border-white/20 text-white hover:bg-white/10"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              <div className="mb-4 flex items-center gap-3 bg-red-900/20 border border-red-500/30 rounded-lg p-3">
+                <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                  <Eye className="w-4 h-4" />
+                  Visibility:
+                </label>
+                <button
+                  onClick={async () => {
+                    await toggleEventVisibility({ 
+                      eventId: selectedEventForMap._id, 
+                      isPublic: !selectedEventForMap.isPublic 
+                    });
+                    setSelectedEventForMap({...selectedEventForMap, isPublic: !selectedEventForMap.isPublic});
+                  }}
+                  className={`px-3 py-1 rounded-lg font-medium text-sm transition-colors ${
+                    selectedEventForMap.isPublic 
+                      ? 'bg-green-600 text-white hover:bg-green-700' 
+                      : 'bg-gray-600 text-white hover:bg-gray-700'
+                  }`}
+                >
+                  {selectedEventForMap.isPublic ? '👁️ Public' : '🔒 Private'}
+                </button>
+              </div>
+
+              <MapCoordinatePicker
+                latitude={selectedEventForMap.coordinates?.latitude || 13.1469299}
+                longitude={selectedEventForMap.coordinates?.longitude || 123.7494046}
+                onLocationSelect={(lat, lng) => {
+                  setSelectedEventForMap({
+                    ...selectedEventForMap,
+                    coordinates: { latitude: lat, longitude: lng }
+                  });
+                }}
+                height="450px"
+              />
+              
+              <div className="flex gap-3 mt-6">
+                <Button
+                  onClick={async () => {
+                    await handleUpdateEventCoords(
+                      selectedEventForMap._id,
+                      selectedEventForMap.coordinates.latitude,
+                      selectedEventForMap.coordinates.longitude
+                    );
+                    setSelectedEventForMap(null);
+                  }}
+                  className="flex-1 bg-red-600 hover:bg-red-700"
+                  disabled={updatingCoords}
+                >
+                  {updatingCoords ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save Location</>}
+                </Button>
+                <Button
+                  onClick={() => setSelectedEventForMap(null)}
+                  variant="outline"
+                  className="border-white/20 text-white hover:bg-white/10"
                 >
                   Cancel
                 </Button>

@@ -1372,4 +1372,26 @@ export default defineSchema({
   .index("by_email", ["email"])
   .index("by_purpose", ["purpose"])
   .index("by_email_purpose", ["email", "purpose"]),
+
+  // Landmarks for map display (SM City, Yashano Mall, Mayon, etc.)
+  landmarks: defineTable({
+    name: v.string(),
+    icon: v.string(), // Emoji icon
+    color: v.string(), // Hex color
+    latitude: v.number(),
+    longitude: v.number(),
+    googleMapsUrl: v.string(),
+    description: v.optional(v.string()), // Optional description
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }),
+
+  // System Settings (key-value store for various settings)
+  systemSettings: defineTable({
+    key: v.string(), // e.g., "barangayHallCoordinates"
+    value: v.any(), // Flexible value storage
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_key", ["key"]),
 });

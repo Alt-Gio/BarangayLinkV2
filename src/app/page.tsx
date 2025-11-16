@@ -696,23 +696,23 @@ function PublicLandingPage() {
                       >
                         <MessageSquare className="w-4 h-4 mr-1" />
                         Feedback
-                        {feedbackStats?.[project._id]?.count > 0 && (
-                          <span className="ml-1 text-xs">({feedbackStats[project._id].count})</span>
+                        {feedbackStats?.[project._id]?.count && feedbackStats[project._id]?.count > 0 && (
+                          <span className="ml-1 text-xs">({feedbackStats[project._id]?.count})</span>
                         )}
                       </Button>
                     </div>
 
                     {/* Feedback Stats */}
-                    {feedbackStats?.[project._id] && feedbackStats[project._id].count > 0 && (
+                    {feedbackStats?.[project._id] && feedbackStats[project._id]?.count && feedbackStats[project._id]?.count > 0 && (
                       <div className="mt-3 pt-3 border-t border-gray-700 flex items-center justify-between text-xs">
                         <div className="flex items-center gap-1 text-gray-400">
                           <MessageSquare className="w-3 h-3" />
-                          <span>{feedbackStats[project._id].count} feedback</span>
+                          <span>{feedbackStats[project._id]?.count} feedback</span>
                         </div>
-                        {feedbackStats[project._id].averageRating > 0 && (
+                        {feedbackStats[project._id]?.averageRating && feedbackStats[project._id]?.averageRating > 0 && (
                           <div className="flex items-center gap-1 text-yellow-400">
                             <Star className="w-3 h-3 fill-yellow-400" />
-                            <span>{feedbackStats[project._id].averageRating.toFixed(1)}</span>
+                            <span>{feedbackStats[project._id]?.averageRating.toFixed(1)}</span>
                           </div>
                         )}
                       </div>
@@ -861,16 +861,6 @@ function PublicLandingPage() {
       {/* MAP: Full Width Mapbox Integration */}
       <section id="map" className="h-screen w-full bg-gray-900">
         <div className="h-full relative">
-          {/* Map Title Overlay */}
-          <div className="absolute top-8 left-8 z-10 bg-gray-900/90 backdrop-blur-sm rounded-xl p-6 max-w-md">
-            <h2 className="text-3xl font-bold text-white mb-2">
-              Community Map
-            </h2>
-            <p className="text-gray-300">
-              Explore Barangay Bitano and locate important facilities
-            </p>
-          </div>
-
           {/* Mapbox Component */}
           <Map />
         </div>
