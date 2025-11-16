@@ -408,3 +408,179 @@ export const markAllAsRead = mutation({
     return unreadNotifications.length;
   },
 });
+
+// ============================================
+// CERTIFICATE NOTIFICATIONS (for residents)
+// ============================================
+
+// Get notifications for a resident by their clerk ID
+export const getResidentNotifications = query({
+  args: {
+    limit: v.optional(v.number()),
+    onlyUnread: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
+    // Find resident by Clerk ID
+    const resident = await ctx.db
+      .query("residents")
+      .withIndex("by_clerk_user", (q) => q.eq("clerkUserId", identity.subject))
+      .first();
+
+    if (!resident) return [];
+
+    // Get user record
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!user) return [];
+
+    let query = ctx.db
+      .query("notifications")
+      .filter((q) => q.eq(q.field("userId"), user._id));
+
+    if (args.onlyUnread) {
+      query = query.filter((q) => q.eq(q.field("isRead"), false));
+    }
+
+    const notifications = await query
+      .order("desc")
+      .take(args.limit || 20);
+
+    return notifications;
+  },
+});
+
+// Create notification when certificate request is approved
+export const notifyCertificateApproved = mutation({
+  args: {
+    residentId: v.id("residents"),
+    certificateType: v.string(),
+    controlNumber: v.string(),
+    certificateId: v.id("certificates"),
+  },
+  handler: async (ctx, args) => {
+    const resident = await ctx.db.get(args.residentId);
+    if (!resident || !resident.clerkUserId) return null;
+
+    // Find user by clerk ID
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", resident.clerkUserId!))
+      .first();
+
+    if (!user) return null;
+
+    const notificationId = await ctx.db.insert("notifications", {
+      userId: user._id,
+      title: "✅ Certificate Approved!",
+      message: `Your ${args.certificateType} (${args.controlNumber}) has been approved and is ready for download.`,
+      type: "success",
+      category: "certificate_approved",
+      isRead: false,
+      actionUrl: `/portal`,
+      createdAt: Date.now(),
+      metadata: {
+        priority: "high",
+        category: "certificate_approved",
+        relatedId: args.certificateId,
+        data: {
+          certificateId: args.certificateId,
+          certificateType: args.certificateType,
+          controlNumber: args.controlNumber,
+          residentName: `${resident.firstName} ${resident.lastName}`,
+        }
+      },
+    });
+
+    return notificationId;
+  },
+});
+
+// Create notification when certificate request is rejected
+export const notifyCertificateRejected = mutation({
+  args: {
+    residentId: v.id("residents"),
+    certificateType: v.string(),
+    controlNumber: v.string(),
+    rejectionReason: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const resident = await ctx.db.get(args.residentId);
+    if (!resident || !resident.clerkUserId) return null;
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", resident.clerkUserId!))
+      .first();
+
+    if (!user) return null;
+
+    const notificationId = await ctx.db.insert("notifications", {
+      userId: user._id,
+      title: "❌ Certificate Request Rejected",
+      message: `Your ${args.certificateType} (${args.controlNumber}) was rejected. Reason: ${args.rejectionReason}`,
+      type: "error",
+      category: "certificate_rejected",
+      isRead: false,
+      actionUrl: `/portal`,
+      createdAt: Date.now(),
+      metadata: {
+        priority: "high",
+        category: "certificate_rejected",
+        data: {
+          certificateType: args.certificateType,
+          controlNumber: args.controlNumber,
+          rejectionReason: args.rejectionReason,
+        }
+      },
+    });
+
+    return notificationId;
+  },
+});
+
+// Create notification when new certificate request is submitted
+export const notifyNewCertificateRequest = mutation({
+  args: {
+    residentId: v.id("residents"),
+    certificateType: v.string(),
+    controlNumber: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const resident = await ctx.db.get(args.residentId);
+    if (!resident || !resident.clerkUserId) return null;
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", resident.clerkUserId!))
+      .first();
+
+    if (!user) return null;
+
+    const notificationId = await ctx.db.insert("notifications", {
+      userId: user._id,
+      title: "📋 Certificate Request Received",
+      message: `Your request for ${args.certificateType} (${args.controlNumber}) has been received and is being processed.`,
+      type: "info",
+      category: "certificate_submitted",
+      isRead: false,
+      actionUrl: `/portal`,
+      createdAt: Date.now(),
+      metadata: {
+        priority: "medium",
+        category: "certificate_submitted",
+        data: {
+          certificateType: args.certificateType,
+          controlNumber: args.controlNumber,
+        }
+      },
+    });
+
+    return notificationId;
+  },
+});

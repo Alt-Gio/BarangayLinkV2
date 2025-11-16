@@ -585,6 +585,7 @@ export default defineSchema({
       category: v.optional(v.string()),
       relatedId: v.optional(v.string()),
       projectId: v.optional(v.string()),
+      taskTitle: v.optional(v.string()), // Added for task notifications
       dueDate: v.optional(v.number()),
       completedAt: v.optional(v.number()),
       data: v.optional(v.any()),
@@ -632,11 +633,15 @@ export default defineSchema({
   .index("by_active", ["isActive"])
   .index("by_login_time", ["loginTime"]),
 
-  // Optimized audit logs (ONLY significant events)
+  // Comprehensive audit logs (supports both legacy and new resident system)
   auditLogs: defineTable({
     userId: v.id("users"),
+    userName: v.optional(v.string()), // Cached for display - OPTIONAL for backward compatibility
+    userRole: v.optional(v.string()), // Cached user role - OPTIONAL for backward compatibility
     sessionId: v.optional(v.id("userSessions")),
-    eventType: v.union(
+    
+    // Legacy fields (for existing audit system)
+    eventType: v.optional(v.union(
       v.literal("login"),
       v.literal("logout"),
       v.literal("error"),
@@ -646,16 +651,30 @@ export default defineSchema({
       v.literal("file_uploaded"),
       v.literal("permission_change"),
       v.literal("data_export")
-    ),
-    severity: v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("critical")),
-    timestamp: v.number(),
+    )),
+    severity: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("critical"))),
     details: v.optional(v.any()),
+    
+    // New fields (for resident management system) - OPTIONAL for backward compatibility
+    action: v.optional(v.string()), // e.g., "CREATE_RESIDENT", "UPDATE_HOUSEHOLD", "APPROVE_CERTIFICATE"
+    entity: v.optional(v.string()), // e.g., "residents", "households", "certificates"
+    entityId: v.optional(v.string()), // ID of the affected entity
+    description: v.optional(v.string()), // Human-readable description
+    changes: v.optional(v.any()), // JSON of what changed (before/after)
+    
+    // Context
+    ipAddress: v.optional(v.string()),
+    userAgent: v.optional(v.string()),
+    
+    timestamp: v.number(),
   })
   .index("by_user", ["userId"])
   .index("by_event_type", ["eventType"])
   .index("by_severity", ["severity"])
   .index("by_timestamp", ["timestamp"])
-  .index("by_user_timestamp", ["userId", "timestamp"]),
+  .index("by_user_timestamp", ["userId", "timestamp"])
+  .index("by_entity", ["entity", "entityId"])
+  .index("by_action", ["action"]),
 
   // Online presence tracking for real-time collaboration
   onlinePresence: defineTable({
@@ -1394,4 +1413,312 @@ export default defineSchema({
     updatedAt: v.number(),
   })
   .index("by_key", ["key"]),
+
+  // ============================================
+  // RESIDENT MANAGEMENT SYSTEM
+  // ============================================
+
+  // Households - Family units in the barangay
+  households: defineTable({
+    householdNumber: v.string(), // e.g., "H-2024-001"
+    
+    // Address
+    houseNumber: v.string(),
+    street: v.string(),
+    purok: v.string(), // Zone/Purok
+    barangay: v.string(), // "Barangay 37 - Bitano"
+    city: v.string(), // "Legazpi City"
+    province: v.string(), // "Albay"
+    zipCode: v.string(),
+    
+    // Household Info
+    householdHeadId: v.optional(v.id("residents")), // Reference to resident who is head
+    totalMembers: v.number(),
+    yearEstablished: v.optional(v.number()),
+    
+    // Economic Status
+    monthlyIncome: v.optional(v.string()), // Range: "<5000", "5000-10000", etc.
+    isIndigent: v.boolean(),
+    is4PsBeneficiary: v.boolean(),
+    
+    // Utilities
+    hasElectricity: v.boolean(),
+    hasWater: v.boolean(),
+    hasInternet: v.boolean(),
+    
+    // Meta
+    notes: v.optional(v.string()),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_household_number", ["householdNumber"])
+  .index("by_purok", ["purok"])
+  .index("by_created_at", ["createdAt"]),
+
+  // Residents - Individual people in the barangay
+  residents: defineTable({
+    // Barangay ID
+    barangayIdNumber: v.string(), // e.g., "BIT-2024-001"
+    qrCode: v.optional(v.string()), // QR code data for ID verification
+    
+    // Personal Information
+    firstName: v.string(),
+    middleName: v.optional(v.string()),
+    lastName: v.string(),
+    suffix: v.optional(v.string()), // Jr., Sr., III, IV
+    nickname: v.optional(v.string()),
+    
+    // Birth Information
+    birthdate: v.number(), // timestamp
+    age: v.number(), // auto-calculated
+    placeOfBirth: v.optional(v.string()),
+    
+    // Identification
+    gender: v.union(v.literal("Male"), v.literal("Female")),
+    civilStatus: v.union(
+      v.literal("Single"),
+      v.literal("Married"),
+      v.literal("Widowed"),
+      v.literal("Separated"),
+      v.literal("Annulled")
+    ),
+    nationality: v.string(), // Default: "Filipino"
+    religion: v.optional(v.string()),
+    bloodType: v.optional(v.union(
+      v.literal("A+"), v.literal("A-"),
+      v.literal("B+"), v.literal("B-"),
+      v.literal("AB+"), v.literal("AB-"),
+      v.literal("O+"), v.literal("O-")
+    )),
+    
+    // Contact Information
+    phoneNumber: v.string(),
+    email: v.optional(v.string()),
+    
+    // Clerk Authentication Link
+    clerkUserId: v.optional(v.string()), // Links to Clerk authenticated user
+    
+    // Household & Family
+    householdId: v.id("households"),
+    relationToHead: v.union(
+      v.literal("Head"),
+      v.literal("Spouse"),
+      v.literal("Child"),
+      v.literal("Parent"),
+      v.literal("Sibling"),
+      v.literal("Grandchild"),
+      v.literal("Grandparent"),
+      v.literal("Other Relative"),
+      v.literal("Non-Relative")
+    ),
+    
+    // Government IDs
+    philHealthNumber: v.optional(v.string()),
+    sssNumber: v.optional(v.string()),
+    gsissNumber: v.optional(v.string()),
+    tinNumber: v.optional(v.string()),
+    votersIdNumber: v.optional(v.string()),
+    nationalIdNumber: v.optional(v.string()),
+    
+    // Residency Information
+    yearsOfResidency: v.number(),
+    residencyType: v.union(
+      v.literal("Owner"),
+      v.literal("Renter"),
+      v.literal("Living with Family"),
+      v.literal("Other")
+    ),
+    previousAddress: v.optional(v.string()),
+    
+    // Status Flags
+    isVoter: v.boolean(),
+    isSeniorCitizen: v.boolean(), // auto-set if age >= 60
+    isPWD: v.boolean(),
+    isIndigent: v.boolean(),
+    is4PsBeneficiary: v.boolean(),
+    isOFW: v.boolean(),
+    isSoloParent: v.boolean(),
+    
+    // Occupation & Education
+    occupation: v.optional(v.string()),
+    employer: v.optional(v.string()),
+    monthlyIncome: v.optional(v.string()),
+    educationalAttainment: v.optional(v.union(
+      v.literal("Elementary"),
+      v.literal("Elementary Graduate"),
+      v.literal("High School"),
+      v.literal("High School Graduate"),
+      v.literal("Vocational"),
+      v.literal("College"),
+      v.literal("College Graduate"),
+      v.literal("Post Graduate")
+    )),
+    
+    // Emergency Contact
+    emergencyContactName: v.optional(v.string()),
+    emergencyContactRelationship: v.optional(v.string()),
+    emergencyContactPhone: v.optional(v.string()),
+    
+    // Medical Information (optional)
+    disabilities: v.optional(v.array(v.string())), // Array of disability types
+    medicalConditions: v.optional(v.array(v.string())), // Chronic conditions
+    
+    // Photo
+    photoUrl: v.optional(v.string()), // URL to uploaded photo
+    photoStorageId: v.optional(v.string()), // Convex storage ID
+    
+    // Verification & Status
+    isVerified: v.boolean(),
+    verifiedBy: v.optional(v.id("users")), // Admin who verified
+    verifiedAt: v.optional(v.number()),
+    isActive: v.boolean(), // For soft delete
+    deactivatedReason: v.optional(v.string()),
+    
+    // Notes
+    notes: v.optional(v.string()),
+    
+    // Meta
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_barangay_id", ["barangayIdNumber"])
+  .index("by_household", ["householdId"])
+  .index("by_name", ["lastName", "firstName"])
+  .index("by_verified", ["isVerified"])
+  .index("by_active", ["isActive"])
+  .index("by_created_at", ["createdAt"])
+  .index("by_email", ["email"])
+  .index("by_clerk_user", ["clerkUserId"]),
+
+  // Certificate Requests - Residents request certificates
+  certificateRequests: defineTable({
+    controlNumber: v.string(), // Unique: CR-2024-001
+    
+    // Requester Information
+    residentId: v.id("residents"),
+    requestedBy: v.string(), // Resident name (cached)
+    
+    // Certificate Details
+    certificateType: v.union(
+      v.literal("Barangay Clearance"),
+      v.literal("Certificate of Indigency"),
+      v.literal("Certificate of Residency"),
+      v.literal("Certificate of Good Moral"),
+      v.literal("Business Permit"),
+      v.literal("COMELEC Certification"),
+      v.literal("First Time Job Seeker"),
+      v.literal("Certificate of No Income")
+    ),
+    purpose: v.string(), // Purpose of the certificate
+    
+    // Request Status
+    status: v.union(
+      v.literal("Pending"),
+      v.literal("For Review"),
+      v.literal("Approved"),
+      v.literal("Released"),
+      v.literal("Rejected"),
+      v.literal("Cancelled")
+    ),
+    
+    // Processing
+    requestedAt: v.number(),
+    reviewedBy: v.optional(v.id("users")),
+    reviewedAt: v.optional(v.number()),
+    approvedBy: v.optional(v.id("users")),
+    approvedAt: v.optional(v.number()),
+    releasedBy: v.optional(v.id("users")),
+    releasedAt: v.optional(v.number()),
+    
+    // Rejection/Cancellation
+    rejectionReason: v.optional(v.string()),
+    cancellationReason: v.optional(v.string()),
+    
+    // Payment (for future)
+    amount: v.optional(v.number()),
+    isPaid: v.boolean(),
+    paidAt: v.optional(v.number()),
+    paymentMethod: v.optional(v.string()),
+    orNumber: v.optional(v.string()), // Official Receipt number
+    
+    // Certificate Details (after generation)
+    certificateId: v.optional(v.id("certificates")),
+    
+    // Notes
+    notes: v.optional(v.string()),
+    adminNotes: v.optional(v.string()),
+    
+    // Meta
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_resident", ["residentId"])
+  .index("by_status", ["status"])
+  .index("by_control_number", ["controlNumber"])
+  .index("by_created_at", ["createdAt"]),
+
+  // Certificates - Generated certificates
+  certificates: defineTable({
+    certificateNumber: v.string(), // Unique: BC-2024-001
+    qrCode: v.string(), // QR code for verification
+    
+    // Certificate Details
+    certificateType: v.union(
+      v.literal("Barangay Clearance"),
+      v.literal("Certificate of Indigency"),
+      v.literal("Certificate of Residency"),
+      v.literal("Certificate of Good Moral"),
+      v.literal("Business Permit"),
+      v.literal("COMELEC Certification"),
+      v.literal("First Time Job Seeker"),
+      v.literal("Certificate of No Income")
+    ),
+    
+    // Recipient
+    residentId: v.id("residents"),
+    residentName: v.string(), // Cached for display
+    
+    // Content
+    purpose: v.string(),
+    validUntil: v.optional(v.number()), // Expiration date
+    
+    // Signatories
+    issuedBy: v.id("users"), // Admin/Official who issued
+    issuedByName: v.string(), // Cached name
+    issuedByPosition: v.string(), // e.g., "Barangay Captain"
+    
+    // Additional signatories
+    notedBy: v.optional(v.string()),
+    notedByPosition: v.optional(v.string()),
+    
+    // Document Details
+    pdfUrl: v.optional(v.string()), // Generated PDF URL
+    pdfStorageId: v.optional(v.string()), // Convex storage ID
+    
+    // Verification
+    isValid: v.boolean(), // Can be invalidated
+    invalidatedBy: v.optional(v.id("users")),
+    invalidatedAt: v.optional(v.number()),
+    invalidationReason: v.optional(v.string()),
+    
+    // Fees
+    amount: v.optional(v.number()),
+    orNumber: v.optional(v.string()),
+    
+    // Linked Request
+    requestId: v.optional(v.id("certificateRequests")),
+    
+    // Meta
+    issuedAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_certificate_number", ["certificateNumber"])
+  .index("by_resident", ["residentId"])
+  .index("by_type", ["certificateType"])
+  .index("by_valid", ["isValid"])
+  .index("by_qr_code", ["qrCode"])
+  .index("by_issued_at", ["issuedAt"]),
 });

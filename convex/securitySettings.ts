@@ -185,8 +185,12 @@ export const forceLogoutAllUsers = mutation({
     // Log the action
     await ctx.db.insert("auditLogs", {
       userId: user._id,
+      userName: user.name,
+      userRole: user.role || "admin",
       eventType: "permission_change",
       severity: "critical",
+      action: "force_logout_all",
+      description: `${user.name} force logged out all users`,
       timestamp: Date.now(),
       details: {
         action: "force_logout_all",

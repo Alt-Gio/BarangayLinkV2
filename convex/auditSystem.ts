@@ -128,9 +128,13 @@ export const logSignificantEvent = mutation({
     // Create audit log entry
     await ctx.db.insert("auditLogs", {
       userId: user._id,
+      userName: user.name,
+      userRole: user.role || "user",
       sessionId: session?._id,
       eventType: args.eventType,
       severity: args.severity || "medium",
+      action: args.eventType, // Use eventType as action for backward compatibility
+      description: `User ${user.name} - ${args.eventType}`,
       timestamp: Date.now(),
       details: args.details,
     });
@@ -212,9 +216,13 @@ export const startSession = mutation({
     // Log significant event
     await ctx.db.insert("auditLogs", {
       userId: user._id,
+      userName: user.name,
+      userRole: user.role || "user",
       sessionId,
       eventType: "login",
       severity: "low",
+      action: "login",
+      description: `User ${user.name} logged in`,
       timestamp: now,
       details: {
         deviceInfo: args.deviceInfo,
@@ -263,9 +271,13 @@ export const endSession = mutation({
       // Log significant event
       await ctx.db.insert("auditLogs", {
         userId: user._id,
+        userName: user.name,
+        userRole: user.role || "user",
         sessionId: session._id,
         eventType: "logout",
         severity: "low",
+        action: "logout",
+        description: `User ${user.name} logged out`,
         timestamp: now,
         details: {
           sessionDuration: now - session.loginTime,
@@ -479,12 +491,19 @@ export const cleanupStaleSessions = internalMutation({
           logoutTime: now,
         });
 
+        // Get user for audit log
+        const sessionUser = await ctx.db.get(session.userId);
+
         // Log the timeout
         await ctx.db.insert("auditLogs", {
           userId: session.userId,
+          userName: sessionUser?.name || "Unknown",
+          userRole: sessionUser?.role || "user",
           sessionId: session._id,
           eventType: "logout",
           severity: "low",
+          action: "logout",
+          description: `Session timeout for ${sessionUser?.name || "user"}`,
           timestamp: now,
           details: {
             reason: "session_timeout",
