@@ -37,6 +37,23 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'BarangayLink',
+    startupImage: [
+      {
+        url: '/icons/icon-512x512.png',
+        media: '(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)',
+      },
+    ],
+  },
+  icons: {
+    icon: [
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      { url: '/icons/icon-152x152.png', sizes: '152x152', type: 'image/png' },
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+    ],
   },
   viewport: {
     width: 'device-width',
@@ -49,6 +66,16 @@ export const metadata: Metadata = {
     { media: '(prefers-color-scheme: light)', color: '#10b981' },
     { media: '(prefers-color-scheme: dark)', color: '#1f2937' },
   ],
+  formatDetection: {
+    telephone: false,
+    email: false,
+    address: false,
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-capable': 'yes',
+    'application-name': 'BarangayLink',
+  },
 }
 
 export default function RootLayout({

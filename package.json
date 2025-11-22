@@ -16,7 +16,8 @@
     "db:cleanup": "npx convex run databaseManager:cleanupOldData",
     "db:export": "npx convex run databaseManager:exportAllData",
     "convex:dev": "npx convex dev",
-    "convex:deploy": "npx convex deploy"
+    "convex:deploy": "npx convex deploy",
+    "convert-icons": "echo \"Install ImageMagick first: https://imagemagick.org/script/download.php\" && for file in public/icons/*.svg; do convert \"$file\" \"${file%.svg}.png\"; done && for file in public/apple-*.svg; do convert \"$file\" \"${file%.svg}.png\"; done"
   },
   "dependencies": {
     "@clerk/clerk-sdk-node": "^4.13.23",
