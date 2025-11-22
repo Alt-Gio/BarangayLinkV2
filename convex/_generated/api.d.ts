@@ -18,6 +18,7 @@ import type * as activity from "../activity.js";
 import type * as adminUserManagement from "../adminUserManagement.js";
 import type * as auditLogs from "../auditLogs.js";
 import type * as auditSystem from "../auditSystem.js";
+import type * as auth from "../auth.js";
 import type * as backup from "../backup.js";
 import type * as certificateRequests from "../certificateRequests.js";
 import type * as certificates from "../certificates.js";
@@ -110,6 +111,7 @@ declare const fullApi: ApiFromModules<{
   adminUserManagement: typeof adminUserManagement;
   auditLogs: typeof auditLogs;
   auditSystem: typeof auditSystem;
+  auth: typeof auth;
   backup: typeof backup;
   certificateRequests: typeof certificateRequests;
   certificates: typeof certificates;

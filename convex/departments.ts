@@ -33,25 +33,23 @@ export const getDepartmentsByCategory = query({
 export const createDepartment = mutation({
   args: {
     name: v.string(),
-    description: v.string(),
-    category: v.string(),
-    head: v.optional(v.string()),
-    contactEmail: v.optional(v.string()),
-    contactPhone: v.optional(v.string()),
-    location: v.optional(v.string()),
+    description: v.optional(v.string()),
+    headOfDepartment: v.optional(v.id("users")),
     isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    // TODO: Add permission check for admin
+    // SECURITY: Only admins can create departments
+    const { requireAdmin } = await import("./auth");
+    const { user } = await requireAdmin(ctx);
     
     const departmentId = await ctx.db.insert("departments", {
       name: args.name,
-      description: args.description,
-      category: args.category,
-      head: args.head,
-      contactEmail: args.contactEmail,
-      contactPhone: args.contactPhone,
-      location: args.location,
+      description: args.description ?? "",
+      category: "General", // default category
+      head: args.headOfDepartment ?? "",
+      contactEmail: "",
+      contactPhone: "",
+      location: "",
       isActive: args.isActive ?? true,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -75,7 +73,9 @@ export const updateDepartment = mutation({
     isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, { departmentId, ...updates }) => {
-    // TODO: Add permission check for admin
+    // SECURITY: Only admins can update departments
+    const { requireAdmin } = await import("./auth");
+    await requireAdmin(ctx);
     
     const updateData = {
       ...updates,

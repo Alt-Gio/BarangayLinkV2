@@ -44,8 +44,9 @@ export const createInvitation = mutation({
       throw new Error("Invitation already sent to this email");
     }
 
-    // Generate unique token
-    const token = `INV-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+    // SECURITY: Generate cryptographically secure token
+    // Using crypto.randomUUID() instead of Math.random() for security
+    const token = `INV-${crypto.randomUUID()}`;
     
     // Create invitation (expires in 7 days)
     const invitationId = await ctx.db.insert("userInvitations", {

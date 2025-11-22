@@ -1127,8 +1127,9 @@ export const createUserInvitation = mutation({
 
     const now = Date.now();
 
-    // Generate unique invitation token
-    const invitationToken = `inv_${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}${now}`;
+    // SECURITY: Generate cryptographically secure invitation token
+    // Using crypto.randomUUID() instead of Math.random() for security
+    const invitationToken = `inv_${crypto.randomUUID().replace(/-/g, '')}_${now}`;
 
     // Create user invitation record
     const invitationId = await ctx.db.insert("userInvitations", {
