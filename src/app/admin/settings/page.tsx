@@ -38,6 +38,7 @@ import {
   X,
   Eye,
   EyeOff,
+  FileText,
 } from "lucide-react";
 import RippleLoader from "@/components/ui/RippleLoader";
 import { Button } from "@/components/ui/button";
@@ -59,14 +60,17 @@ export default function SystemSettingsPage() {
 
   // Get current user from offline context (cached, saves bandwidth)
   const { currentUser, isOnline } = useOfflineData();
-  const departments = useQuery(api.departments.getAllDepartmentsWithStats);
-  const userLevels = useQuery(api.departments.getAllUserLevels);
-  const backups = useQuery(api.backup.getAllBackups);
-  const backupSchedule = useQuery(api.backup.getBackupSchedule);
-  const securitySettings = useQuery(api.securitySettings.getSecuritySettings);
-  const activeSessions = useQuery(api.securitySettings.getActiveSessionsCount);
+  const departments = useQuery(api.departments.getAllDepartmentsWithStats, isLoaded && user ? {} : "skip");
+  const userLevels = useQuery(api.departments.getAllUserLevels, isLoaded && user ? {} : "skip");
+  const backups = useQuery(api.backup.getAllBackups, isLoaded && user ? {} : "skip");
+  const backupSchedule = useQuery(api.backup.getBackupSchedule, isLoaded && user ? {} : "skip");
+  const securitySettings = useQuery(api.securitySettings.getSecuritySettings, isLoaded && user ? {} : "skip");
+  const activeSessions = useQuery(api.securitySettings.getActiveSessionsCount, isLoaded && user ? {} : "skip");
+  const siteSettings = useQuery(api.siteSettings.getAllSettings, isLoaded && user ? {} : "skip");
   
   // Actions and Mutations
+  const updateSiteSettingsMut = useMutation(api.siteSettings.updateMultipleSettings);
+  const initializeDefaultSettings = useMutation(api.siteSettings.initializeDefaultSettings);
   const createBackup = useAction(api.backup.createFullBackup);
   const restoreBackup = useAction(api.backup.restoreFromBackup);
   const importBackup = useAction(api.backup.importBackup);
@@ -90,8 +94,8 @@ export default function SystemSettingsPage() {
   const deleteDepartmentMut = useMutation(api.departments.deleteDepartment);
   const updateBackupScheduleMut = useMutation(api.backup.updateBackupSchedule);
   
-  // Performance optimization
-  const logStats = useQuery(api.performanceOptimization.getLogStatistics);
+  // Performance optimization - only query when user is authenticated
+  const logStats = useQuery(api.performanceOptimization.getLogStatistics, isLoaded && user ? {} : "skip");
   const optimizeSystemMut = useMutation(api.performanceOptimization.optimizeSystem);
   const cleanupActivityLogsMut = useMutation(api.performanceOptimization.cleanupOldActivityLogs);
   const cleanupSearchHistoryMut = useMutation(api.performanceOptimization.cleanupOldSearchHistory);
@@ -99,10 +103,10 @@ export default function SystemSettingsPage() {
   const cleanupInactiveSessionsMut = useMutation(api.performanceOptimization.cleanupInactiveSessions);
 
   // Landmarks and Coordinates Management
-  const landmarks = useQuery(api.landmarks.getAllLandmarks);
-  const barangayHallCoords = useQuery(api.landmarks.getBarangayHallCoordinates);
-  const projectsWithoutCoords = useQuery(api.landmarks.getProjectsWithoutCoordinates);
-  const eventsWithoutCoords = useQuery(api.landmarks.getEventsWithoutCoordinates);
+  const landmarks = useQuery(api.landmarks.getAllLandmarks, isLoaded && user ? {} : "skip");
+  const barangayHallCoords = useQuery(api.landmarks.getBarangayHallCoordinates, isLoaded && user ? {} : "skip");
+  const projectsWithoutCoords = useQuery(api.landmarks.getProjectsWithoutCoordinates, isLoaded && user ? {} : "skip");
+  const eventsWithoutCoords = useQuery(api.landmarks.getEventsWithoutCoordinates, isLoaded && user ? {} : "skip");
   const updateBarangayHallMut = useMutation(api.landmarks.updateBarangayHallCoordinates);
   const createLandmarkMut = useMutation(api.landmarks.createLandmark);
   const updateLandmarkMut = useMutation(api.landmarks.updateLandmark);
@@ -120,6 +124,12 @@ export default function SystemSettingsPage() {
     contactEmail: "admin@barangaylink.gov",
     timezone: "Asia/Manila",
     fiscalYear: "2025-2026",
+    
+    // Site Content (Editable)
+    mission: "To build a thriving, inclusive community through transparent governance, innovative project management, and active citizen participation. We leverage technology to keep our residents informed and engaged in every step of our community's development.",
+    vision: "A progressive community committed to transparency, collaboration, and sustainable development",
+    copyright: "© 2024 Barangay Bitano. All rights reserved.",
+    version: "v2.0.0",
     
     // Security Settings
     sessionTimeout: "30",
@@ -741,11 +751,25 @@ export default function SystemSettingsPage() {
 
   const handleSave = async () => {
     setSaveStatus("saving");
-    // Simulate save
-    setTimeout(() => {
+    try {
+      // Save site settings to database
+      await updateSiteSettingsMut({
+        settings: [
+          { key: "siteName", value: settings.siteName },
+          { key: "mission", value: settings.mission },
+          { key: "vision", value: settings.vision },
+          { key: "copyright", value: settings.copyright },
+          { key: "version", value: settings.version },
+        ],
+      });
+      
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 2000);
-    }, 1000);
+    } catch (error) {
+      console.error("Failed to save settings:", error);
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    }
   };
 
   return (
@@ -759,20 +783,28 @@ export default function SystemSettingsPage() {
           onToggle={() => setSidebarOpen(!sidebarOpen)}
         />
         <div className="flex-1 overflow-y-auto">
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="md:hidden fixed top-4 left-4 z-30 p-2 bg-green-600 hover:bg-green-700 text-white rounded-lg shadow-lg transition-colors"
-            aria-label="Toggle Menu"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
-
           <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-            {/* Header */}
-            <div className="bg-white/5 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
+            {/* Mobile Header with Hamburger + Centered Title */}
+            <div className="md:hidden bg-white/5 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
+              <div className="flex items-center justify-between px-4 py-3">
+                <button
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"
+                  aria-label="Toggle Menu"
+                >
+                  <Menu className="w-5 h-5" />
+                </button>
+                <h1 className="text-lg font-bold text-white absolute left-1/2 transform -translate-x-1/2">
+                  System Settings
+                </h1>
+                <div className="w-10" /> {/* Spacer for centering */}
+              </div>
+            </div>
+
+            {/* Desktop Header */}
+            <div className="hidden md:block bg-white/5 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6">
-                <div className="flex items-center justify-between mt-12 md:mt-0">
+                <div className="flex items-center justify-between">
                   <div>
                     <h1 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-3">
                       <Settings className="w-6 h-6 md:w-8 md:h-8 text-emerald-500" />
@@ -807,94 +839,102 @@ export default function SystemSettingsPage() {
             </div>
 
             {/* Settings Content */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              <Tabs defaultValue="general" className="space-y-6">
-                <TabsList className="bg-white/10 p-1 rounded-lg border border-white/20">
-                  <TabsTrigger value="general" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-                    <Globe className="w-4 h-4 mr-2" />
-                    General
-                  </TabsTrigger>
-                  <TabsTrigger value="departments" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-                    <Building className="w-4 h-4 mr-2" />
-                    Departments
-                  </TabsTrigger>
-                  <TabsTrigger value="security" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-                    <Lock className="w-4 h-4 mr-2" />
-                    Security
-                  </TabsTrigger>
-                  <TabsTrigger value="notifications" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-                    <Bell className="w-4 h-4 mr-2" />
-                    Notifications
-                  </TabsTrigger>
-                  <TabsTrigger value="backup" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-                    <Database className="w-4 h-4 mr-2" />
-                    Backup
-                  </TabsTrigger>
-                  <TabsTrigger value="performance" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-                    <Activity className="w-4 h-4 mr-2" />
-                    Performance
-                  </TabsTrigger>
-                  <TabsTrigger value="system" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-                    <Info className="w-4 h-4 mr-2" />
-                    System Info
-                  </TabsTrigger>
-                  <TabsTrigger value="landmarks" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-                    <MapPin className="w-4 h-4 mr-2" />
-                    Landmarks & Coordinates
-                  </TabsTrigger>
-                </TabsList>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8">
+              <Tabs defaultValue="general" className="space-y-4 md:space-y-6">
+                {/* Horizontal Scrollable Tabs - Works on Both Mobile & Desktop */}
+                <style jsx>{`
+                  .hide-scrollbar::-webkit-scrollbar {
+                    display: none;
+                  }
+                `}</style>
+                <div className="bg-white/10 rounded-lg border border-white/20 overflow-hidden">
+                  <TabsList className="hide-scrollbar w-full flex overflow-x-auto p-1 gap-1" style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
+                    <TabsTrigger value="general" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white whitespace-nowrap px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base shrink-0">
+                      <Globe className="w-4 h-4 mr-1.5 md:mr-2" />
+                      General
+                    </TabsTrigger>
+                    <TabsTrigger value="departments" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white whitespace-nowrap px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base shrink-0">
+                      <Building className="w-4 h-4 mr-1.5 md:mr-2" />
+                      Departments
+                    </TabsTrigger>
+                    <TabsTrigger value="security" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white whitespace-nowrap px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base shrink-0">
+                      <Lock className="w-4 h-4 mr-1.5 md:mr-2" />
+                      Security
+                    </TabsTrigger>
+                    <TabsTrigger value="notifications" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white whitespace-nowrap px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base shrink-0">
+                      <Bell className="w-4 h-4 mr-1.5 md:mr-2" />
+                      Notifications
+                    </TabsTrigger>
+                    <TabsTrigger value="backup" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white whitespace-nowrap px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base shrink-0">
+                      <Database className="w-4 h-4 mr-1.5 md:mr-2" />
+                      Backup
+                    </TabsTrigger>
+                    <TabsTrigger value="performance" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white whitespace-nowrap px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base shrink-0">
+                      <Activity className="w-4 h-4 mr-1.5 md:mr-2" />
+                      Performance
+                    </TabsTrigger>
+                    <TabsTrigger value="system" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white whitespace-nowrap px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base shrink-0">
+                      <Info className="w-4 h-4 mr-1.5 md:mr-2" />
+                      System Info
+                    </TabsTrigger>
+                    <TabsTrigger value="landmarks" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white whitespace-nowrap px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base shrink-0">
+                      <MapPin className="w-4 h-4 mr-1.5 md:mr-2" />
+                      Landmarks
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
 
                 {/* General Settings */}
-                <TabsContent value="general" className="space-y-6">
-                  <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-6">
-                    <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                <TabsContent value="general" className="space-y-4">
+                  <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 md:p-6">
+                    <h2 className="text-lg md:text-xl font-bold text-white mb-4 md:mb-6 flex items-center gap-2">
                       <Globe className="w-5 h-5 text-emerald-500" />
                       General Settings
                     </h2>
-                    <div className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4 md:space-y-6">
+                      <div className="grid grid-cols-1 gap-4 md:gap-6">
                         <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-2">
+                          <label className="block text-sm font-semibold text-gray-300 mb-2.5">
                             Site Name
                           </label>
                           <Input
                             value={settings.siteName}
                             onChange={(e) => setSettings({ ...settings, siteName: e.target.value })}
-                            className="bg-white/10 border-white/20 text-white"
+                            className="bg-white/10 border-white/20 text-white h-12 text-base"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-2">
+                          <label className="block text-sm font-semibold text-gray-300 mb-2.5">
                             Contact Email
                           </label>
                           <Input
                             type="email"
                             value={settings.contactEmail}
                             onChange={(e) => setSettings({ ...settings, contactEmail: e.target.value })}
-                            className="bg-white/10 border-white/20 text-white"
+                            className="bg-white/10 border-white/20 text-white h-12 text-base"
                           />
                         </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                        <label className="block text-sm font-semibold text-gray-300 mb-2.5">
                           Site Description
                         </label>
                         <Textarea
                           value={settings.siteDescription}
                           onChange={(e) => setSettings({ ...settings, siteDescription: e.target.value })}
-                          className="bg-white/10 border-white/20 text-white"
+                          className="bg-white/10 border-white/20 text-white text-base min-h-[100px]"
                           rows={3}
                         />
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 gap-4 md:gap-6">
                         <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-2">
+                          <label className="block text-sm font-semibold text-gray-300 mb-2.5">
                             Timezone
                           </label>
                           <select
                             value={settings.timezone}
                             onChange={(e) => setSettings({ ...settings, timezone: e.target.value })}
-                            className="w-full px-3 py-2 bg-gray-800 border border-white/20 rounded-md text-white"
+                            className="w-full px-4 py-3 bg-gray-800 border border-white/20 rounded-md text-white text-base h-12"
                           >
                             <option value="Asia/Manila" className="bg-gray-800 text-white">Asia/Manila (GMT+8)</option>
                             <option value="Asia/Tokyo" className="bg-gray-800 text-white">Asia/Tokyo (GMT+9)</option>
@@ -902,14 +942,76 @@ export default function SystemSettingsPage() {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-2">
+                          <label className="block text-sm font-semibold text-gray-300 mb-2.5">
                             Fiscal Year
                           </label>
                           <Input
                             value={settings.fiscalYear}
                             onChange={(e) => setSettings({ ...settings, fiscalYear: e.target.value })}
-                            className="bg-white/10 border-white/20 text-white"
+                            className="bg-white/10 border-white/20 text-white h-12 text-base"
                           />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Site Content Settings */}
+                  <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 md:p-6">
+                    <h2 className="text-lg md:text-xl font-bold text-white mb-4 md:mb-6 flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-blue-500" />
+                      Site Content
+                    </h2>
+                    <div className="space-y-4 md:space-y-6">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-300 mb-2.5">
+                          Mission Statement
+                        </label>
+                        <Textarea
+                          value={settings.mission}
+                          onChange={(e) => setSettings({ ...settings, mission: e.target.value })}
+                          className="bg-white/10 border-white/20 text-white text-base min-h-[120px]"
+                          rows={4}
+                          placeholder="Enter your organization's mission statement..."
+                        />
+                        <p className="text-xs text-gray-400 mt-2">Displayed on the About section of the landing page</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-300 mb-2.5">
+                          Vision Statement
+                        </label>
+                        <Textarea
+                          value={settings.vision}
+                          onChange={(e) => setSettings({ ...settings, vision: e.target.value })}
+                          className="bg-white/10 border-white/20 text-white text-base min-h-[90px]"
+                          rows={3}
+                          placeholder="Enter your organization's vision..."
+                        />
+                        <p className="text-xs text-gray-400 mt-2">Displayed as a subtitle in the About section</p>
+                      </div>
+                      <div className="grid grid-cols-1 gap-4 md:gap-6">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-300 mb-2.5">
+                            Copyright Text
+                          </label>
+                          <Input
+                            value={settings.copyright}
+                            onChange={(e) => setSettings({ ...settings, copyright: e.target.value })}
+                            className="bg-white/10 border-white/20 text-white h-12 text-base"
+                            placeholder="© 2024 Your Organization"
+                          />
+                          <p className="text-xs text-gray-400 mt-2">Displayed in the footer of all pages</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-300 mb-2.5">
+                            Application Version
+                          </label>
+                          <Input
+                            value={settings.version}
+                            onChange={(e) => setSettings({ ...settings, version: e.target.value })}
+                            className="bg-white/10 border-white/20 text-white h-12 text-base"
+                            placeholder="v2.0.0"
+                          />
+                          <p className="text-xs text-gray-400 mt-2">Shown in the sidebar</p>
                         </div>
                       </div>
                     </div>
@@ -1351,37 +1453,37 @@ export default function SystemSettingsPage() {
                 </TabsContent>
 
                 {/* Backup */}
-                <TabsContent value="backup" className="space-y-6">
-                  <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-6">
-                    <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                <TabsContent value="backup" className="space-y-4">
+                  <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 md:p-6">
+                    <h2 className="text-lg md:text-xl font-bold text-white mb-4 md:mb-6 flex items-center gap-2">
                       <Database className="w-5 h-5 text-emerald-500" />
                       Backup & Restore
                     </h2>
                     
                     {/* Backup Settings */}
-                    <div className="space-y-6 mb-8">
-                      <label className="flex items-center gap-3 cursor-pointer">
+                    <div className="space-y-4 md:space-y-6 mb-6 md:mb-8">
+                      <label className="flex items-start gap-3 cursor-pointer p-3 md:p-0">
                         <input
                           type="checkbox"
                           checked={settings.autoBackup}
                           onChange={(e) => setSettings({ ...settings, autoBackup: e.target.checked })}
-                          className="w-5 h-5 rounded border-white/20"
+                          className="w-6 h-6 mt-0.5 rounded border-white/20 cursor-pointer"
                         />
                         <div>
-                          <p className="text-white font-medium">Enable Automatic Backups</p>
-                          <p className="text-gray-400 text-sm">Automatically backup data on schedule</p>
+                          <p className="text-white font-semibold text-base">Enable Automatic Backups</p>
+                          <p className="text-gray-400 text-sm mt-1">Automatically backup data on schedule</p>
                         </div>
                       </label>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 gap-4 md:gap-6">
                         <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-2">
+                          <label className="block text-sm font-semibold text-gray-300 mb-2.5">
                             Backup Frequency
                           </label>
                           <select
                             value={settings.backupFrequency}
                             onChange={(e) => setSettings({ ...settings, backupFrequency: e.target.value })}
-                            className="w-full px-3 py-2 bg-gray-800 border border-white/20 rounded-md text-white"
+                            className="w-full px-4 py-3 bg-gray-800 border border-white/20 rounded-md text-white text-base h-12"
                             disabled={!settings.autoBackup}
                           >
                             <option value="hourly" className="bg-gray-800 text-white">Hourly</option>
@@ -1390,14 +1492,14 @@ export default function SystemSettingsPage() {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-2">
+                          <label className="block text-sm font-semibold text-gray-300 mb-2.5">
                             Retention Period (days)
                           </label>
                           <Input
                             type="number"
                             value={settings.retentionDays}
                             onChange={(e) => setSettings({ ...settings, retentionDays: e.target.value })}
-                            className="bg-white/10 border-white/20 text-white"
+                            className="bg-white/10 border-white/20 text-white h-12 text-base"
                             disabled={!settings.autoBackup}
                           />
                         </div>
@@ -1405,21 +1507,21 @@ export default function SystemSettingsPage() {
                     </div>
 
                     {/* Manual Backup Actions */}
-                    <div className="space-y-4 mb-6">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-600/10 border border-blue-500/30 rounded-lg">
+                    <div className="space-y-3 mb-4 md:mb-6">
+                      <div className="grid grid-cols-1 gap-3 p-4 bg-blue-600/10 border border-blue-500/30 rounded-lg">
                         <Button 
                           onClick={handleCreateBackup}
                           disabled={backupInProgress}
-                          className="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white transition-transform"
+                          className="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white transition-transform h-12 text-base font-semibold"
                         >
                           {backupInProgress ? (
                             <>
-                              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                              <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
                               Creating...
                             </>
                           ) : (
                             <>
-                              <Download className="w-4 h-4 mr-2" />
+                              <Download className="w-5 h-5 mr-2" />
                               Create Backup
                             </>
                           )}
@@ -1437,19 +1539,19 @@ export default function SystemSettingsPage() {
                           htmlFor="import-backup-file"
                           className="inline-flex w-full"
                         >
-                          <div className={`flex items-center justify-center w-full px-4 py-2 rounded-lg font-medium transition-all ${
+                          <div className={`flex items-center justify-center w-full px-4 py-3 rounded-lg font-semibold transition-all h-12 text-base ${
                             importInProgress 
                               ? 'bg-emerald-700 cursor-not-allowed opacity-50' 
                               : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95 cursor-pointer'
                           } text-white`}>
                             {importInProgress ? (
                               <>
-                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
                                 Importing...
                               </>
                             ) : (
                               <>
-                                <Upload className="w-4 h-4 mr-2" />
+                                <Upload className="w-5 h-5 mr-2" />
                                 Import Backup
                               </>
                             )}
@@ -1459,9 +1561,9 @@ export default function SystemSettingsPage() {
                         <Button 
                           onClick={handleUpdateBackupSchedule}
                           variant="outline" 
-                          className="border-white/20 text-white hover:bg-white/10 active:scale-95 transition-transform"
+                          className="border-white/20 text-white hover:bg-white/10 active:scale-95 transition-transform h-12 text-base font-semibold"
                         >
-                          <Save className="w-4 h-4 mr-2" />
+                          <Save className="w-5 h-5 mr-2" />
                           Save Schedule
                         </Button>
                       </div>
@@ -1469,11 +1571,11 @@ export default function SystemSettingsPage() {
                       {/* Maintenance Zone */}
                       <div className="p-4 bg-yellow-600/10 border border-yellow-500/30 rounded-lg space-y-4 mb-4">
                         <div>
-                          <h4 className="text-white font-semibold flex items-center gap-2">
+                          <h4 className="text-white font-semibold flex items-center gap-2 text-base md:text-lg">
                             <AlertTriangle className="w-5 h-5 text-yellow-400" />
                             Maintenance & Cleanup
                           </h4>
-                          <p className="text-gray-400 text-sm mt-1">Fix data issues and maintain database health</p>
+                          <p className="text-gray-400 text-sm mt-1.5">Fix data issues and maintain database health</p>
                         </div>
 
                         {/* Scan Button */}
@@ -1481,16 +1583,16 @@ export default function SystemSettingsPage() {
                           <Button 
                             onClick={handleScanDuplicates}
                             disabled={scanningDuplicates}
-                            className="bg-blue-600 hover:bg-blue-700 text-white w-full active:scale-95 transition-transform"
+                            className="bg-blue-600 hover:bg-blue-700 text-white w-full active:scale-95 transition-transform h-12 text-base font-semibold"
                           >
                             {scanningDuplicates ? (
                               <>
-                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
                                 Scanning Database...
                               </>
                             ) : (
                               <>
-                                <Database className="w-4 h-4 mr-2" />
+                                <Database className="w-5 h-5 mr-2" />
                                 Scan for Duplicates
                               </>
                             )}
@@ -1623,7 +1725,7 @@ export default function SystemSettingsPage() {
 
                     {/* Backup History */}
                     <div className="space-y-3">
-                      <h3 className="text-white font-semibold flex items-center gap-2">
+                      <h3 className="text-white font-semibold text-base md:text-lg flex items-center gap-2">
                         <Clock className="w-5 h-5 text-gray-400" />
                         Backup History
                       </h3>
@@ -1633,76 +1735,77 @@ export default function SystemSettingsPage() {
                             key={backup._id}
                             className="p-4 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
                           >
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-3">
-                                <HardDrive className={`w-5 h-5 ${
-                                  backup.type === 'manual' ? 'text-blue-400' :
-                                  backup.type === 'archive' ? 'text-yellow-400' :
-                                  'text-emerald-400'
-                                }`} />
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <p className="text-white font-medium">
-                                      {backup.type === 'manual' ? '📦 Manual Backup' :
-                                       backup.type === 'archive' ? '📚 Archive' :
-                                       '🤖 Automatic Backup'}
-                                    </p>
-                                    <Badge className={`${
-                                      backup.status === 'completed' ? 'bg-emerald-600' :
-                                      backup.status === 'failed' ? 'bg-red-600' :
-                                      'bg-yellow-600'
-                                    } text-white text-xs`}>
-                                      {backup.status}
-                                    </Badge>
-                                  </div>
-                                  <p className="text-gray-400 text-sm">
-                                    {new Date(backup.timestamp).toLocaleString()}
+                            {/* Header Section */}
+                            <div className="flex items-start gap-3 mb-3">
+                              <HardDrive className={`w-6 h-6 shrink-0 mt-0.5 ${
+                                backup.type === 'manual' ? 'text-blue-400' :
+                                backup.type === 'archive' ? 'text-yellow-400' :
+                                'text-emerald-400'
+                              }`} />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex flex-wrap items-center gap-2 mb-1">
+                                  <p className="text-white font-semibold text-base">
+                                    {backup.type === 'manual' ? '📦 Manual Backup' :
+                                     backup.type === 'archive' ? '📚 Archive' :
+                                     '🤖 Automatic Backup'}
                                   </p>
-                                  {backup.description && (
-                                    <p className="text-gray-500 text-xs mt-1">{backup.description}</p>
-                                  )}
+                                  <Badge className={`${
+                                    backup.status === 'completed' ? 'bg-emerald-600' :
+                                    backup.status === 'failed' ? 'bg-red-600' :
+                                    'bg-yellow-600'
+                                  } text-white text-xs px-2 py-0.5`}>
+                                    {backup.status}
+                                  </Badge>
                                 </div>
+                                <p className="text-gray-400 text-sm mb-1">
+                                  {new Date(backup.timestamp).toLocaleString()}
+                                </p>
+                                {backup.description && (
+                                  <p className="text-gray-500 text-sm mt-1.5">{backup.description}</p>
+                                )}
                               </div>
                             </div>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-4 text-sm text-gray-400">
-                                <span>{backup.recordCount} records</span>
-                                <span>•</span>
-                                <span>{Object.keys(backup.tables || {}).length} tables</span>
-                                <span>•</span>
-                                <span>By {backup.creatorName}</span>
-                              </div>
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleDownloadBackup(backup._id)}
-                                  className="border-blue-500/30 text-blue-400 hover:bg-blue-500/20 active:scale-95 transition-transform"
-                                >
-                                  <Download className="w-3 h-3 mr-1" />
-                                  Export
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    setSelectedBackupId(backup._id);
-                                    setShowRestoreModal(true);
-                                  }}
-                                  className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 active:scale-95 transition-transform"
-                                >
-                                  <RefreshCw className="w-3 h-3 mr-1" />
-                                  Restore
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleDeleteBackup(backup._id)}
-                                  className="border-red-500/30 text-red-400 hover:bg-red-500/20 active:scale-95 transition-transform"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              </div>
+                            
+                            {/* Stats Section */}
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-400 mb-3 pl-9">
+                              <span className="font-medium">{backup.recordCount} records</span>
+                              <span className="hidden sm:inline">•</span>
+                              <span className="font-medium">{Object.keys(backup.tables || {}).length} tables</span>
+                              <span className="hidden sm:inline">•</span>
+                              <span className="text-gray-500">By {backup.creatorName}</span>
+                            </div>
+                            
+                            {/* Actions Section */}
+                            <div className="flex flex-wrap gap-2 pl-0 sm:pl-9">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDownloadBackup(backup._id)}
+                                className="border-blue-500/30 text-blue-400 hover:bg-blue-500/20 active:scale-95 transition-transform h-9 flex-1 sm:flex-none"
+                              >
+                                <Download className="w-4 h-4 mr-1.5" />
+                                Export
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedBackupId(backup._id);
+                                  setShowRestoreModal(true);
+                                }}
+                                className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 active:scale-95 transition-transform h-9 flex-1 sm:flex-none"
+                              >
+                                <RefreshCw className="w-4 h-4 mr-1.5" />
+                                Restore
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDeleteBackup(backup._id)}
+                                className="border-red-500/30 text-red-400 hover:bg-red-500/20 active:scale-95 transition-transform h-9 w-9 p-0 sm:w-auto sm:px-3"
+                              >
+                                <Trash2 className="w-4 h-4 sm:mr-0" />
+                              </Button>
                             </div>
                           </div>
                         ))
@@ -2031,9 +2134,9 @@ export default function SystemSettingsPage() {
                 </TabsContent>
 
                 {/* Landmarks & Coordinates */}
-                <TabsContent value="landmarks" className="space-y-6">
-                  <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-6">
-                    <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                <TabsContent value="landmarks" className="space-y-4">
+                  <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 md:p-6">
+                    <h2 className="text-lg md:text-xl font-bold text-white mb-4 md:mb-6 flex items-center gap-2">
                       <MapPin className="w-5 h-5 text-emerald-500" />
                       Landmarks & Coordinates Management
                     </h2>
@@ -2097,16 +2200,16 @@ export default function SystemSettingsPage() {
 
                       {/* Landmarks Management */}
                       <div className="border-b border-white/10 pb-6">
-                        <div className="flex justify-between items-center mb-4">
-                          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                          <h3 className="text-base md:text-lg font-semibold text-white flex items-center gap-2">
                             <Map className="w-5 h-5" />
                             Custom Landmarks
                           </h3>
                           <Button 
                             onClick={() => setShowAddLandmarkModal(true)}
-                            className="bg-emerald-600 hover:bg-emerald-700"
+                            className="bg-emerald-600 hover:bg-emerald-700 w-full sm:w-auto h-12 text-base font-semibold"
                           >
-                            <MapPin className="w-4 h-4 mr-2" />
+                            <MapPin className="w-5 h-5 mr-2" />
                             Add New Landmark
                           </Button>
                         </div>
@@ -2131,11 +2234,11 @@ export default function SystemSettingsPage() {
                                       </p>
                                     </div>
                                   </div>
-                                  <div className="flex gap-2">
+                                  <div className="flex gap-2 w-full sm:w-auto">
                                     <Button 
                                       size="sm" 
                                       variant="outline" 
-                                      className="border-white/20 text-white hover:bg-white/10"
+                                      className="border-white/20 text-white hover:bg-white/10 flex-1 sm:flex-none h-10"
                                       onClick={() => {
                                         setSelectedLandmark(landmark);
                                         setLandmarkForm({
@@ -2150,19 +2253,19 @@ export default function SystemSettingsPage() {
                                         setShowEditLandmarkModal(true);
                                       }}
                                     >
-                                      <Edit className="w-3 h-3 mr-1" />
+                                      <Edit className="w-4 h-4 mr-1" />
                                       Edit
                                     </Button>
                                     <Button 
                                       size="sm" 
                                       variant="outline" 
-                                      className="border-red-500/50 text-red-400 hover:bg-red-600/20"
+                                      className="border-red-500/50 text-red-400 hover:bg-red-600/20 h-10 px-3"
                                       onClick={() => {
                                         setSelectedLandmark(landmark);
                                         setShowDeleteLandmarkModal(true);
                                       }}
                                     >
-                                      <Trash2 className="w-3 h-3" />
+                                      <Trash2 className="w-4 h-4" />
                                     </Button>
                                   </div>
                                 </div>
@@ -2186,27 +2289,27 @@ export default function SystemSettingsPage() {
 
                       {/* Coordinate Editing Tools */}
                       <div>
-                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <h3 className="text-base md:text-lg font-semibold text-white mb-4 flex items-center gap-2">
                           <MapPin className="w-5 h-5" />
                           Bulk Coordinate Management
                         </h3>
-                        <div className="space-y-4">
+                        <div className="space-y-3 md:space-y-4">
                           <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-                            <h4 className="text-white font-medium mb-2">Projects Without Coordinates</h4>
-                            <p className="text-gray-400 text-sm mb-3">
+                            <h4 className="text-white font-semibold mb-2 text-base">Projects Without Coordinates</h4>
+                            <p className="text-gray-400 text-sm mb-4">
                               Projects without coordinates will automatically use Barangay Hall location
                             </p>
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                               <Button 
                                 variant="outline" 
-                                className="border-white/20 text-white hover:bg-white/10"
+                                className="border-white/20 text-white hover:bg-white/10 h-12 text-base font-semibold w-full sm:w-auto"
                                 onClick={() => setShowProjectsListModal(true)}
                               >
-                                <MapPin className="w-4 h-4 mr-2" />
+                                <MapPin className="w-5 h-5 mr-2" />
                                 View Projects List
                               </Button>
                               {projectsWithoutCoords && (
-                                <Badge variant="secondary" className="bg-orange-600/20 text-orange-400 border-orange-500/30">
+                                <Badge variant="secondary" className="bg-orange-600/20 text-orange-400 border-orange-500/30 text-sm px-3 py-1.5">
                                   {projectsWithoutCoords.length} Projects
                                 </Badge>
                               )}
@@ -2214,21 +2317,21 @@ export default function SystemSettingsPage() {
                           </div>
 
                           <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-                            <h4 className="text-white font-medium mb-2">Events Without Coordinates</h4>
-                            <p className="text-gray-400 text-sm mb-3">
+                            <h4 className="text-white font-semibold mb-2 text-base">Events Without Coordinates</h4>
+                            <p className="text-gray-400 text-sm mb-4">
                               Events without coordinates will automatically use Barangay Hall location
                             </p>
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                               <Button 
                                 variant="outline" 
-                                className="border-white/20 text-white hover:bg-white/10"
+                                className="border-white/20 text-white hover:bg-white/10 h-12 text-base font-semibold w-full sm:w-auto"
                                 onClick={() => setShowEventsListModal(true)}
                               >
-                                <MapPin className="w-4 h-4 mr-2" />
+                                <MapPin className="w-5 h-5 mr-2" />
                                 View Events List
                               </Button>
                               {eventsWithoutCoords && (
-                                <Badge variant="secondary" className="bg-orange-600/20 text-orange-400 border-orange-500/30">
+                                <Badge variant="secondary" className="bg-orange-600/20 text-orange-400 border-orange-500/30 text-sm px-3 py-1.5">
                                   {eventsWithoutCoords.length} Events
                                 </Badge>
                               )}
@@ -2733,9 +2836,9 @@ export default function SystemSettingsPage() {
         {/* Projects Without Coordinates Modal */}
         {showProjectsListModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-gray-800 rounded-xl border border-white/10 p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+            <div className="bg-gray-800 rounded-xl border border-white/10 p-4 md:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <h3 className="text-lg md:text-xl font-bold text-white flex items-center gap-2">
                   <MapPin className="w-5 h-5 text-orange-500" />
                   Projects Without Coordinates
                 </h3>
@@ -2743,9 +2846,9 @@ export default function SystemSettingsPage() {
                   onClick={() => setShowProjectsListModal(false)}
                   variant="outline"
                   size="sm"
-                  className="border-white/20 text-white hover:bg-white/10"
+                  className="border-white/20 text-white hover:bg-white/10 h-10 w-10 p-0"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5" />
                 </Button>
               </div>
               {!projectsWithoutCoords || projectsWithoutCoords.length === 0 ? (
@@ -2757,21 +2860,18 @@ export default function SystemSettingsPage() {
                 <div className="space-y-3">
                   {projectsWithoutCoords.map((project: any) => (
                     <div key={project._id} className="bg-white/5 rounded-lg p-4 border border-white/10">
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="text-white font-semibold">{project.title}</h4>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs px-2 py-1 rounded ${project.isPublic ? 'bg-green-600/30 text-green-300' : 'bg-gray-600/30 text-gray-300'}`}>
-                            {project.isPublic ? '👁️ Public' : '🔒 Private'}
-                          </span>
-                        </div>
+                      <div className="flex flex-col sm:flex-row justify-between items-start gap-2 mb-2">
+                        <h4 className="text-white font-semibold text-base">{project.title}</h4>
+                        <span className={`text-xs px-2.5 py-1 rounded whitespace-nowrap ${project.isPublic ? 'bg-green-600/30 text-green-300' : 'bg-gray-600/30 text-gray-300'}`}>
+                          {project.isPublic ? '👁️ Public' : '🔒 Private'}
+                        </span>
                       </div>
-                      <p className="text-gray-400 text-sm mb-3">{project.description?.substring(0, 100)}...</p>
+                      <p className="text-gray-400 text-sm mb-3 line-clamp-2">{project.description?.substring(0, 100)}...</p>
                       <Button
                         onClick={() => setSelectedProjectForMap(project)}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                        size="sm"
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white h-12 text-base font-semibold"
                       >
-                        <MapPin className="w-4 h-4 mr-2" />
+                        <MapPin className="w-5 h-5 mr-2" />
                         Set Location on Map
                       </Button>
                     </div>
@@ -2785,9 +2885,9 @@ export default function SystemSettingsPage() {
         {/* Events Without Coordinates Modal */}
         {showEventsListModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-gray-800 rounded-xl border border-white/10 p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+            <div className="bg-gray-800 rounded-xl border border-white/10 p-4 md:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <h3 className="text-lg md:text-xl font-bold text-white flex items-center gap-2">
                   <MapPin className="w-5 h-5 text-orange-500" />
                   Events Without Coordinates
                 </h3>
@@ -2795,9 +2895,9 @@ export default function SystemSettingsPage() {
                   onClick={() => setShowEventsListModal(false)}
                   variant="outline"
                   size="sm"
-                  className="border-white/20 text-white hover:bg-white/10"
+                  className="border-white/20 text-white hover:bg-white/10 h-10 w-10 p-0"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5" />
                 </Button>
               </div>
               {!eventsWithoutCoords || eventsWithoutCoords.length === 0 ? (
@@ -2809,21 +2909,18 @@ export default function SystemSettingsPage() {
                 <div className="space-y-3">
                   {eventsWithoutCoords.map((event: any) => (
                     <div key={event._id} className="bg-white/5 rounded-lg p-4 border border-white/10">
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="text-white font-semibold">{event.title}</h4>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs px-2 py-1 rounded ${event.isPublic ? 'bg-green-600/30 text-green-300' : 'bg-gray-600/30 text-gray-300'}`}>
-                            {event.isPublic ? '👁️ Public' : '🔒 Private'}
-                          </span>
-                        </div>
+                      <div className="flex flex-col sm:flex-row justify-between items-start gap-2 mb-2">
+                        <h4 className="text-white font-semibold text-base">{event.title}</h4>
+                        <span className={`text-xs px-2.5 py-1 rounded whitespace-nowrap ${event.isPublic ? 'bg-green-600/30 text-green-300' : 'bg-gray-600/30 text-gray-300'}`}>
+                          {event.isPublic ? '👁️ Public' : '🔒 Private'}
+                        </span>
                       </div>
-                      <p className="text-gray-400 text-sm mb-3">{event.description?.substring(0, 100)}...</p>
+                      <p className="text-gray-400 text-sm mb-3 line-clamp-2">{event.description?.substring(0, 100)}...</p>
                       <Button
                         onClick={() => setSelectedEventForMap(event)}
-                        className="w-full bg-red-600 hover:bg-red-700 text-white"
-                        size="sm"
+                        className="w-full bg-red-600 hover:bg-red-700 text-white h-12 text-base font-semibold"
                       >
-                        <MapPin className="w-4 h-4 mr-2" />
+                        <MapPin className="w-5 h-5 mr-2" />
                         Set Location on Map
                       </Button>
                     </div>

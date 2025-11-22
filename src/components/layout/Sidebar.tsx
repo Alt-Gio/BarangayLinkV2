@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUser, useClerk, UserButton } from '@clerk/nextjs';
 import { useSidebar } from '@/contexts/SidebarContext';
+import { useQuery } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { 
   ChevronDown, 
   ChevronRight,
@@ -81,6 +83,9 @@ export function Sidebar({
   const [isMobile, setIsMobile] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+
+  // Get site settings for version display
+  const siteSettings = useQuery(api.siteSettings.getAllSettings);
 
   // Sync sidebar state with global context
   useEffect(() => {
@@ -211,6 +216,13 @@ export function Sidebar({
           icon: <TrendingUp className="w-4 h-4" />,
           path: '/events/sprints',
           roles: ['BUILDER', 'MANAGER', 'CAPTAIN', 'ADMIN']
+        },
+        {
+          id: 'event-participation',
+          label: 'Event Participation',
+          icon: <UserCheck className="w-4 h-4" />,
+          path: '/events/attendees',
+          roles: ['MANAGER', 'CAPTAIN', 'ADMIN']
         }
       ]
     },
@@ -359,7 +371,7 @@ export function Sidebar({
       {/* Mobile Overlay with smooth fade */}
       {isMobile && isOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden animate-fadeIn"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] md:hidden animate-fadeIn"
           onClick={onToggle}
           style={{
             animation: 'fadeIn 0.3s ease-out'
@@ -408,7 +420,7 @@ export function Sidebar({
       <div className={`
         ${isMobile ? 'fixed' : 'relative'} 
         ${isMobile && !isOpen ? '-translate-x-full' : 'translate-x-0'}
-        ${isMobile ? 'z-50' : 'z-10'}
+        ${isMobile ? 'z-[100]' : 'z-10'}
         h-screen w-64 bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 text-white flex flex-col
         transition-all duration-300 ease-out
         ${isMobile ? 'shadow-2xl shadow-emerald-500/20' : ''}
@@ -432,8 +444,7 @@ export function Sidebar({
                 <span className="text-white font-bold text-sm">BL</span>
               </div>
               <div>
-                <h1 className="font-semibold text-lg text-white group-hover:text-green-400 transition-colors">BarangayLink</h1>
-                <p className="text-xs text-green-400">v2.0.0</p>
+                <h1 className="font-bold text-xl text-white group-hover:text-green-400 transition-colors">{siteSettings?.siteName || "BarangayLink"}</h1>
               </div>
             </button>
             
@@ -540,6 +551,15 @@ export function Sidebar({
       
       {/* User Profile Panel */}
       <SidebarProfilePanel />
+
+      {/* App Branding */}
+      <div className="border-t border-gray-700 px-6 py-4 mt-auto bg-gradient-to-r from-gray-800/50 to-gray-900/50">
+        <div className="flex items-center justify-center">
+          <span className="text-lg font-bold text-white tracking-wide">
+            {siteSettings?.siteName || "BarangayLink"}
+          </span>
+        </div>
+      </div>
     </div>
     </>
   );

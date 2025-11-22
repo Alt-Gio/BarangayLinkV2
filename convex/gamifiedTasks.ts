@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 
 // Check and handle level up
 async function checkLevelUp(ctx: any, userId: Id<"users">) {
@@ -284,6 +285,12 @@ export const completeTask = mutation({
     if (task.eventId) {
       await updateEventProgress(ctx, task.eventId);
     }
+
+    // 🏆 Check for achievement unlocks
+    await ctx.scheduler.runAfter(0, internal.achievements.checkAchievements, {
+      userId: user._id,
+      activityType: "task_completed",
+    });
 
     return {
       success: true,

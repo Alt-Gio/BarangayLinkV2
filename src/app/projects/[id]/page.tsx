@@ -1046,6 +1046,8 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             <ProjectBudgetTab 
               projectId={id as Id<"projects">} 
               projectBudget={project.budget || 0}
+              project={project}
+              currentUser={currentUser}
             />
           </TabsContent>
 

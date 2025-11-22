@@ -54,6 +54,40 @@ export const createDocument = mutation({
       uploadedBy: user._id,
     });
 
+    // 🎮 INTEGRATION: Award gold for document upload
+    const goldReward = 10;
+    const currentGold = user.gold || 0;
+    await ctx.db.patch(user._id, {
+      gold: currentGold + goldReward,
+    });
+
+    // Log activity
+    await ctx.db.insert("userActivityLogs", {
+      userId: user._id,
+      activityType: "action",
+      action: "document_uploaded",
+      targetType: "document",
+      targetId: documentId,
+      metadata: {
+        fileName: args.fileName,
+        category: args.category,
+        goldReward,
+      },
+      timestamp: Date.now(),
+    });
+
+    // Create notification
+    await ctx.db.insert("notifications", {
+      userId: user._id,
+      type: "gold_earned",
+      title: "Gold Earned! 💰",
+      message: `You earned ${goldReward} gold for uploading "${args.fileName}"!`,
+      priority: "low",
+      isRead: false,
+      metadata: { goldReward, fileName: args.fileName },
+      createdAt: Date.now(),
+    });
+
     return documentId;
   },
 });

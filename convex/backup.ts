@@ -281,7 +281,7 @@ export const restoreFromBackup = action({
       };
       
       // Extract function reference using bracket notation to bypass type inference
-      // @ts-expect-error - Convex generated types cause excessive depth, suppressing
+      // @ts-ignore - Type instantiation depth limit
       const apiBackupModule = api.backup as any;
       const getBackupFn = apiBackupModule['getBackup'];
       

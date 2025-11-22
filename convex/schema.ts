@@ -60,11 +60,17 @@ export default defineSchema({
     // Gamification stats (Habitica-style)
     level: v.number(),
     experience: v.number(),
+    xp: v.optional(v.number()), // Alias for experience (for new system)
     gold: v.number(),
     health: v.number(),
+    maxHealth: v.optional(v.number()),
     mana: v.number(),
+    maxMana: v.optional(v.number()),
     streakCount: v.number(),
+    loginStreak: v.optional(v.number()), // Daily login streak
+    lastLoginAt: v.optional(v.number()), // Last login timestamp
     lastActiveDate: v.optional(v.number()),
+    profilePictureUrl: v.optional(v.string()), // Profile picture URL
     // Performance metrics
     totalTasksCompleted: v.number(),
     totalHoursLogged: v.number(),
@@ -217,6 +223,7 @@ export default defineSchema({
   milestones: defineTable({
     projectId: v.id("projects"),
     title: v.string(),
+    name: v.optional(v.string()), // Alias for title (for compatibility)
     description: v.string(),
     order: v.number(), // Display order (1, 2, 3...)
     targetDate: v.optional(v.number()),
@@ -297,6 +304,7 @@ export default defineSchema({
     })),
     projectImpactScore: v.optional(v.number()),
     isBlocking: v.boolean(),
+    metadata: v.optional(v.any()), // Flexible metadata for integrations
   })
   .index("by_user", ["userId"])
   .index("by_project", ["projectId"])
@@ -353,6 +361,7 @@ export default defineSchema({
     title: v.string(),
     description: v.string(),
     type: v.union(v.literal("meeting"), v.literal("community"), v.literal("project"), v.literal("emergency"), v.literal("milestone")),
+    eventCategory: v.optional(v.union(v.literal("PROJECT"), v.literal("EVENT"))), // Categorize as ongoing program vs one-time event
     startDate: v.number(),
     endDate: v.number(),
     location: v.string(),
@@ -369,6 +378,7 @@ export default defineSchema({
     allowDocumentUpload: v.optional(v.boolean()), // Require document upload for RSVP (e.g., proof of citizenship)
     status: v.union(v.literal("draft"), v.literal("pending"), v.literal("published"), v.literal("cancelled"), v.literal("archived")),
     projectId: v.optional(v.id("projects")), // Link event to project
+    committeeId: v.optional(v.id("committees")), // Link event to committee
     imageUrl: v.optional(v.string()), // Event image for visual documentation
     imageDocumentId: v.optional(v.id("documents")), // Link to document library for proper documentation
     attachments: v.array(v.id("documents")),
@@ -380,6 +390,15 @@ export default defineSchema({
       documentId: v.optional(v.string()), // Uploaded document (proof of citizenship, etc.)
       documentStorageId: v.optional(v.string()), // Convex storage ID
     }))), // Track public RSVP attendees
+    // Milestone support for events (like projects)
+    milestones: v.optional(v.array(v.object({
+      id: v.string(),
+      title: v.string(),
+      description: v.string(),
+      dueDate: v.number(),
+      completed: v.boolean(),
+      order: v.number(),
+    }))),
     liveblocksRoom: v.optional(v.string()),
     archivedAt: v.optional(v.number()),
     archivedBy: v.optional(v.id("users")),
@@ -390,7 +409,64 @@ export default defineSchema({
   .index("by_organizer", ["organizer"])
   .index("by_type", ["type"])
   .index("by_status", ["status"])
-  .index("by_project", ["projectId"]),
+  .index("by_project", ["projectId"])
+  .index("by_category", ["eventCategory"]),
+
+  // Event Attendees - Track participation and RSVPs
+  eventAttendees: defineTable({
+    eventId: v.id("events"),
+    userId: v.optional(v.id("users")), // For registered users
+    // For public/guest attendees
+    firstName: v.optional(v.string()),
+    lastName: v.optional(v.string()),
+    email: v.string(),
+    phone: v.optional(v.string()),
+    // RSVP & Status
+    rsvpStatus: v.union(
+      v.literal("pending"),
+      v.literal("confirmed"),
+      v.literal("declined"),
+      v.literal("maybe"),
+      v.literal("waitlist")
+    ),
+    attendanceStatus: v.optional(v.union(
+      v.literal("attended"),
+      v.literal("no-show"),
+      v.literal("cancelled")
+    )),
+    // Registration details
+    registeredAt: v.number(),
+    confirmedAt: v.optional(v.number()),
+    checkedInAt: v.optional(v.number()),
+    // Notifications
+    emailSent: v.boolean(),
+    lastEmailSentAt: v.optional(v.number()),
+    remindersSent: v.number(), // Count of reminders sent
+    lastReminderSentAt: v.optional(v.number()),
+    // Additional info
+    notes: v.optional(v.string()),
+    specialRequirements: v.optional(v.string()),
+    documentId: v.optional(v.id("documents")), // Uploaded verification document
+    ticketCode: v.optional(v.string()), // Unique ticket/QR code
+    // QR Code Attendance
+    qrCodeSent: v.optional(v.boolean()), // QR code sent via email
+    qrCodeSentAt: v.optional(v.number()),
+    checkInMethod: v.optional(v.union(
+      v.literal("qr_scan"),
+      v.literal("manual"),
+      v.literal("self_checkin")
+    )),
+    scannedBy: v.optional(v.id("users")), // Admin who scanned the QR code
+    checkOutAt: v.optional(v.number()), // Optional check-out tracking
+    // Metadata
+    registrationSource: v.optional(v.string()), // "web", "mobile", "admin"
+    isPublicRSVP: v.boolean(), // Track if it's a public/guest RSVP
+  })
+  .index("by_event", ["eventId"])
+  .index("by_user", ["userId"])
+  .index("by_email", ["email"])
+  .index("by_event_and_status", ["eventId", "rsvpStatus"])
+  .index("by_event_and_attendance", ["eventId", "attendanceStatus"]),
 
   // Habits system (Habitica-inspired)
   habits: defineTable({
@@ -570,7 +646,23 @@ export default defineSchema({
       v.literal("review_approved"),
       v.literal("review_rejected"),
       v.literal("unassigned"),
-      v.literal("task_updated")
+      v.literal("task_updated"),
+      // Gamification notifications
+      v.literal("xp_earned"),
+      v.literal("gold_earned"),
+      v.literal("level_up"),
+      v.literal("achievement_unlocked"),
+      // Integration notifications
+      v.literal("message_mention"),
+      v.literal("message_reaction"),
+      v.literal("event_rsvp"),
+      v.literal("poll_completed"),
+      v.literal("milestone_completed"),
+      // Budget & Expense notifications
+      v.literal("budget_alert"),
+      v.literal("expense_pending"),
+      v.literal("expense_approved"),
+      v.literal("expense_rejected")
     ),
     priority: v.optional(v.string()), // "low", "medium", "high", "urgent"
     category: v.optional(v.string()),
@@ -580,16 +672,7 @@ export default defineSchema({
     relatedId: v.optional(v.string()),
     relatedType: v.optional(v.string()),
     relatedTaskId: v.optional(v.id("tasks")), // Direct reference to task
-    metadata: v.optional(v.object({
-      priority: v.optional(v.string()),
-      category: v.optional(v.string()),
-      relatedId: v.optional(v.string()),
-      projectId: v.optional(v.string()),
-      taskTitle: v.optional(v.string()), // Added for task notifications
-      dueDate: v.optional(v.number()),
-      completedAt: v.optional(v.number()),
-      data: v.optional(v.any()),
-    })),
+    metadata: v.optional(v.any()), // Flexible metadata for all notification types
     createdAt: v.number(),
     // Resend tracking
     resentAt: v.optional(v.number()),
@@ -707,7 +790,7 @@ export default defineSchema({
   // User activity logs for operational monitoring
   userActivityLogs: defineTable({
     userId: v.id("users"),
-    sessionId: v.id("userSessions"),
+    sessionId: v.optional(v.id("userSessions")), // Optional for new activity system
     activityType: v.union(
       v.literal("login"),
       v.literal("logout"),
@@ -718,6 +801,9 @@ export default defineSchema({
     ),
     page: v.optional(v.string()),
     action: v.optional(v.string()),
+    targetType: v.optional(v.string()), // Type of entity (event, task, message, etc)
+    targetId: v.optional(v.string()), // ID of the target entity
+    metadata: v.optional(v.any()), // Flexible metadata for activities
     details: v.optional(v.object({
       deviceInfo: v.optional(v.object({
         browser: v.optional(v.string()),
@@ -1721,4 +1807,122 @@ export default defineSchema({
   .index("by_valid", ["isValid"])
   .index("by_qr_code", ["qrCode"])
   .index("by_issued_at", ["issuedAt"]),
+
+  // Site Settings for editable content
+  siteSettings: defineTable({
+    key: v.string(), // Unique key like 'mission', 'vision', 'copyright', 'version'
+    value: v.string(), // The actual content
+    updatedBy: v.optional(v.id("users")),
+    updatedAt: v.number(),
+    createdAt: v.number(),
+  })
+  .index("by_key", ["key"]),
+
+  // ============================================
+  // GAMIFICATION ACHIEVEMENTS
+  // ============================================
+
+  // User Achievements - Track unlocked badges
+  userAchievements: defineTable({
+    userId: v.id("users"),
+    achievementId: v.string(), // Reference to ACHIEVEMENTS constant
+    unlockedAt: v.number(),
+  })
+  .index("by_user", ["userId"])
+  .index("by_achievement", ["achievementId"])
+  .index("by_user_achievement", ["userId", "achievementId"]),
+
+  // ============================================
+  // PROJECT BUDGET & EXPENSES (PHASE 3)
+  // ============================================
+
+  // Project Budgets - Track budget allocation and spending
+  projectBudgets: defineTable({
+    projectId: v.id("projects"),
+    totalBudget: v.number(),
+    allocated: v.number(),
+    spent: v.number(),
+    currency: v.string(), // "PHP", "USD", etc.
+    alertThresholds: v.array(v.number()), // e.g., [75, 90, 100]
+    alertsSent: v.array(v.number()), // Which thresholds have triggered
+    approvers: v.array(v.id("users")), // Who can approve expenses
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_project", ["projectId"])
+  .index("by_created_by", ["createdBy"]),
+
+  // Project Expenses - Log and approve expenses
+  projectExpenses: defineTable({
+    projectId: v.id("projects"),
+    category: v.string(), // "supplies", "labor", "equipment", etc.
+    amount: v.number(),
+    description: v.string(),
+    receiptUrl: v.string(),
+    vendor: v.string(),
+    submittedBy: v.id("users"),
+    approvedBy: v.optional(v.id("users")),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("rejected")
+    ),
+    submittedAt: v.number(),
+    expenseDate: v.number(), // When expense occurred
+    approvedAt: v.optional(v.number()),
+    rejectionReason: v.optional(v.string()),
+  })
+  .index("by_project", ["projectId"])
+  .index("by_submitter", ["submittedBy"])
+  .index("by_status", ["status"])
+  .index("by_project_status", ["projectId", "status"]),
+
+  // Document Versioning (Phase 3B)
+  documentVersions: defineTable({
+    documentId: v.id("documents"),
+    versionNumber: v.number(), // Auto-incremented version number
+    title: v.string(),
+    content: v.string(), // Document content at this version
+    fileUrl: v.optional(v.string()), // File URL if applicable
+    fileName: v.optional(v.string()),
+    fileSize: v.optional(v.number()),
+    mimeType: v.optional(v.string()),
+    
+    // Version metadata
+    changeDescription: v.optional(v.string()), // What changed in this version
+    changeType: v.union(
+      v.literal("created"),
+      v.literal("updated"),
+      v.literal("restored"),
+      v.literal("auto_save")
+    ),
+    
+    // User who created this version
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    
+    // Editing lock (for collaborative editing)
+    isCurrentVersion: v.boolean(), // Only one should be true per document
+    editingLockedBy: v.optional(v.id("users")),
+    editingLockedAt: v.optional(v.number()),
+  })
+  .index("by_document", ["documentId"])
+  .index("by_document_version", ["documentId", "versionNumber"])
+  .index("by_user", ["createdBy"])
+  .index("by_current", ["isCurrentVersion"]),
+
+  // Barangay Committees
+  committees: defineTable({
+    name: v.string(),
+    chairman: v.string(), // Name of chairman
+    chairmanPosition: v.string(), // Barangay Kagawad, SK Chairperson, etc.
+    description: v.optional(v.string()),
+    members: v.optional(v.array(v.id("users"))), // Committee members
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_active", ["isActive"])
+  .index("by_chairman", ["chairman"]),
 });

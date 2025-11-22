@@ -52,9 +52,6 @@ export function ProjectSettingsTab({ projectId, project, currentUser }: ProjectS
     coordinates: project.coordinates || null,
     tags: project.tags?.join(', ') || '',
     
-    // Budget Settings
-    budget: project.budget,
-    
     // Visibility Settings
     isPublic: project.isPublic,
     publicVisibility: project.publicVisibility || 'internal',
@@ -86,21 +83,6 @@ export function ProjectSettingsTab({ projectId, project, currentUser }: ProjectS
     } catch (error) {
       console.error('Error saving settings:', error);
       alert('Failed to save settings');
-    }
-  };
-
-  const handleSaveBudget = async () => {
-    try {
-      await updateProject({
-        projectId,
-        updates: {
-          budget: formData.budget,
-        }
-      });
-      alert('Budget settings saved successfully!');
-    } catch (error) {
-      console.error('Error saving budget:', error);
-      alert('Failed to save budget settings');
     }
   };
 
@@ -171,14 +153,6 @@ export function ProjectSettingsTab({ projectId, project, currentUser }: ProjectS
         >
           <Settings className="w-4 h-4 mr-2" />
           General
-        </Button>
-        <Button
-          onClick={() => setActiveSection('budget')}
-          variant={activeSection === 'budget' ? 'default' : 'ghost'}
-          className="w-full justify-start"
-        >
-          <DollarSign className="w-4 h-4 mr-2" />
-          Budget
         </Button>
         <Button
           onClick={() => setActiveSection('visibility')}
@@ -311,59 +285,6 @@ export function ProjectSettingsTab({ projectId, project, currentUser }: ProjectS
                 >
                   <Save className="w-4 h-4 mr-2" />
                   Save Changes
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Budget Settings */}
-        {activeSection === 'budget' && (
-          <Card className="bg-gray-800/50 border-gray-700/50">
-            <CardHeader>
-              <CardTitle className="text-white">Budget Management</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Total Budget (₱)
-                </label>
-                <Input
-                  type="number"
-                  value={formData.budget}
-                  onChange={(e) => setFormData({ ...formData, budget: parseFloat(e.target.value) || 0 })}
-                  className="bg-gray-900/50 border-gray-700 text-white"
-                />
-              </div>
-
-              <div className="p-4 bg-gray-900/50 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-400">Budget Used</span>
-                  <span className="text-white font-medium">
-                    ₱{project.spent?.toLocaleString() || 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-400">Remaining</span>
-                  <span className="text-emerald-400 font-medium">
-                    ₱{((formData.budget || 0) - (project.spent || 0)).toLocaleString()}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-700 rounded-full h-2 mt-3">
-                  <div
-                    className="bg-emerald-500 h-2 rounded-full transition-all"
-                    style={{ width: `${Math.min((project.spent / formData.budget) * 100, 100)}%` }}
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <Button
-                  onClick={handleSaveBudget}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Budget
                 </Button>
               </div>
             </CardContent>

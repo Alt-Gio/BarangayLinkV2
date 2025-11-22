@@ -49,6 +49,45 @@ export const addReaction = mutation({
           { emoji, userId: user._id, addedAt: Date.now() },
         ],
       });
+
+      // 🔔 INTEGRATION: Notify message author (if not self)
+      if (message.sender !== user._id) {
+        const room = await ctx.db.get(message.roomId);
+        const messagePreview = message.content.substring(0, 50);
+
+        await ctx.db.insert("notifications", {
+          userId: message.sender,
+          type: "message_reaction",
+          title: "Someone reacted to your message",
+          message: `${user.name} reacted ${emoji} to your message${room ? ` in ${room.name}` : ""}`,
+          priority: "low",
+          isRead: false,
+          metadata: {
+            emoji,
+            roomId: message.roomId,
+            roomName: room?.name,
+            messagePreview,
+            reactorId: user._id,
+            reactorName: user.name,
+          },
+          createdAt: Date.now(),
+        });
+
+        // Log activity
+        await ctx.db.insert("userActivityLogs", {
+          userId: user._id,
+          activityType: "action",
+          action: "message_reaction",
+          targetType: "message",
+          targetId: messageId,
+          metadata: {
+            emoji,
+            roomName: room?.name,
+          },
+          timestamp: Date.now(),
+        });
+      }
+
       return { action: "added" };
     }
   },

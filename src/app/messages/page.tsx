@@ -48,6 +48,19 @@ export default function MessagesPage() {
     }
   }, [currentUser, updateOnlineStatus]);
 
+  // Hide bottom nav when in a chat
+  useEffect(() => {
+    if (selectedRoomId) {
+      document.body.setAttribute('data-hide-bottom-nav', 'true');
+    } else {
+      document.body.removeAttribute('data-hide-bottom-nav');
+    }
+    
+    return () => {
+      document.body.removeAttribute('data-hide-bottom-nav');
+    };
+  }, [selectedRoomId]);
+
   if (isLoaded && !user) {
     router.push("/login");
     return null;
@@ -101,22 +114,24 @@ export default function MessagesPage() {
       />
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Mobile Header */}
-        <div className="md:hidden fixed top-0 left-0 right-0 bg-gray-800 p-4 flex items-center justify-between z-10">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600 transition-colors"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-          <h1 className="text-lg font-semibold text-white">Messages</h1>
-          <button
-            onClick={() => setShowNewChatModal(true)}
-            className="p-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-          </button>
-        </div>
+        {/* Mobile Header - Hidden when in chat */}
+        {!selectedRoomId && (
+          <div className="md:hidden fixed top-0 left-0 right-0 bg-gray-800 p-4 flex items-center justify-between z-10">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600 transition-colors"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <h1 className="text-lg font-semibold text-white">Messages</h1>
+            <button
+              onClick={() => setShowNewChatModal(true)}
+              className="p-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+          </div>
+        )}
 
         {/* Chat List Sidebar */}
         <div
@@ -201,7 +216,7 @@ export default function MessagesPage() {
         </div>
 
         {/* Chat Room Area */}
-        <div className={`${showMobileChatList ? "hidden" : "block"} md:block flex-1 md:mt-0 mt-16`}>
+        <div className={`${showMobileChatList ? "hidden" : "block"} md:block flex-1 ${selectedRoomId ? "" : "md:mt-0 mt-16"}`}>
           {selectedRoomId ? (
             <EnhancedChatRoom roomId={selectedRoomId} onBack={handleBackToList} />
           ) : (

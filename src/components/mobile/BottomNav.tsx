@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSidebar } from "@/contexts/SidebarContext";
 import { useAuth } from "@clerk/nextjs";
@@ -20,12 +21,29 @@ export function BottomNav() {
   const router = useRouter();
   const { sidebarOpen } = useSidebar();
   const { isSignedIn, isLoaded } = useAuth();
+  const [hideBottomNav, setHideBottomNav] = React.useState(false);
+
+  // Check for hide-bottom-nav data attribute
+  React.useEffect(() => {
+    const checkAttribute = () => {
+      setHideBottomNav(document.body.getAttribute('data-hide-bottom-nav') === 'true');
+    };
+    
+    checkAttribute();
+    
+    // Watch for changes
+    const observer = new MutationObserver(checkAttribute);
+    observer.observe(document.body, { attributes: true, attributeFilter: ['data-hide-bottom-nav'] });
+    
+    return () => observer.disconnect();
+  }, []);
 
   // Don't show BottomNav if:
   // 1. User is not authenticated
   // 2. On landing page (root path)
   // 3. Auth is still loading
-  if (!isLoaded || !isSignedIn || pathname === "/") {
+  // 4. Hidden by data attribute (e.g., when in chat)
+  if (!isLoaded || !isSignedIn || pathname === "/" || hideBottomNav) {
     return null;
   }
 

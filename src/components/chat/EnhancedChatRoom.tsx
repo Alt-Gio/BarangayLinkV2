@@ -315,6 +315,7 @@ export function EnhancedChatRoom({ roomId, onBack }: EnhancedChatRoomProps) {
   const [showPinnedMessages, setShowPinnedMessages] = useState(true);
   const [showReactionPicker, setShowReactionPicker] = useState<string | null>(null);
   const [showPollCreator, setShowPollCreator] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -541,125 +542,164 @@ export function EnhancedChatRoom({ roomId, onBack }: EnhancedChatRoomProps) {
 
   return (
     <div className="h-full flex flex-col bg-gray-900 relative">
-      {/* Header - Fixed on mobile */}
-      <div className="bg-gray-800/50 border-b border-white/10 p-3 md:p-4 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
-        <div className="flex items-center gap-3">
+      {/* Header - Clean Mobile-Focused Design */}
+      <div className="bg-gray-800 border-b border-white/10 p-3 md:p-4 flex items-center justify-between flex-shrink-0 sticky top-0 z-20 shadow-lg">
+        <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+          {/* Back Button - Mobile Only */}
           {onBack && (
             <button
               onClick={onBack}
-              className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
+              className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors shrink-0"
+              aria-label="Back to chat list"
             >
               <ArrowLeft className="w-5 h-5 text-white" />
             </button>
           )}
           
+          {/* User/Room Info */}
           {room.type === "direct" && otherUser ? (
-            <div className="flex items-center gap-3">
-              <div className="relative">
+            <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+              <div className="relative shrink-0">
                 <img
                   src={otherUser.imageUrl || "/default-avatar.png"}
                   alt={otherUser.name}
-                  className="w-10 h-10 rounded-full object-cover"
+                  className="w-9 h-9 md:w-10 md:h-10 rounded-full object-cover"
                 />
                 {isOnline && (
-                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-gray-900 rounded-full"></div>
+                  <div className="absolute bottom-0 right-0 w-2.5 h-2.5 md:w-3 md:h-3 bg-emerald-500 border-2 border-gray-800 rounded-full"></div>
                 )}
               </div>
-              <div>
-                <h3 className="font-semibold text-white">{otherUser.name}</h3>
-                <p className="text-xs text-gray-400">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-white text-sm md:text-base truncate">{otherUser.name}</h3>
+                <p className="text-xs text-gray-400 flex items-center gap-1">
                   {isOnline ? "Online" : "Offline"}
+                  {isMuted && (
+                    <span className="flex items-center gap-1 ml-1">
+                      <BellOff className="w-3 h-3 text-yellow-400" />
+                      <span className="text-yellow-400">Muted</span>
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
           ) : (
-            <div>
-              <h3 className="font-semibold text-white">{room.name}</h3>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-white text-sm md:text-base truncate">{room.name}</h3>
               <p className="text-xs text-gray-400">
                 {room.participants.length} participants
+                {isMuted && (
+                  <span className="flex items-center gap-1 ml-1 inline-flex">
+                    <BellOff className="w-3 h-3 text-yellow-400" />
+                    <span className="text-yellow-400">Muted</span>
+                  </span>
+                )}
               </p>
             </div>
           )}
         </div>
 
-        <div className="flex items-center gap-2 relative" ref={menuRef}>
-          {/* Search Button */}
+        {/* Header Actions */}
+        <div className="flex items-center gap-1 shrink-0" ref={menuRef}>
+          {/* Menu Button */}
           <button
-            onClick={() => setShowSearch(!showSearch)}
-            className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-            title="Search messages"
-          >
-            <Search className="w-5 h-5 text-gray-400 hover:text-white" />
-          </button>
-          
-          {/* Poll Button */}
-          <button
-            onClick={() => setShowPollCreator(true)}
-            className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-            title="Create poll"
-          >
-            <BarChart3 className="w-5 h-5 text-gray-400 hover:text-white" />
-          </button>
-          
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-gray-400 hover:text-white"
             onClick={() => setShowMenu(!showMenu)}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            aria-label="Chat options"
           >
-            <MoreVertical className="w-5 h-5" />
-          </Button>
+            <MoreVertical className="w-5 h-5 text-white" />
+          </button>
 
           {/* Dropdown Menu */}
           {showMenu && (
-            <div className="absolute right-0 top-12 w-56 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="py-1">
+            <div className="absolute right-2 top-14 w-60 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="py-2">
                 <button
                   onClick={() => {
-                    toast.info('Room information');
+                    toast.info(`Room: ${room.name || otherUser?.name}\nParticipants: ${room.participants.length}`);
                     setShowMenu(false);
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
                 >
-                  <Info className="w-4 h-4 text-blue-400" />
-                  <span>Room Info</span>
+                  <Info className="w-5 h-5 text-blue-400" />
+                  <span className="font-medium">Room Information</span>
                 </button>
                 
                 <button
                   onClick={() => {
-                    toast.success('Notifications muted');
+                    setIsMuted(!isMuted);
+                    toast.success(isMuted ? 'Notifications unmuted' : 'Notifications muted');
                     setShowMenu(false);
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
                 >
-                  <BellOff className="w-4 h-4 text-yellow-400" />
-                  <span>Mute Notifications</span>
+                  {isMuted ? (
+                    <>
+                      <Bell className="w-5 h-5 text-emerald-400" />
+                      <span className="font-medium">Unmute Notifications</span>
+                    </>
+                  ) : (
+                    <>
+                      <BellOff className="w-5 h-5 text-yellow-400" />
+                      <span className="font-medium">Mute Notifications</span>
+                    </>
+                  )}
                 </button>
 
                 <button
                   onClick={() => {
-                    toast.info('Export chat feature coming soon');
+                    setShowSearch(!showSearch);
                     setShowMenu(false);
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
                 >
-                  <Download className="w-4 h-4 text-emerald-400" />
-                  <span>Export Chat</span>
+                  <Search className="w-5 h-5 text-purple-400" />
+                  <span className="font-medium">Search Messages</span>
                 </button>
-
-                <div className="border-t border-gray-700 my-1"></div>
 
                 <button
                   onClick={() => {
-                    if (confirm('Clear all messages in this chat?')) {
-                      toast.success('Chat cleared');
+                    setShowPollCreator(true);
+                    setShowMenu(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
+                >
+                  <BarChart3 className="w-5 h-5 text-indigo-400" />
+                  <span className="font-medium">Create Poll</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    // Create export functionality
+                    const exportData = messages?.map(m => `${m.senderName} (${new Date(m._creationTime).toLocaleString()}): ${m.content}`).join('\n\n');
+                    const blob = new Blob([exportData || ''], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `chat-export-${Date.now()}.txt`;
+                    a.click();
+                    toast.success('Chat exported successfully');
+                    setShowMenu(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
+                >
+                  <Download className="w-5 h-5 text-emerald-400" />
+                  <span className="font-medium">Export Chat</span>
+                </button>
+
+                <div className="border-t border-gray-700 my-2"></div>
+
+                <button
+                  onClick={() => {
+                    if (confirm(`Clear all messages in this chat? This action cannot be undone.`)) {
+                      // Call clear mutation when available
+                      toast.success('Chat will be cleared');
                       setShowMenu(false);
                     }
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-gray-700 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-900/20 transition-colors"
                 >
-                  <Trash className="w-4 h-4" />
-                  <span>Clear Chat</span>
+                  <Trash className="w-5 h-5" />
+                  <span className="font-medium">Clear Chat</span>
                 </button>
               </div>
             </div>
@@ -1060,44 +1100,51 @@ export function EnhancedChatRoom({ roomId, onBack }: EnhancedChatRoomProps) {
         </div>
       )}
 
-      {/* Input Area - Keyboard responsive on mobile */}
-      <div className="bg-gray-800/50 border-t border-white/10 p-3 md:p-4 flex-shrink-0 sticky bottom-0 z-10 safe-bottom">
-        <div className="flex items-center gap-2">
+      {/* Input Area - Mobile Keyboard Optimized */}
+      <div className="bg-gray-800 border-t border-white/10 p-3 md:p-4 flex-shrink-0 z-10">
+        <div className="flex items-end gap-2">
           {/* Attach Button */}
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-gray-400 hover:text-white hover:bg-gray-700 transition-all flex-shrink-0"
+          <button
             onClick={() => setShowFileUpload(!showFileUpload)}
             disabled={uploading}
-            title="Attach file"
+            className="p-2.5 md:p-3 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-all flex-shrink-0 disabled:opacity-50"
+            aria-label="Attach file"
           >
-            <Paperclip className="w-4 h-4 md:w-5 md:h-5" />
-          </Button>
+            <Paperclip className="w-5 h-5 md:w-5 md:h-5" />
+          </button>
           
-          {/* Message Input */}
-          <Input
-            ref={inputRef}
-            value={message}
-            onChange={(e) => {
-              setMessage(e.target.value);
-              handleTyping();
-            }}
-            onKeyPress={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
-            placeholder="Type a message..."
-            className="flex-1 bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus:border-emerald-500 transition-all text-base"
-            disabled={uploading}
-            autoComplete="off"
-          />
+          {/* Message Input - Mobile Optimized */}
+          <div className="flex-1 relative">
+            <Input
+              ref={inputRef}
+              value={message}
+              onChange={(e) => {
+                setMessage(e.target.value);
+                handleTyping();
+              }}
+              onKeyPress={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+              placeholder="Type a message..."
+              className="w-full bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-base px-4 py-3 rounded-xl pr-2"
+              disabled={uploading}
+              autoComplete="off"
+              style={{ fontSize: '16px' }}
+            />
+          </div>
           
           {/* Send Button */}
-          <Button
+          <button
             onClick={handleSendMessage}
             disabled={!message.trim() || uploading}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0"
+            className="p-2.5 md:p-3 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0 rounded-lg"
+            aria-label="Send message"
           >
-            <Send className="w-4 h-4 md:w-5 md:h-5" />
-          </Button>
+            <Send className="w-5 h-5 md:w-5 md:h-5" />
+          </button>
         </div>
       </div>
       

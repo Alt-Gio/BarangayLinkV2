@@ -125,19 +125,27 @@ export default function CollaborationPage() {
       />
 
       <div className="flex-1 overflow-y-auto">
-        {/* Mobile Menu Button */}
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="md:hidden fixed top-4 left-4 z-30 p-2.5 bg-green-600 hover:bg-green-700 text-white rounded-full shadow-lg transition-colors"
-          aria-label="Toggle Menu"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
+        {/* Mobile Header with Hamburger + Centered Title */}
+        <div className="md:hidden bg-white/5 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
+          <div className="flex items-center justify-between px-4 py-3">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              aria-label="Toggle Menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <h1 className="text-lg font-bold text-white absolute left-1/2 transform -translate-x-1/2">
+              Collaboration
+            </h1>
+            <div className="w-10" /> {/* Spacer for centering */}
+          </div>
+        </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-4 md:p-6 space-y-6">
           <div className="max-w-[1920px] mx-auto">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 mt-12 md:mt-0">
+            {/* Desktop Header */}
+            <div className="hidden md:flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
               <div>
                 <h1 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-3">
                   <MessageSquare className="w-6 h-6 md:w-8 md:h-8 text-blue-400" />
@@ -162,6 +170,22 @@ export default function CollaborationPage() {
                   <LiveNotifications userId={currentUser._id} />
                 </div>
               </div>
+            </div>
+
+            {/* Mobile Action Buttons */}
+            <div className="md:hidden flex flex-col gap-2 mb-4">
+              {(currentUser?.userLevel?.name === 'ADMIN' || currentUser?.userLevel?.name === 'MANAGER') && (
+                <Button
+                  onClick={() => setShowPendingFeedback(!showPendingFeedback)}
+                  className={`${showPendingFeedback ? 'bg-emerald-600' : 'bg-gray-700'} hover:bg-emerald-700 w-full justify-center`}
+                >
+                  <AlertCircle className="w-4 h-4 mr-2" />
+                  {showPendingFeedback ? 'Hide' : 'Show'} Pending Feedback
+                  {pendingFeedback && pendingFeedback.length > 0 && (
+                    <Badge className="ml-2 bg-red-600">{pendingFeedback.length}</Badge>
+                  )}
+                </Button>
+              )}
             </div>
 
             {/* Stats */}

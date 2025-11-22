@@ -272,6 +272,8 @@ export const updateMilestoneProgress = mutation({
     }
 
     const milestone = await ctx.db.get(args.milestoneId);
+    const wasJustCompleted = milestone && milestone.status !== "completed" && status === "completed";
+
     if (milestone && milestone.status !== "blocked") {
       await ctx.db.patch(args.milestoneId, {
         progress,
@@ -280,14 +282,86 @@ export const updateMilestoneProgress = mutation({
       });
     }
 
+    // 🎮 INTEGRATION: Award bonus XP and gold for milestone completion
+    if (wasJustCompleted && milestone) {
+      const project = await ctx.db.get(milestone.projectId);
+      const xpBonus = 100;
+      const goldBonus = 50;
+
+      // Award to all team members
+      if (project && project.assignedTo && project.assignedTo.length > 0) {
+        for (const userId of project.assignedTo) {
+          const user = await ctx.db.get(userId);
+          if (user) {
+            const newXP = (user.xp || 0) + xpBonus;
+            const newGold = (user.gold || 0) + goldBonus;
+
+            await ctx.db.patch(userId, {
+              xp: newXP,
+              gold: newGold,
+              level: calculateLevel(newXP),
+            });
+
+            // Log activity
+            await ctx.db.insert("userActivityLogs", {
+              userId,
+              activityType: "action",
+              action: "milestone_completed",
+              targetType: "milestone",
+              targetId: args.milestoneId,
+              metadata: {
+                milestoneName: milestone.title,
+                projectName: project.title,
+                xpBonus,
+                goldBonus,
+              },
+              timestamp: Date.now(),
+            });
+
+            // Create notification
+            await ctx.db.insert("notifications", {
+              userId,
+              type: "milestone_completed",
+              title: "Milestone Complete! 🏆",
+              message: `Your team completed milestone "${milestone.title}"! You earned ${xpBonus} XP and ${goldBonus} gold!`,
+              priority: "normal",
+              isRead: false,
+              metadata: {
+                milestoneName: milestone.title,
+                projectName: project.title,
+                xpBonus,
+                goldBonus,
+              },
+              createdAt: Date.now(),
+            });
+          }
+        }
+      }
+    }
+
     // Update project progress
     if (milestone) {
       await updateProjectProgress(ctx, milestone.projectId);
     }
 
-    return { progress, status };
+    return { progress, status, milestoneCompleted: wasJustCompleted };
   },
 });
+
+// Helper: Calculate level from XP
+function calculateLevel(xp: number): number {
+  if (xp < 100) return 1;
+  if (xp < 300) return 2;
+  if (xp < 600) return 3;
+  if (xp < 1000) return 4;
+  if (xp < 1500) return 5;
+  if (xp < 2100) return 6;
+  if (xp < 2800) return 7;
+  if (xp < 3600) return 8;
+  if (xp < 4500) return 9;
+  if (xp < 5500) return 10;
+  return 10 + Math.floor((xp - 5500) / 1000);
+}
 
 /**
  * Helper function to update project progress based on milestones

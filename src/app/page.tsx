@@ -86,6 +86,7 @@ function PublicLandingPage() {
   const publicProjects = useQuery(api.landingPage.getFeaturedProjects, { limit: 9 });
   const events = useQuery(api.events.getUpcomingEvents, { limit: 6 });
   const rsvpToEvent = useMutation(api.events.rsvpToEvent);
+  const addAttendeeFromRSVP = useMutation(api.eventAttendees.addAttendeeFromRSVP);
   const submitFeedback = useMutation(api.projectFeedback.submitPublicFeedback);
   const sendOTP = useAction(api.otp.sendOTP);
   const verifyOTP = useMutation(api.otp.verifyOTP);
@@ -97,6 +98,9 @@ function PublicLandingPage() {
     api.projectFeedback.getProjectFeedbackStats, 
     projectIds.length > 0 ? { projectIds } : "skip"
   );
+  
+  // Get site settings for dynamic mission, vision, copyright
+  const siteSettings = useQuery(api.siteSettings.getAllSettings);
 
   // Use featured projects for hero, fallback to public projects
   const heroProjects = (featuredProjects && featuredProjects.length > 0) ? featuredProjects : (publicProjects?.slice(0, 3) || []);
@@ -192,6 +196,7 @@ function PublicLandingPage() {
         setUploadingDocument(false);
       }
 
+      // First, save RSVP to events table
       await rsvpToEvent({
         eventId: selectedEvent._id,
         action: "join",
@@ -203,7 +208,53 @@ function PublicLandingPage() {
         }
       });
 
-      alert('✅ Successfully joined the event! We will contact you via email.');
+      console.log("RSVP saved successfully");
+
+      // Add to attendees list and generate QR/barcode
+      let result;
+      try {
+        result = await addAttendeeFromRSVP({
+          eventId: selectedEvent._id,
+          firstName: joinForm.firstName,
+          lastName: joinForm.lastName,
+          email: joinForm.email,
+        });
+        console.log("Attendee added:", result);
+      } catch (attendeeError: any) {
+        console.error("Error adding attendee:", attendeeError);
+        throw new Error(`Failed to add attendee: ${attendeeError.message}`);
+      }
+
+      // Send invitation email with QR/barcode (non-blocking)
+      if (result && result.success) {
+        try {
+          const emailResponse = await fetch("/api/send-invitation-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              attendeeId: result.attendeeId,
+              attendeeName: `${joinForm.firstName} ${joinForm.lastName}`,
+              attendeeEmail: joinForm.email,
+              eventTitle: selectedEvent.title,
+              customMessage: "Thank you for joining! We're excited to see you at the event.",
+              ticketCode: result.ticketCode,
+              eventDate: selectedEvent.startDate,
+              eventLocation: selectedEvent.location,
+            }),
+          });
+
+          if (emailResponse.ok) {
+            console.log("Email sent successfully");
+          } else {
+            console.warn("Email failed but attendee was added");
+          }
+        } catch (emailError) {
+          console.error("Email error (non-critical):", emailError);
+          // Don't throw - attendee is already added
+        }
+      }
+
+      alert(`✅ Successfully joined! ${result.alreadyRegistered ? 'You were already registered.' : 'Check your email for your event ticket with QR code.'}`);
       setShowJoinModal(false);
       setJoinForm({ firstName: '', lastName: '', email: '' });
       setEventOTP('');
@@ -211,8 +262,9 @@ function PublicLandingPage() {
       setEventOTPVerified(false);
       setUploadedDocument(null);
       setSelectedEvent(null);
-    } catch (error) {
-      alert('Failed to join event. Please try again.');
+    } catch (error: any) {
+      console.error('Join event error:', error);
+      alert(`Failed to join event: ${error.message || 'Please try again.'}`);
     } finally {
       setIsSubmitting(false);
       setUploadingDocument(false);
@@ -1334,7 +1386,7 @@ function PublicLandingPage() {
               <span className="text-lg font-bold">BarangayLink</span>
             </div>
             <p className="text-sm text-gray-400">
-              © 2024 Barangay Bitano. All rights reserved.
+              {siteSettings?.copyright || "© 2024 Barangay Bitano. All rights reserved."}
             </p>
             <div className="flex gap-6 text-sm text-gray-400">
               <a href="#" className="hover:text-emerald-400 transition-colors">Privacy</a>

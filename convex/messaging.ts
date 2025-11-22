@@ -336,18 +336,59 @@ export const sendMessage = mutation({
       lastMessageAt: now,
     });
 
-    // Get room details to notify participants
+    // Get room details first
     const room = await ctx.db.get(args.roomId);
+
+    // 🔔 INTEGRATION: Detect @mentions and create notifications
+    const mentions = extractMentions(args.content);
+    const mentionedUserIds = await getMentionedUserIds(ctx, mentions, room?.participants || []);
     if (room) {
-      // Notify all participants except the sender
+      // Create @mention notifications (higher priority)
+      for (const mentionedUserId of mentionedUserIds) {
+        if (mentionedUserId !== user._id) {
+          await ctx.db.insert("notifications", {
+            userId: mentionedUserId,
+            type: "message_mention",
+            title: "You were mentioned",
+            message: `${user.name} mentioned you in ${room.type === "direct" ? "a message" : room.name}: ${args.content.substring(0, 100)}`,
+            priority: "normal",
+            isRead: false,
+            metadata: {
+              roomId: args.roomId,
+              roomName: room.name,
+              senderId: user._id,
+              senderName: user.name,
+              messageContent: args.content.substring(0, 100),
+            },
+            createdAt: Date.now(),
+          });
+
+          // Log activity
+          await ctx.db.insert("userActivityLogs", {
+            userId: user._id,
+            activityType: "action",
+            action: "message_mention",
+            targetType: "message",
+            targetId: messageId,
+            metadata: {
+              mentionedUserId,
+              roomName: room.name,
+            },
+            timestamp: Date.now(),
+          });
+        }
+      }
+
+      // Notify other participants (regular notifications, lower priority)
       for (const participantId of room.participants) {
-        if (participantId !== user._id) {
+        if (participantId !== user._id && !mentionedUserIds.includes(participantId)) {
           // Create in-app notification
           await ctx.db.insert("notifications", {
             userId: participantId,
+            type: "info", // Using generic info type for backwards compatibility
             title: room.type === "direct" ? `New Message from ${user.name}` : `New Message in ${room.name}`,
             message: args.content.substring(0, 100),
-            type: "info",
+            priority: "low",
             category: "message",
             relatedId: args.roomId,
             relatedType: "chatRoom",
@@ -773,3 +814,47 @@ export const createAnnouncement = mutation({
     return { success: true, notifiedUsers: targetUsers.length };
   },
 });
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+// Extract @mentions from message content
+function extractMentions(content: string): string[] {
+  const mentionPattern = /@(\w+)/g;
+  const mentions: string[] = [];
+  let match;
+  
+  while ((match = mentionPattern.exec(content)) !== null) {
+    mentions.push(match[1]); // Get the username after @
+  }
+  
+  return mentions;
+}
+
+// Get user IDs from mentioned usernames
+async function getMentionedUserIds(
+  ctx: any,
+  mentions: string[],
+  roomParticipants: any[]
+): Promise<any[]> {
+  if (mentions.length === 0) return [];
+
+  const mentionedUserIds = [];
+  
+  // Search for users in room participants first
+  for (const mention of mentions) {
+    const lowerMention = mention.toLowerCase();
+    
+    // Get participant details
+    for (const participantId of roomParticipants) {
+      const participant = await ctx.db.get(participantId);
+      if (participant && participant.name.toLowerCase().includes(lowerMention)) {
+        mentionedUserIds.push(participant._id);
+        break;
+      }
+    }
+  }
+  
+  return [...new Set(mentionedUserIds)]; // Remove duplicates
+}

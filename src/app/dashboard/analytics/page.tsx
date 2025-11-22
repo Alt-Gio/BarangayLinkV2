@@ -17,6 +17,7 @@ import { DepartmentPerformance } from "@/components/analytics/DepartmentPerforma
 import { TeamPerformance } from "@/components/analytics/TeamPerformance";
 import { ExportButton } from "@/components/common/ExportButton";
 import { exportAnalyticsReport } from "@/lib/exportUtils";
+import { BudgetAnalytics } from "@/components/dashboard/BudgetAnalytics";
 
 export const dynamic = "force-dynamic";
 
@@ -189,6 +190,9 @@ export default function AnalyticsPage() {
                 <TabsTrigger value="overview" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
                   Overview
                 </TabsTrigger>
+                <TabsTrigger value="budget" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
+                  Budget & Expenses
+                </TabsTrigger>
                 <TabsTrigger value="milestones" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
                   Milestones
                 </TabsTrigger>
@@ -206,6 +210,10 @@ export default function AnalyticsPage() {
                   <BudgetOverview totalBudget={totalBudget} completedBudget={completedBudget} />
                 </div>
                 <RecentActivity recentCompletions={recentCompletions} upcomingDeadlines={upcomingDeadlines} />
+              </TabsContent>
+
+              <TabsContent value="budget" className="space-y-6">
+                <BudgetAnalytics />
               </TabsContent>
 
               <TabsContent value="milestones" className="space-y-6">

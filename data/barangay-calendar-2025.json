@@ -1,0 +1,601 @@
+{
+  "committees": [
+    {
+      "name": "Committee on Appropriation, Finance and Budget",
+      "chairman": "HON. JERRY QUINTANO, JR.",
+      "position": "Barangay Kagawad",
+      "isActive": true
+    },
+    {
+      "name": "Committee on Senior Citizen and PWD / INFIA",
+      "chairman": "HON. JESUS M. ADORNADO",
+      "position": "Barangay Kagawad",
+      "isActive": true
+    },
+    {
+      "name": "Committee on Education / VAWC / Livelihood",
+      "chairman": "HON. ANAMARIE A. DEL AYRE",
+      "position": "Barangay Kagawad",
+      "isActive": true
+    },
+    {
+      "name": "Committee on Barangay Disaster Risk Reduction Management, Peace and Order and Public Safety / BDRRMC",
+      "chairman": "HON. SALVADOR B. TAOPO, JR.",
+      "position": "Barangay Kagawad",
+      "isActive": true
+    },
+    {
+      "name": "Committee on Environment",
+      "chairman": "HON. JOSEPH S. BANTIGUI",
+      "position": "Barangay Kagawad",
+      "isActive": true
+    },
+    {
+      "name": "Committee on Health / Public Affairs",
+      "chairman": "HON. SUSAN L. BERMEJO",
+      "position": "Barangay Kagawad",
+      "isActive": true
+    },
+    {
+      "name": "Committee on Ways and Means / Human Rights",
+      "chairman": "HON. JUAN S. BANDOLA",
+      "position": "Barangay Kagawad",
+      "isActive": true
+    },
+    {
+      "name": "Committee on Youth and Sports Development",
+      "chairman": "HON. PHOEBIE DIANE P. CRUEL",
+      "position": "SK Chairperson",
+      "isActive": true
+    }
+  ],
+  "calendarEntries": [
+    {
+      "date": "2025-02-06",
+      "category": "EVENT",
+      "type": "meeting",
+      "title": "Regular Session - Barangay 37",
+      "startTime": "18:00",
+      "endTime": "19:00",
+      "location": "Barangay Hall"
+    },
+    {
+      "date": "2025-02-10",
+      "category": "EVENT",
+      "type": "meeting",
+      "title": "General Assembly - Association of Barangay Secretaries Legaspi City Chapter",
+      "startTime": "21:00",
+      "endTime": "00:00",
+      "location": "SP Session Hall Legazpi City"
+    },
+    {
+      "date": "2025-02-12",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Dengue Awareness Program - DOH",
+      "isAllDay": true
+    },
+    {
+      "date": "2025-02-14",
+      "category": "EVENT",
+      "type": "meeting",
+      "title": "RTC - Hearing CICL-120-2024-D (Theft)",
+      "startTime": "18:00",
+      "endTime": "19:00",
+      "location": "Regional Trial Court Building, Legazpi City, Albay, Philippines"
+    },
+    {
+      "date": "2025-02-15",
+      "category": "EVENT",
+      "type": "meeting",
+      "title": "Kapatid Exit Interview and Evaluation",
+      "startTime": "21:00",
+      "endTime": "00:00",
+      "location": "Albay, Philippines"
+    },
+    {
+      "date": "2025-02-20",
+      "category": "EVENT",
+      "type": "meeting",
+      "title": "BARCO deadline",
+      "isAllDay": true
+    },
+    {
+      "date": "2025-02-24",
+      "category": "EVENT",
+      "type": "meeting",
+      "title": "Barangay Calendar of Activities (PNP)",
+      "isAllDay": true
+    },
+    {
+      "date": "2025-02-24",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Anti Drug Campaign Seminar",
+      "startTime": "22:00",
+      "endTime": "00:00",
+      "location": "PCOP, Legaspi City"
+    },
+    {
+      "date": "2025-02-26",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Capacity Development Program on the Establishment and Operation of Materials Recovery Facility",
+      "isAllDay": true,
+      "duration": "February 26-27, 2025"
+    },
+    {
+      "date": "2025-02-28",
+      "category": "EVENT",
+      "type": "meeting",
+      "title": "SGLGP Deadline",
+      "isAllDay": true
+    },
+    {
+      "date": "2025-03-01",
+      "category": "EVENT",
+      "type": "community",
+      "title": "Fire Prevention Month (PB Bernard Y. Pacardo)",
+      "startTime": "06:00",
+      "endTime": "09:00",
+      "location": "Sawangan Park, Legazpi City"
+    },
+    {
+      "date": "2025-03-03",
+      "category": "EVENT",
+      "type": "meeting",
+      "title": "Brgy37 Lupon Meeting",
+      "startTime": "17:00",
+      "endTime": "18:00"
+    },
+    {
+      "date": "2025-03-04",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "BHW Pre-Natal Checkup",
+      "startTime": "08:00",
+      "endTime": "12:00"
+    },
+    {
+      "date": "2025-03-05",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "BHW Immunization",
+      "startTime": "08:00",
+      "endTime": "12:00"
+    },
+    {
+      "date": "2025-03-05",
+      "category": "PROJECT",
+      "type": "meeting",
+      "title": "ACCOMPLISHMENT (barangay officials) Report",
+      "isAllDay": true
+    },
+    {
+      "date": "2025-03-06",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Sustainable Livelihood Program (SLP) DSWD",
+      "startTime": "08:30",
+      "endTime": "12:00",
+      "location": "Barangay 37 Barangay Hall Bitano, Legazpi City"
+    },
+    {
+      "date": "2025-03-07",
+      "category": "EVENT",
+      "type": "community",
+      "title": "Zumba - Babae sa lahat ng sektor",
+      "startTime": "08:00",
+      "endTime": "09:00"
+    },
+    {
+      "date": "2025-03-08",
+      "category": "EVENT",
+      "type": "meeting",
+      "title": "BARCO Brgy 37 - Bitano",
+      "startTime": "08:00",
+      "endTime": "10:30"
+    },
+    {
+      "date": "2025-03-09",
+      "category": "EVENT",
+      "type": "community",
+      "title": "Bakada Kalinisan - Brgy 37 - Bitano",
+      "startTime": "07:00",
+      "endTime": "09:30"
+    },
+    {
+      "date": "2025-03-10",
+      "category": "EVENT",
+      "type": "community",
+      "title": "National Buntis Day Celebration (Tanod Assistance)",
+      "startTime": "07:00",
+      "endTime": "07:30",
+      "location": "Legazpi City Hospital"
+    },
+    {
+      "date": "2025-03-14",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Basic Gender Equality Disability and Social Inclusion (GEDSI) in DRRM Training for BDRRMCs",
+      "startTime": "08:30",
+      "endTime": "17:00",
+      "location": "New Blossoms Traveller's Hauz, Daraga, Albay"
+    },
+    {
+      "date": "2025-03-15",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Mobile Civil Registration - APG CARAVAN",
+      "startTime": "08:00",
+      "endTime": "17:00"
+    },
+    {
+      "date": "2025-03-17",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Nutrition Education Session - Walang Gutom Program",
+      "startTime": "08:00",
+      "endTime": "10:00",
+      "location": "Barangay 37-Bitano Covered Court"
+    },
+    {
+      "date": "2025-03-18",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Seminar on Handling VAWC Cases at the Barangay Level",
+      "startTime": "08:00",
+      "endTime": "17:00",
+      "location": "Legazpi Exposition Building"
+    },
+    {
+      "date": "2025-03-19",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Orientation to Usbong Phase - Sustainable Livelihood Program (SLP)",
+      "startTime": "09:00",
+      "endTime": "12:30",
+      "location": "Barangay 37-Bitano Hall"
+    },
+    {
+      "date": "2025-03-24",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "AKAP payout",
+      "isAllDay": true
+    },
+    {
+      "date": "2025-04-01",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "BHW Pre-Natal Checkup",
+      "startTime": "08:00",
+      "endTime": "12:00"
+    },
+    {
+      "date": "2025-04-02",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "BHW Immunization",
+      "startTime": "08:00",
+      "endTime": "12:00"
+    },
+    {
+      "date": "2025-04-02",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "AKAP - Zone 1, 2, 3 Verification",
+      "startTime": "13:00",
+      "endTime": "19:00",
+      "location": "Barangay Hall, Barangay 37 Bitano"
+    },
+    {
+      "date": "2025-04-03",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "AKAP - Zone 4 to 10 Verification",
+      "startTime": "08:00",
+      "endTime": "17:00",
+      "location": "Barangay Covered Court, Barangay 37 Bitano"
+    },
+    {
+      "date": "2025-04-08",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "SLP - Capability Building and Other Business Workshop",
+      "startTime": "08:00",
+      "endTime": "12:00",
+      "location": "Covered Court, Barangay Rawis"
+    },
+    {
+      "date": "2025-04-12",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Empowering Youth Through Bridging Insights",
+      "startTime": "08:00",
+      "endTime": "17:00",
+      "location": "Barangay 37-Bitano Covered Court",
+      "duration": "April 12-13, 2025"
+    },
+    {
+      "date": "2025-04-15",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "4Ps Parent Leader Meeting (DSWD)",
+      "startTime": "09:00",
+      "endTime": "12:00"
+    },
+    {
+      "date": "2025-04-21",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "DSWD - Family Development Session 4Ps",
+      "startTime": "08:00",
+      "endTime": "17:00"
+    },
+    {
+      "date": "2025-04-29",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Golden Sunrise: An Immersive Initiative for the Elderly",
+      "startTime": "13:00",
+      "endTime": "17:00",
+      "location": "Barangay 37-Bitano Covered Court"
+    },
+    {
+      "date": "2025-05-06",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "BHW Pre-Natal Checkup",
+      "startTime": "08:00",
+      "endTime": "12:00"
+    },
+    {
+      "date": "2025-05-07",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "BHW Immunization",
+      "startTime": "08:00",
+      "endTime": "12:00"
+    },
+    {
+      "date": "2025-05-10",
+      "category": "EVENT",
+      "type": "community",
+      "title": "BARKADAHAN/Kalinisan Drive",
+      "startTime": "08:00",
+      "endTime": "11:00",
+      "location": "Barangay 37-Bitano"
+    },
+    {
+      "date": "2025-05-20",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "DSWD - Monitoring and Technical Assistance (MTA)",
+      "startTime": "08:00",
+      "endTime": "11:30"
+    },
+    {
+      "date": "2025-05-22",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Hypertension / Diabetes Program",
+      "isAllDay": true
+    },
+    {
+      "date": "2025-05-27",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "DSWD - Nutrition Education Session",
+      "startTime": "08:00",
+      "endTime": "12:00",
+      "location": "Covered Court, Zone 6, Brgy 37-Bitano"
+    },
+    {
+      "date": "2025-05-28",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Health Program Orientation for PB and KGD on Health",
+      "isAllDay": true,
+      "location": "Legazpi City Convention Center",
+      "duration": "May 28-29, 2025"
+    },
+    {
+      "date": "2025-05-31",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Free X-Ray Screening - TB Society",
+      "startTime": "09:00",
+      "endTime": "14:00",
+      "location": "Bitano 37 Covered Court"
+    },
+    {
+      "date": "2025-06-01",
+      "category": "EVENT",
+      "type": "community",
+      "title": "BARCO Brgy 37-Bitano",
+      "isAllDay": true
+    },
+    {
+      "date": "2025-06-01",
+      "category": "EVENT",
+      "type": "community",
+      "title": "Clean Up Drive (Zone 5)",
+      "isAllDay": true
+    },
+    {
+      "date": "2025-06-04",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Mapping and Survey of OSY",
+      "startTime": "08:00",
+      "endTime": "17:00"
+    },
+    {
+      "date": "2025-06-07",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "City Veterinary Boot Camp for a Better Pet",
+      "isAllDay": true,
+      "location": "Legazpi City Convention Center"
+    },
+    {
+      "date": "2025-06-07",
+      "category": "EVENT",
+      "type": "meeting",
+      "title": "Senior Citizen Election Brgy 37",
+      "startTime": "14:00",
+      "endTime": "15:00"
+    },
+    {
+      "date": "2025-06-10",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Oplan Tuli Program",
+      "isAllDay": true,
+      "location": "Covered Court, Zone 6, Brgy37-Bitano"
+    },
+    {
+      "date": "2025-06-17",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Walang Gutom Program - DSWD",
+      "startTime": "13:00",
+      "endTime": "17:00",
+      "location": "Bitano Multi-purpose Covered Court"
+    },
+    {
+      "date": "2025-06-19",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "4Ps - Family Development Session",
+      "isAllDay": true,
+      "location": "Bitano Multi-purpose Covered Court",
+      "duration": "June 19-20, 2025"
+    },
+    {
+      "date": "2025-06-20",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "SLP - Capacity Building",
+      "startTime": "08:00",
+      "endTime": "15:00",
+      "location": "Bitano Multi-purpose Covered Court"
+    },
+    {
+      "date": "2025-06-21",
+      "category": "EVENT",
+      "type": "community",
+      "title": "SK/Brgy37 Kalinisan Drive Zone 5&2",
+      "startTime": "07:00",
+      "endTime": "09:00"
+    },
+    {
+      "date": "2025-07-02",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Buntis Class, RPFP",
+      "startTime": "08:00",
+      "endTime": "12:00",
+      "location": "Bitano Multi-purpose Covered Court"
+    },
+    {
+      "date": "2025-07-03",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Senior Citizen Emergency Response",
+      "startTime": "08:00",
+      "endTime": "10:30",
+      "location": "SM City Legazpi"
+    },
+    {
+      "date": "2025-07-07",
+      "category": "EVENT",
+      "type": "meeting",
+      "title": "Inaugural Session of the 17th Sangguniang Panlungsod",
+      "isAllDay": true,
+      "location": "La Piazza Hotel and Convention Center"
+    },
+    {
+      "date": "2025-07-12",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "BRODHET Seminar - City Veterinary Office",
+      "startTime": "13:00",
+      "endTime": "17:00",
+      "location": "Bitano Multi-purpose Covered Court"
+    },
+    {
+      "date": "2025-07-16",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "GAD-Information Dissemination on Magna Carta for Women",
+      "startTime": "13:00",
+      "endTime": "17:00",
+      "location": "Bitano Multi-purpose Covered Court"
+    },
+    {
+      "date": "2025-07-17",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "CapDev - CEBxBHL Brgy37Council",
+      "isAllDay": true,
+      "location": "Cebu City, Cebu",
+      "duration": "July 17-22, 2025"
+    },
+    {
+      "date": "2025-07-24",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Anti-Rabies Mass Vaccination",
+      "isAllDay": true,
+      "location": "Bitano Multi-purpose Covered Court",
+      "duration": "July 24-26, 2025"
+    },
+    {
+      "date": "2025-07-25",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Security Gun Safety - Joel Balinis",
+      "isAllDay": true,
+      "location": "Bitano Multi-purpose Covered Court",
+      "duration": "July 25-27, 2025"
+    },
+    {
+      "date": "2025-07-26",
+      "category": "PROJECT",
+      "type": "community",
+      "title": "Global Seafood Alliance (Ayuda)",
+      "startTime": "14:00",
+      "endTime": "17:00",
+      "location": "Bitano Multi-purpose Covered Court"
+    },
+    {
+      "date": "2025-07-28",
+      "category": "EVENT",
+      "type": "community",
+      "title": "PNP SONA Kadiwa, Zumba",
+      "startTime": "06:00",
+      "endTime": "07:00",
+      "location": "PNP-Legaspi City Police Station"
+    },
+    {
+      "date": "2025-07-28",
+      "category": "EVENT",
+      "type": "meeting",
+      "title": "14th Liga Assembly",
+      "startTime": "13:00",
+      "endTime": "17:00",
+      "location": "Sangguniang Panlungsod, City Hall"
+    },
+    {
+      "date": "2025-07-28",
+      "category": "EVENT",
+      "type": "meeting",
+      "title": "SC General Assembly & Oath Taking Ceremony",
+      "startTime": "13:00",
+      "endTime": "15:00",
+      "location": "Bitano Multi-purpose Covered Court"
+    }
+  ]
+}
