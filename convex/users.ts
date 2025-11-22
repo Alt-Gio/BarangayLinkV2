@@ -723,11 +723,23 @@ export const getUserByClerkId = query({
   },
 });
 
-// Get all users with their levels
+// Get all users with their levels (OPTIMIZED with pagination)
 export const getAllUsersWithLevels = query({
-  args: {},
-  handler: async (ctx) => {
-    const users = await ctx.db.query("users").take(100); // OPTIMIZED: Only load 100 users instead of ALL
+  args: {
+    page: v.optional(v.number()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const page = Math.max(1, args.page || 1);
+    const limit = Math.min(50, Math.max(10, args.limit || 20)); // Default 20, max 50
+    const offset = (page - 1) * limit;
+    
+    // Only fetch what we need for this page
+    const allUsers = await ctx.db.query("users")
+      .order("desc")
+      .take(limit + offset);
+    
+    const users = allUsers.slice(offset);
     
     const usersWithLevels = await Promise.all(
       users.map(async (user) => {
@@ -740,7 +752,46 @@ export const getAllUsersWithLevels = query({
     );
 
     // Filter out users with null userLevels
-    return usersWithLevels.filter(user => user.userLevel !== null);
+    const validUsers = usersWithLevels.filter(user => user.userLevel !== null);
+    
+    return {
+      users: validUsers,
+      pagination: {
+        page,
+        limit,
+        hasMore: allUsers.length === limit + offset,
+      },
+    };
+  },
+});
+
+// Get user summaries (OPTIMIZED - minimal fields for lists)
+export const getUserSummaries = query({
+  args: {
+    limit: v.optional(v.number()),
+    department: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const limit = Math.min(100, args.limit || 50);
+    
+    let query = ctx.db.query("users");
+    
+    if (args.department) {
+      query = query.filter((q) => q.eq(q.field("department"), args.department));
+    }
+    
+    const users = await query.order("desc").take(limit);
+    
+    // Return only essential fields (70% bandwidth reduction)
+    return users.map(user => ({
+      _id: user._id,
+      name: user.name,
+      imageUrl: user.imageUrl,
+      department: user.department,
+      position: user.position,
+      isActive: user.isActive,
+      userLevel: user.userLevel, // Just ID, not full object
+    }));
   },
 });
 

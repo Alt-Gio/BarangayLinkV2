@@ -74,6 +74,7 @@ import type * as projectFeedback from "../projectFeedback.js";
 import type * as projects from "../projects.js";
 import type * as publicStats from "../publicStats.js";
 import type * as pushNotifications from "../pushNotifications.js";
+import type * as queryOptimization from "../queryOptimization.js";
 import type * as quickActions from "../quickActions.js";
 import type * as residents from "../residents.js";
 import type * as roleBasedAccess from "../roleBasedAccess.js";
@@ -165,6 +166,7 @@ declare const fullApi: ApiFromModules<{
   projects: typeof projects;
   publicStats: typeof publicStats;
   pushNotifications: typeof pushNotifications;
+  queryOptimization: typeof queryOptimization;
   quickActions: typeof quickActions;
   residents: typeof residents;
   roleBasedAccess: typeof roleBasedAccess;
