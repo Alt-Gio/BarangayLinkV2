@@ -223,46 +223,23 @@ export const getActiveSessionsCount = query({
   },
 });
 
-// Validate password against security settings
-export const validatePassword = query({
-  args: {
-    password: v.string(),
-  },
-  handler: async (ctx, args) => {
+// SECURITY: Password validation moved to client-side only
+// DO NOT validate actual passwords on the server - use Clerk for auth
+// This function now only returns password requirements for client-side validation
+export const getPasswordRequirements = query({
+  args: {},
+  handler: async (ctx) => {
     const settings = await ctx.db.query("securitySettings").first();
     
-    const errors: string[] = [];
-    
-    // Check minimum length
-    const minLength = settings?.passwordMinLength ?? 8;
-    if (args.password.length < minLength) {
-      errors.push(`Password must be at least ${minLength} characters long`);
-    }
-    
-    // Check uppercase requirement
-    if (settings?.passwordRequireUppercase !== false) {
-      if (!/[A-Z]/.test(args.password)) {
-        errors.push("Password must contain at least one uppercase letter");
-      }
-    }
-    
-    // Check number requirement
-    if (settings?.passwordRequireNumbers !== false) {
-      if (!/[0-9]/.test(args.password)) {
-        errors.push("Password must contain at least one number");
-      }
-    }
-    
-    // Check special character requirement
-    if (settings?.passwordRequireSpecialChars !== false) {
-      if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(args.password)) {
-        errors.push("Password must contain at least one special character");
-      }
-    }
-    
     return {
-      valid: errors.length === 0,
-      errors,
+      minLength: settings?.passwordMinLength ?? 8,
+      requireUppercase: settings?.passwordRequireUppercase !== false,
+      requireNumbers: settings?.passwordRequireNumbers !== false,
+      requireSpecialChars: settings?.passwordRequireSpecialChars !== false,
     };
   },
 });
+
+// NOTE: Password validation should be done CLIENT-SIDE ONLY
+// Never send actual passwords to this backend - Clerk handles all authentication
+// Use the requirements from getPasswordRequirements() to validate on the client
