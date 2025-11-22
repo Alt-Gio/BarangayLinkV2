@@ -9,11 +9,22 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Bell, Check, CheckCheck, X, FileText, AlertCircle, CheckCircle, XCircle } from "lucide-react";
+import { Bell, Check, CheckCheck, X, Volume2, VolumeX } from "lucide-react";
 import { Id } from "../../../convex/_generated/dataModel";
+import { motion, AnimatePresence } from 'framer-motion';
+import { NotificationIcon, getPriorityColorClasses } from '@/lib/notificationIcons';
+import { playNotificationSound, setSoundEnabled, isSoundEnabled } from '@/lib/notificationSounds';
 
 export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
+  const [soundOn, setSoundOn] = useState(isSoundEnabled());
+  
+  const toggleSound = () => {
+    const newState = !soundOn;
+    setSoundOn(newState);
+    setSoundEnabled(newState);
+    if (newState) playNotificationSound('medium');
+  };
 
   // Get notifications
   const notifications = useQuery(api.notifications.getResidentNotifications, { 
@@ -52,18 +63,7 @@ export default function NotificationBell() {
     }
   };
 
-  const getIcon = (type: string) => {
-    switch (type) {
-      case "success":
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
-      case "error":
-        return <XCircle className="w-5 h-5 text-red-500" />;
-      case "warning":
-        return <AlertCircle className="w-5 h-5 text-yellow-500" />;
-      default:
-        return <FileText className="w-5 h-5 text-blue-500" />;
-    }
-  };
+  // Removed - now using NotificationIcon component
 
   const formatTimeAgo = (timestamp: number) => {
     const seconds = Math.floor((Date.now() - timestamp) / 1000);
@@ -98,33 +98,55 @@ export default function NotificationBell() {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <h3 className="font-semibold text-lg">Notifications</h3>
-          {unreadCount > 0 && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleMarkAllAsRead}
-              className="text-xs text-blue-400 hover:text-blue-300"
+          <div className="flex items-center gap-2">
+            {/* Sound Toggle */}
+            <button
+              onClick={toggleSound}
+              className="text-gray-400 hover:text-blue-400 transition-colors p-1"
+              title={soundOn ? 'Mute notifications' : 'Enable sounds'}
             >
-              <CheckCheck className="w-4 h-4 mr-1" />
-              Mark all read
-            </Button>
-          )}
+              {soundOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </button>
+            
+            {unreadCount > 0 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleMarkAllAsRead}
+                className="text-xs text-blue-400 hover:text-blue-300"
+              >
+                <CheckCheck className="w-4 h-4 mr-1" />
+                Mark all read
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Notifications List */}
         <div className="divide-y divide-gray-800">
+          <AnimatePresence>
           {notifications && notifications.length > 0 ? (
-            notifications.map((notification) => (
-              <div
+            notifications.map((notification) => {
+              const priorityColors = getPriorityColorClasses(notification.metadata?.priority, notification.isRead);
+              return (
+              <motion.div
                 key={notification._id}
-                className={`p-4 hover:bg-gray-800/50 transition-colors ${
-                  !notification.isRead ? "bg-blue-500/5" : ""
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ duration: 0.2 }}
+                className={`p-4 hover:bg-gray-800/50 transition-colors border-l-2 ${
+                  priorityColors.border} ${!notification.isRead ? "bg-blue-500/5" : ""
                 }`}
               >
                 <div className="flex items-start gap-3">
                   {/* Icon */}
                   <div className="flex-shrink-0 mt-1">
-                    {getIcon(notification.type)}
+                    <NotificationIcon 
+                      type={notification.type}
+                      category={notification.category || notification.metadata?.category}
+                      size={20}
+                    />
                   </div>
 
                   {/* Content */}
@@ -159,6 +181,13 @@ export default function NotificationBell() {
                         </button>
                       )}
                     </div>
+                    
+                    {/* Priority Badge */}
+                    {notification.metadata?.priority && (
+                      <span className={`text-xs px-2 py-0.5 rounded font-medium mt-1 inline-block ${priorityColors.badge}`}>
+                        {notification.metadata.priority.toUpperCase()}
+                      </span>
+                    )}
 
                     {/* Action button if has actionUrl */}
                     {notification.actionUrl && (
@@ -176,8 +205,10 @@ export default function NotificationBell() {
                     )}
                   </div>
                 </div>
-              </div>
-            ))
+              </motion.div>
+              );
+            }
+            )
           ) : (
             /* Empty State */
             <div className="p-8 text-center">
@@ -188,6 +219,7 @@ export default function NotificationBell() {
               </p>
             </div>
           )}
+          </AnimatePresence>
         </div>
 
         {/* Footer */}

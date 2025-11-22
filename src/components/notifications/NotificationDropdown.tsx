@@ -3,8 +3,12 @@
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { formatDistanceToNow } from 'date-fns';
-import { X, Check, Trash2, Bell, ExternalLink } from 'lucide-react';
+import { X, Check, Trash2, Bell, ExternalLink, Volume2, VolumeX } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { NotificationIcon, getPriorityColorClasses } from '@/lib/notificationIcons';
+import { playNotificationSound, setSoundEnabled, isSoundEnabled } from '@/lib/notificationSounds';
+import { useState } from 'react';
 
 interface Props {
   onClose: () => void;
@@ -12,12 +16,21 @@ interface Props {
 
 export function NotificationDropdown({ onClose }: Props) {
   const router = useRouter();
+  const [soundOn, setSoundOn] = useState(isSoundEnabled());
+  
   const notifications = useQuery(api.notifications.getAllUserNotifications, { 
     limit: 10 
   });
   const markAsRead = useMutation(api.notifications.markNotificationRead);
   const markAllRead = useMutation(api.notifications.markAllNotificationsRead);
   const deleteNotification = useMutation(api.notifications.deleteNotification);
+  
+  const toggleSound = () => {
+    const newState = !soundOn;
+    setSoundOn(newState);
+    setSoundEnabled(newState);
+    if (newState) playNotificationSound('medium');
+  };
 
   const handleNotificationClick = async (notification: any) => {
     // Mark as read
@@ -38,70 +51,9 @@ export function NotificationDropdown({ onClose }: Props) {
     }
   };
 
-  const getNotificationIcon = (type: string, category?: string) => {
-    // Use category first if available
-    if (category) {
-      switch (category) {
-        case 'task_assigned':
-        case 'task':
-          return '📋';
-        case 'task_removed':
-          return '❌';
-        case 'task_updated':
-          return '✏️';
-        case 'message':
-        case 'chat':
-          return '💬';
-        case 'project_announcement':
-          return '📢';
-        case 'project_alert':
-          return '🚨';
-        case 'deadline':
-          return '⏰';
-        default:
-          break;
-      }
-    }
-    
-    // Fallback to type
-    switch (type) {
-      case 'task_assigned':
-        return '📋';
-      case 'task_completed':
-        return '✅';
-      case 'task_verified':
-        return '✔️';
-      case 'task_rejected':
-        return '❌';
-      case 'error':
-        return '❌';
-      case 'warning':
-        return '⚠️';
-      case 'success':
-        return '✅';
-      case 'welcome':
-        return '👋';
-      default:
-        return '🔔';
-    }
-  };
+  // Removed - now using NotificationIcon component from @/lib/notificationIcons
 
-  const getPriorityColor = (priority?: string, isRead?: boolean) => {
-    const baseOpacity = isRead ? '5' : '10';
-    
-    switch (priority) {
-      case 'urgent':
-        return `bg-red-500/${baseOpacity} border-l-red-500`;
-      case 'high':
-        return `bg-orange-500/${baseOpacity} border-l-orange-500`;
-      case 'medium':
-        return `bg-teal-500/${baseOpacity} border-l-teal-500`;
-      case 'low':
-        return `bg-gray-500/${baseOpacity} border-l-gray-500`;
-      default:
-        return isRead ? '' : `bg-teal-500/${baseOpacity} border-l-teal-500`;
-    }
-  };
+  // Removed - now using getPriorityColorClasses from @/lib/notificationIcons
 
   return (
     <div className="absolute right-0 mt-2 w-96 bg-gray-800 border border-gray-700 rounded-lg shadow-2xl z-50 max-h-[600px] overflow-hidden flex flex-col">
@@ -112,6 +64,15 @@ export function NotificationDropdown({ onClose }: Props) {
           Notifications
         </h3>
         <div className="flex items-center gap-2">
+          {/* Sound Toggle */}
+          <button
+            onClick={toggleSound}
+            className="text-gray-400 hover:text-teal-400 transition-colors"
+            title={soundOn ? 'Mute notifications' : 'Enable sounds'}
+          >
+            {soundOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+          </button>
+          
           {notifications && notifications.some(n => !n.isRead) && (
             <button
               onClick={() => markAllRead()}
@@ -134,18 +95,28 @@ export function NotificationDropdown({ onClose }: Props) {
 
       {/* Notifications List */}
       <div className="overflow-y-auto flex-1">
+        <AnimatePresence>
         {notifications && notifications.length > 0 ? (
-          notifications.map((notification) => (
-            <div
+          notifications.map((notification) => {
+            const priorityColors = getPriorityColorClasses(notification.metadata?.priority, notification.isRead);
+            return (
+            <motion.div
               key={notification._id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.2 }}
               className={`p-4 border-b border-gray-700 hover:bg-gray-700/50 transition-all cursor-pointer border-l-4 ${
-                getPriorityColor(notification.metadata?.priority, notification.isRead)
-              } ${!notification.isRead ? 'bg-teal-500/5' : ''}`}
+                priorityColors.background} ${priorityColors.border} ${!notification.isRead ? 'bg-teal-500/5' : ''}`}
               onClick={() => handleNotificationClick(notification)}
             >
               <div className="flex items-start gap-3">
-                <div className="text-2xl flex-shrink-0">
-                  {getNotificationIcon(notification.type, notification.category || notification.metadata?.category)}
+                <div className="flex-shrink-0">
+                  <NotificationIcon 
+                    type={notification.type} 
+                    category={notification.category || notification.metadata?.category}
+                    size={24}
+                  />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
@@ -176,20 +147,17 @@ export function NotificationDropdown({ onClose }: Props) {
                   </div>
                   {notification.metadata?.priority && (
                     <div className="mt-2">
-                      <span className={`text-xs px-2 py-0.5 rounded ${
-                        notification.metadata.priority === 'urgent' ? 'bg-red-500/20 text-red-400' :
-                        notification.metadata.priority === 'high' ? 'bg-orange-500/20 text-orange-400' :
-                        notification.metadata.priority === 'medium' ? 'bg-teal-500/20 text-teal-400' :
-                        'bg-gray-500/20 text-gray-400'
-                      }`}>
-                        {notification.metadata.priority}
+                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${priorityColors.badge}`}>
+                        {notification.metadata.priority.toUpperCase()}
                       </span>
                     </div>
                   )}
                 </div>
               </div>
-            </div>
-          ))
+            </motion.div>
+            );
+          }
+          )
         ) : (
           <div className="p-8 text-center text-gray-500">
             <Bell className="w-12 h-12 mx-auto mb-3 opacity-50" />
@@ -197,6 +165,7 @@ export function NotificationDropdown({ onClose }: Props) {
             <p className="text-sm mt-1">You're all caught up!</p>
           </div>
         )}
+        </AnimatePresence>
       </div>
 
       {/* Footer */}
