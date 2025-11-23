@@ -27,7 +27,8 @@ export const getFeaturedProjects = query({
           .withIndex("by_project", (q) => q.eq("projectId", project._id))
           .take(100);
 
-        const completedTasks = tasks.filter((t) => t.status === "done").length;
+        // Count completed tasks (status === 'done' or completed === true)
+        const completedTasks = tasks.filter((t) => t.status === "done" || t.completed === true).length;
 
         // Get team member details
         const teamMembers = await Promise.all(

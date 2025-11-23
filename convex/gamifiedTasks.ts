@@ -633,7 +633,8 @@ export const getProjectStats = query({
       .filter((q) => q.eq(q.field("projectId"), args.projectId))
       .collect();
 
-    const completed = tasks.filter(t => t.status === "completed");
+    // Count completed tasks (status === 'done' or 'completed' or completed === true)
+    const completed = tasks.filter(t => t.status === "done" || t.status === "completed" || t.completed === true);
     const total = tasks.length;
 
     // Calculate gamification stats

@@ -414,10 +414,10 @@ export const getMilestoneDetails = query({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    if (!identity) return null; // Return null instead of throwing error
 
     const milestone = await ctx.db.get(args.milestoneId);
-    if (!milestone) throw new Error("Milestone not found");
+    if (!milestone) return null; // Return null if milestone not found
 
     const tasks = await ctx.db
       .query("tasks")

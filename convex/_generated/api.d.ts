@@ -16,6 +16,7 @@ import type {
 import type * as achievementNotifications from "../achievementNotifications.js";
 import type * as achievements from "../achievements.js";
 import type * as activity from "../activity.js";
+import type * as adminActions from "../adminActions.js";
 import type * as adminUserManagement from "../adminUserManagement.js";
 import type * as attendance from "../attendance.js";
 import type * as auditLogs from "../auditLogs.js";
@@ -80,6 +81,7 @@ import type * as productivity from "../productivity.js";
 import type * as projectBudget from "../projectBudget.js";
 import type * as projectExpenses from "../projectExpenses.js";
 import type * as projectFeedback from "../projectFeedback.js";
+import type * as projectProgressMigration from "../projectProgressMigration.js";
 import type * as projects from "../projects.js";
 import type * as publicStats from "../publicStats.js";
 import type * as pushNotifications from "../pushNotifications.js";
@@ -121,6 +123,7 @@ declare const fullApi: ApiFromModules<{
   achievementNotifications: typeof achievementNotifications;
   achievements: typeof achievements;
   activity: typeof activity;
+  adminActions: typeof adminActions;
   adminUserManagement: typeof adminUserManagement;
   attendance: typeof attendance;
   auditLogs: typeof auditLogs;
@@ -185,6 +188,7 @@ declare const fullApi: ApiFromModules<{
   projectBudget: typeof projectBudget;
   projectExpenses: typeof projectExpenses;
   projectFeedback: typeof projectFeedback;
+  projectProgressMigration: typeof projectProgressMigration;
   projects: typeof projects;
   publicStats: typeof publicStats;
   pushNotifications: typeof pushNotifications;

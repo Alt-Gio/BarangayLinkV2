@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 
 /**
@@ -156,6 +156,11 @@ export const createTask = mutation({
       isBlocking: false,
     });
 
+    // Sync project progress
+    await ctx.scheduler.runAfter(0, "tasks:syncProjectProgress" as any, {
+      projectId: args.projectId,
+    });
+
     return taskId;
   },
 });
@@ -193,6 +198,13 @@ export const completeTask = mutation({
       completionCount: task.completionCount + 1,
       lastCompleted: Date.now(),
     });
+
+    // Sync project progress if task is linked to a project
+    if (task.projectId) {
+      await ctx.scheduler.runAfter(0, "tasks:syncProjectProgress" as any, {
+        projectId: task.projectId,
+      });
+    }
 
     // Update user stats
     let stats = await ctx.db
@@ -286,6 +298,13 @@ export const uncompleteTask = mutation({
       completedAt: undefined,
     });
 
+    // Sync project progress if task is linked to a project
+    if (task.projectId) {
+      await ctx.scheduler.runAfter(0, "tasks:syncProjectProgress" as any, {
+        projectId: task.projectId,
+      });
+    }
+
     return { success: true };
   },
 });
@@ -312,7 +331,16 @@ export const deleteTask = mutation({
     if (!task) throw new Error("Task not found");
     if (task.userId !== user._id) throw new Error("Not authorized");
 
+    const projectId = task.projectId;
+    
     await ctx.db.delete(args.taskId);
+
+    // Sync project progress if task was linked to a project
+    if (projectId) {
+      await ctx.scheduler.runAfter(0, "tasks:syncProjectProgress" as any, {
+        projectId: projectId,
+      });
+    }
 
     return { success: true };
   },
@@ -467,7 +495,50 @@ export const updateTask = mutation({
     // Update the task
     await ctx.db.patch(args.taskId, updates);
 
+    // Sync project progress if status or completed changed and task is linked to a project
+    if ((args.status !== undefined || args.completed !== undefined) && task.projectId) {
+      await ctx.scheduler.runAfter(0, "tasks:syncProjectProgress" as any, {
+        projectId: task.projectId,
+      });
+    }
+
     return { success: true };
+  },
+});
+
+/**
+ * HELPER: Calculate and update project progress based on tasks
+ * This is called automatically when tasks are created, updated, or deleted
+ */
+export const syncProjectProgress = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+  },
+  handler: async (ctx, args) => {
+    // Get all tasks for this project
+    const tasks = await ctx.db
+      .query("tasks")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+
+    if (tasks.length === 0) {
+      // No tasks, set progress to 0
+      await ctx.db.patch(args.projectId, { progress: 0 });
+      return { progress: 0, totalTasks: 0, completedTasks: 0 };
+    }
+
+    // Count completed tasks (status === 'done' or 'completed' or completed === true)
+    const completedTasks = tasks.filter(
+      (t) => t.status === "done" || t.status === "completed" || t.completed === true
+    ).length;
+
+    // Calculate progress percentage
+    const progress = Math.round((completedTasks / tasks.length) * 100);
+
+    // Update project progress field
+    await ctx.db.patch(args.projectId, { progress });
+
+    return { progress, totalTasks: tasks.length, completedTasks };
   },
 });
 
