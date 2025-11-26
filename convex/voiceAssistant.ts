@@ -1082,169 +1082,40 @@ export const transcribeAudioInternal = internalAction({
 
 // Direct command patterns for fast matching (bypass AI for common commands)
 const DIRECT_COMMANDS: { patterns: RegExp[]; action: string; response: string; params?: Record<string, string> }[] = [
-  // === TASK TIMER COMMANDS ===
-  {
-    patterns: [
-      /stop\s*(my|the)?\s*timer/i,
-      /itigil\s*(mo|na)?\s*(ang|yung)?\s*timer/i,
-      /stop\s*working/i,
-      /tigil\s*na/i,
-      /end\s*task/i,
-      /clock\s*out\s*(from|on|sa)?\s*(my|the|current|this)?\s*task/i,
-      /out\s*na\s*(sa|from)?\s*task/i,
-      /stop\s*task/i,
-    ],
-    action: "stop_task_timer",
-    response: "Stopping your task timer now!",
-  },
-  {
-    patterns: [
-      /what\s*(am\s*i|task)?\s*working\s*on/i,
-      /anong\s*task\s*ko/i,
-      /current\s*task/i,
-      /ano\s*(yung|ang)?\s*ginagawa\s*ko/i,
-    ],
-    action: "check_current_task",
-    response: "Let me check your current task...",
-  },
-  // === CLOCK IN/OUT COMMANDS ===
-  {
-    patterns: [/^clock\s*in$/i, /^time\s*in$/i, /^pasok\s*(na)?$/i, /^pumasok\s*(na)?$/i],
-    action: "clock_in",
-    response: "Clocking you in!",
-  },
-  {
-    patterns: [/^clock\s*out$/i, /^time\s*out$/i, /^uwi\s*na$/i, /^out\s*na$/i],
-    action: "clock_out",
-    response: "Clocking you out!",
-  },
-  // === NAVIGATION COMMANDS ===
-  // Dashboard
-  {
-    patterns: [/go\s*(to)?\s*(the)?\s*dashboard/i, /open\s*dashboard/i, /punta\s*(sa)?\s*dashboard/i, /show\s*(me)?\s*(the)?\s*dashboard/i],
-    action: "navigate",
-    response: "Going to Dashboard!",
-    params: { route: "/dashboard" },
-  },
-  // Main Dashboard / Home
-  {
-    patterns: [/go\s*(to)?\s*(the)?\s*home/i, /go\s*home/i, /punta\s*(sa)?\s*home/i, /main\s*page/i],
-    action: "navigate",
-    response: "Going to Home!",
-    params: { route: "/dashboard" },
-  },
-  // Analytics
-  {
-    patterns: [/go\s*(to)?\s*(the)?\s*analytics/i, /open\s*analytics/i, /show\s*(me)?\s*analytics/i, /punta\s*(sa)?\s*analytics/i],
-    action: "navigate",
-    response: "Going to Analytics!",
-    params: { route: "/dashboard/analytics" },
-  },
-  // Projects / Productivity
-  {
-    patterns: [/go\s*(to)?\s*(the)?\s*projects?/i, /open\s*projects?/i, /show\s*(me)?\s*(my)?\s*projects?/i, /punta\s*(sa)?\s*projects?/i, /productivity/i],
-    action: "navigate",
-    response: "Going to Projects!",
-    params: { route: "/productivity" },
-  },
-  // Events
-  {
-    patterns: [/go\s*(to)?\s*(the)?\s*events?/i, /open\s*events?/i, /show\s*(me)?\s*(the)?\s*events?/i, /punta\s*(sa)?\s*events?/i],
-    action: "navigate",
-    response: "Going to Events!",
-    params: { route: "/events" },
-  },
-  // Messages
-  {
-    patterns: [/go\s*(to)?\s*(the)?\s*messages?/i, /open\s*messages?/i, /show\s*(me)?\s*(my)?\s*messages?/i, /punta\s*(sa)?\s*messages?/i, /chat/i],
-    action: "navigate",
-    response: "Going to Messages!",
-    params: { route: "/messages" },
-  },
-  // Notifications
-  {
-    patterns: [/go\s*(to)?\s*(the)?\s*notifications?/i, /open\s*notifications?/i, /show\s*(me)?\s*(my)?\s*notifications?/i, /punta\s*(sa)?\s*notifications?/i],
-    action: "navigate",
-    response: "Going to Notifications!",
-    params: { route: "/notifications" },
-  },
-  // Documents
-  {
-    patterns: [/go\s*(to)?\s*(the)?\s*documents?/i, /open\s*documents?/i, /show\s*(me)?\s*(the)?\s*documents?/i, /punta\s*(sa)?\s*documents?/i, /files?/i],
-    action: "navigate",
-    response: "Going to Documents!",
-    params: { route: "/documents" },
-  },
-  // Collaboration
-  {
-    patterns: [/go\s*(to)?\s*(the)?\s*collaborat(ion|e)/i, /open\s*collaborat(ion|e)/i, /collab/i],
-    action: "navigate",
-    response: "Going to Collaboration!",
-    params: { route: "/collaboration" },
-  },
-  // Profile
-  {
-    patterns: [/go\s*(to)?\s*(my)?\s*profile/i, /open\s*(my)?\s*profile/i, /show\s*(me)?\s*(my)?\s*profile/i, /punta\s*(sa)?\s*profile/i],
-    action: "navigate",
-    response: "Going to your Profile!",
-    params: { route: "/profile" },
-  },
-  // Settings (Admin)
-  {
-    patterns: [/go\s*(to)?\s*(the)?\s*settings?/i, /open\s*settings?/i, /punta\s*(sa)?\s*settings?/i],
-    action: "navigate",
-    response: "Going to Settings!",
-    params: { route: "/admin/settings" },
-  },
-  // Users / Accounts (Admin)
-  {
-    patterns: [/go\s*(to)?\s*(the)?\s*users?/i, /open\s*users?/i, /manage\s*users?/i, /accounts?/i],
-    action: "navigate",
-    response: "Going to User Management!",
-    params: { route: "/admin/users" },
-  },
-  // Pending Approvals (Admin)
-  {
-    patterns: [/go\s*(to)?\s*(the)?\s*pending\s*approvals?/i, /pending\s*accounts?/i, /approvals?/i],
-    action: "navigate",
-    response: "Going to Pending Approvals!",
-    params: { route: "/admin/pending-approvals" },
-  },
-  // Milestones / Kanban
-  {
-    patterns: [/go\s*(to)?\s*(the)?\s*milestones?/i, /open\s*milestones?/i, /kanban/i, /sprint\s*board/i],
-    action: "navigate",
-    response: "Going to Milestones!",
-    params: { route: "/milestones/kanban" },
-  },
-  // Team Workload
-  {
-    patterns: [/go\s*(to)?\s*(the)?\s*team\s*workload/i, /workload/i, /team\s*tasks?/i],
-    action: "navigate",
-    response: "Going to Team Workload!",
-    params: { route: "/dashboard/team-workload" },
-  },
-  // Residents (Admin)
-  {
-    patterns: [/go\s*(to)?\s*(the)?\s*residents?/i, /open\s*residents?/i, /manage\s*residents?/i],
-    action: "navigate",
-    response: "Going to Residents!",
-    params: { route: "/admin/residents" },
-  },
-  // Households (Admin)
-  {
-    patterns: [/go\s*(to)?\s*(the)?\s*households?/i, /open\s*households?/i, /manage\s*households?/i],
-    action: "navigate",
-    response: "Going to Households!",
-    params: { route: "/admin/households" },
-  },
-  // Certificates (Admin)
-  {
-    patterns: [/go\s*(to)?\s*(the)?\s*certificates?/i, /open\s*certificates?/i],
-    action: "navigate",
-    response: "Going to Certificates!",
-    params: { route: "/admin/certificates" },
-  },
+  // === TIMER ===
+  { patterns: [/stop\s*(my|the)?\s*timer/i, /itigil.*timer/i, /stop\s*working/i, /end\s*task/i, /stop\s*task/i], action: "stop_task_timer", response: "Stopping your timer!" },
+  { patterns: [/what.*working\s*on/i, /current\s*task/i, /anong\s*task/i, /ano.*ginagawa/i], action: "check_current_task", response: "Checking..." },
+  // === CLOCK ===
+  { patterns: [/clock\s*in/i, /time\s*in/i, /pasok/i, /pumasok/i], action: "clock_in", response: "Clocking in!" },
+  { patterns: [/^clock\s*out$/i, /^time\s*out$/i, /^uwi\s*na$/i, /^out\s*na$/i], action: "clock_out", response: "Clocking out!" },
+  { patterns: [/check.*status/i, /work\s*status/i, /am\s*i\s*clocked/i, /naka.*clock/i], action: "check_work_status", response: "Checking status..." },
+  // === TASKS ===
+  { patterns: [/my\s*tasks?/i, /list\s*tasks?/i, /mga\s*task/i, /show\s*tasks?/i], action: "list_tasks", response: "Here are your tasks..." },
+  { patterns: [/due\s*today/i, /today.*due/i, /ano.*due.*today/i, /tasks?\s*today/i], action: "check_due_today", response: "Checking what's due..." },
+  // === SCHEDULE & NOTIFICATIONS ===
+  { patterns: [/my\s*schedule/i, /check\s*schedule/i, /ano.*schedule/i, /today.*schedule/i], action: "check_schedule", response: "Checking schedule..." },
+  { patterns: [/notification/i, /mga\s*notif/i, /unread/i, /alerts?/i], action: "check_notifications", response: "Checking notifications..." },
+  // === PROJECTS ===
+  { patterns: [/my\s*projects?/i, /list\s*projects?/i, /mga\s*project/i], action: "list_projects", response: "Here are your projects..." },
+  // === NAVIGATION (compact) ===
+  { patterns: [/go.*(to\s*)?(the\s*)?dashboard/i, /open\s*dashboard/i], action: "navigate", response: "Going to Dashboard!", params: { route: "/dashboard" } },
+  { patterns: [/go.*(to\s*)?home/i, /main\s*page/i], action: "navigate", response: "Going home!", params: { route: "/dashboard" } },
+  { patterns: [/go.*analytics/i, /open\s*analytics/i], action: "navigate", response: "Opening Analytics!", params: { route: "/dashboard/analytics" } },
+  { patterns: [/go.*project/i, /open\s*project/i, /productivity/i], action: "navigate", response: "Opening Projects!", params: { route: "/productivity" } },
+  { patterns: [/go.*event/i, /open\s*event/i], action: "navigate", response: "Opening Events!", params: { route: "/events" } },
+  { patterns: [/go.*message/i, /open\s*message/i, /chat/i], action: "navigate", response: "Opening Messages!", params: { route: "/messages" } },
+  { patterns: [/go.*notif/i, /open\s*notif/i], action: "navigate", response: "Opening Notifications!", params: { route: "/notifications" } },
+  { patterns: [/go.*document/i, /open\s*document/i, /files?/i], action: "navigate", response: "Opening Documents!", params: { route: "/documents" } },
+  { patterns: [/go.*collab/i, /open\s*collab/i], action: "navigate", response: "Opening Collaboration!", params: { route: "/collaboration" } },
+  { patterns: [/go.*profile/i, /open\s*profile/i, /my\s*profile/i], action: "navigate", response: "Opening Profile!", params: { route: "/profile" } },
+  { patterns: [/go.*setting/i, /open\s*setting/i], action: "navigate", response: "Opening Settings!", params: { route: "/admin/settings" } },
+  { patterns: [/go.*user/i, /manage\s*user/i, /accounts/i], action: "navigate", response: "Opening Users!", params: { route: "/admin/users" } },
+  { patterns: [/pending.*approval/i, /approval/i], action: "navigate", response: "Opening Approvals!", params: { route: "/admin/pending-approvals" } },
+  { patterns: [/go.*milestone/i, /kanban/i, /sprint/i], action: "navigate", response: "Opening Milestones!", params: { route: "/milestones/kanban" } },
+  { patterns: [/team.*workload/i, /workload/i], action: "navigate", response: "Opening Workload!", params: { route: "/dashboard/team-workload" } },
+  { patterns: [/go.*resident/i, /manage\s*resident/i], action: "navigate", response: "Opening Residents!", params: { route: "/admin/residents" } },
+  { patterns: [/go.*household/i, /manage\s*household/i], action: "navigate", response: "Opening Households!", params: { route: "/admin/households" } },
+  { patterns: [/go.*certificate/i, /open\s*certificate/i], action: "navigate", response: "Opening Certificates!", params: { route: "/admin/certificates" } },
 ];
 
 // Match direct commands before AI processing
