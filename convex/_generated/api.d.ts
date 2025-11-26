@@ -109,6 +109,7 @@ import type * as userLevels from "../userLevels.js";
 import type * as userSessions from "../userSessions.js";
 import type * as userStats from "../userStats.js";
 import type * as users from "../users.js";
+import type * as voiceAssistant from "../voiceAssistant.js";
 import type * as workTimerNotifications from "../workTimerNotifications.js";
 
 /**
@@ -216,6 +217,7 @@ declare const fullApi: ApiFromModules<{
   userSessions: typeof userSessions;
   userStats: typeof userStats;
   users: typeof users;
+  voiceAssistant: typeof voiceAssistant;
   workTimerNotifications: typeof workTimerNotifications;
 }>;
 export declare const api: FilterApi<

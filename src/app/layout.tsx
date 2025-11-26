@@ -19,6 +19,7 @@ import { Toaster } from 'sonner'
 import { PresenceTracker } from '@/components/common/PresenceTracker'
 import { NotificationPermissionPrompt } from '@/components/notifications/NotificationPermissionPrompt'
 import { NotificationListener } from '@/components/notifications/NotificationListener'
+import { VoiceAssistantProvider } from '@/components/voice/VoiceAssistantProvider'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -106,6 +107,7 @@ export default function RootLayout({
                   <OfflineDebugger />
                   <BottomNav />
                   <InstallPrompt />
+                  <VoiceAssistantProvider>{null}</VoiceAssistantProvider>
                 </SidebarProvider>
               </OfflineDataProvider>
             </DatabaseConnectionProvider>

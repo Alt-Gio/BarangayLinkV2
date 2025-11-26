@@ -84,6 +84,7 @@ export const importCommittees = internalMutation({
         chairman: committee.chairman,
         chairmanPosition: committee.position,
         description: "",
+        category: "general", // Default category for imported committees
         members: [],
         isActive: committee.isActive,
         createdAt: Date.now(),

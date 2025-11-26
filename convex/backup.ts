@@ -89,7 +89,7 @@ export const createFullBackup = action({
       };
       
       // Extract function references using bracket notation to bypass type inference
-      // @ts-expect-error - Convex generated types cause excessive depth, suppressing
+      // @ts-expect-error - Type instantiation is excessively deep
       const backupModule = internal.backup as any;
       const exportUsers = backupModule['exportUsers'];
       const exportDepartments = backupModule['exportDepartments'];
