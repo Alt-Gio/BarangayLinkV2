@@ -12,7 +12,6 @@ import { PageTransition } from '@/components/common/PageTransition'
 import { SidebarProvider } from '@/contexts/SidebarContext'
 import { OfflineDataProvider } from '@/contexts/OfflineDataContext'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
-import { OfflineDebugger } from '@/components/OfflineDebugger'
 import { ServiceWorkerRegistration } from '@/components/common/ServiceWorkerRegistration'
 import { env } from '@/config/env'
 import { Toaster } from 'sonner'
@@ -106,7 +105,6 @@ export default function RootLayout({
                   <Toaster position="top-right" richColors />
                   <DatabaseStatusIndicator />
                   <OfflineIndicator />
-                  <OfflineDebugger />
                   <BottomNav />
                   <InstallPrompt />
                 </SidebarProvider>
