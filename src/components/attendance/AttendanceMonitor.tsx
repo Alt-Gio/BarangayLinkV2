@@ -18,6 +18,8 @@ import {
   Download,
   Camera,
   Scan,
+  Sparkles,
+  Hand,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Id } from "../../../convex/_generated/dataModel";
@@ -25,6 +27,8 @@ import { QRScannerInput } from "./QRScannerInput";
 import { CameraQRScanner } from "./CameraQRScanner";
 import { QRCodeGenerator } from "./QRCodeGenerator";
 import { ManualInviteModal } from "./ManualInviteModal";
+import { LiveAttendanceDashboard } from "./LiveAttendanceDashboard";
+import { SmartVisionModal } from "./SmartVisionModal";
 
 interface AttendanceMonitorProps {
   eventId: Id<"events">;
@@ -32,13 +36,15 @@ interface AttendanceMonitorProps {
 }
 
 export function AttendanceMonitor({ eventId, eventTitle }: AttendanceMonitorProps) {
-  const [view, setView] = useState<"scanner" | "list">("scanner");
+  const [view, setView] = useState<"scanner" | "list" | "easyAttendance">("scanner");
   const [scannerType, setScannerType] = useState<"physical" | "camera">("physical");
   const [searchTerm, setSearchTerm] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showSmartVision, setShowSmartVision] = useState(false);
 
   const attendance = useQuery(api.attendance.getEventAttendance, { eventId });
   const recentCheckIns = useQuery(api.attendance.getRecentCheckIns, { eventId, limit: 5 });
+  const liveFeed = useQuery(api.events.getLiveGuestFeed, { eventId });
   
   const checkInManual = useMutation(api.attendance.checkInManual);
   const undoCheckIn = useMutation(api.attendance.undoCheckIn);
@@ -129,7 +135,7 @@ export function AttendanceMonitor({ eventId, eventTitle }: AttendanceMonitorProp
 
       {/* View Toggle & Actions */}
       <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
-        <div className="flex gap-2 bg-gray-800 p-1 rounded-lg w-fit">
+        <div className="flex gap-2 bg-gray-800 p-1 rounded-lg w-fit flex-wrap">
           <Button
             onClick={() => setView("scanner")}
             variant={view === "scanner" ? "default" : "ghost"}
@@ -146,13 +152,34 @@ export function AttendanceMonitor({ eventId, eventTitle }: AttendanceMonitorProp
             <Users className="w-4 h-4 mr-2" />
             Attendee List
           </Button>
+          {liveFeed?.enableEasyAttendance && (
+            <Button
+              onClick={() => setView("easyAttendance")}
+              variant={view === "easyAttendance" ? "default" : "ghost"}
+              className={view === "easyAttendance" ? "bg-gradient-to-r from-emerald-600 to-blue-600" : ""}
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Easy Attendance
+            </Button>
+          )}
         </div>
 
-        <ManualInviteModal
-          eventId={eventId}
-          eventTitle={eventTitle}
-          onSuccess={() => setRefreshKey((k) => k + 1)}
-        />
+        <div className="flex gap-2">
+          {liveFeed?.enableSmartVision && (
+            <Button
+              onClick={() => setShowSmartVision(true)}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500"
+            >
+              <Hand className="w-4 h-4 mr-2" />
+              Smart Vision
+            </Button>
+          )}
+          <ManualInviteModal
+            eventId={eventId}
+            eventTitle={eventTitle}
+            onSuccess={() => setRefreshKey((k) => k + 1)}
+          />
+        </div>
       </div>
 
       {/* Scanner View */}
@@ -361,6 +388,24 @@ export function AttendanceMonitor({ eventId, eventTitle }: AttendanceMonitorProp
             </table>
           </div>
         </div>
+      )}
+
+      {/* Easy Attendance View */}
+      {view === "easyAttendance" && liveFeed?.enableEasyAttendance && (
+        <LiveAttendanceDashboard 
+          eventId={eventId} 
+          eventTitle={eventTitle} 
+        />
+      )}
+
+      {/* Smart Vision Modal */}
+      {liveFeed?.joinCode && (
+        <SmartVisionModal
+          isOpen={showSmartVision}
+          onClose={() => setShowSmartVision(false)}
+          eventId={eventId}
+          joinCode={liveFeed.joinCode}
+        />
       )}
     </div>
   );

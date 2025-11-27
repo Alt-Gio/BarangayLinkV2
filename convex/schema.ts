@@ -375,6 +375,22 @@ export default defineSchema({
     requiresApproval: v.boolean(),
     allowPublicRSVP: v.optional(v.boolean()), // Allow non-logged-in users to RSVP
     allowDocumentUpload: v.optional(v.boolean()), // Require document upload for RSVP (e.g., proof of citizenship)
+    // Easy Attendance System (name-only join via code/QR)
+    enableEasyAttendance: v.optional(v.boolean()),
+    joinCode: v.optional(v.string()), // 4-digit code for quick join
+    welcomeMessage: v.optional(v.string()), // Custom welcome message from organizer
+    checkInInfoText: v.optional(v.string()), // Info text displayed during check-in
+    // Smart Vision Capture (camera with hand detection)
+    enableSmartVision: v.optional(v.boolean()),
+    // Guest attendees (name-only, no account required)
+    guestAttendees: v.optional(v.array(v.object({
+      firstName: v.string(),
+      lastName: v.string(),
+      joinedAt: v.number(),
+      joinMethod: v.union(v.literal("code"), v.literal("qr"), v.literal("camera"), v.literal("scanner")),
+      photoUrl: v.optional(v.string()), // For Smart Vision captures
+      message: v.optional(v.string()), // Custom message from attendee
+    }))),
     status: v.union(v.literal("draft"), v.literal("pending"), v.literal("published"), v.literal("cancelled"), v.literal("archived")),
     projectId: v.optional(v.id("projects")), // Link event to project
     imageUrl: v.optional(v.string()), // Event image for visual documentation
@@ -399,7 +415,8 @@ export default defineSchema({
   .index("by_organizer", ["organizer"])
   .index("by_type", ["type"])
   .index("by_status", ["status"])
-  .index("by_project", ["projectId"]),
+  .index("by_project", ["projectId"])
+  .index("by_join_code", ["joinCode"]),
 
   // Habits system (Habitica-inspired)
   habits: defineTable({

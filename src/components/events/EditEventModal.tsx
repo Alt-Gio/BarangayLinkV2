@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { X, Calendar, Clock, MapPin, Users, AlertTriangle, Briefcase, MessageSquare, Globe, Upload, Image } from "lucide-react";
+import { X, Calendar, Clock, MapPin, Users, AlertTriangle, Briefcase, MessageSquare, Globe, Upload, Image, QrCode, Camera, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LocationPickerModal } from "@/components/shared/LocationPickerModal";
 
@@ -32,6 +32,8 @@ export function EditEventModal({ event, isOpen, onClose }: EditEventModalProps) 
     requiresApproval: false,
     allowPublicRSVP: false,
     allowDocumentUpload: false,
+    enableEasyAttendance: false,
+    enableSmartVision: false,
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,6 +64,8 @@ export function EditEventModal({ event, isOpen, onClose }: EditEventModalProps) 
         requiresApproval: event.requiresApproval ?? false,
         allowPublicRSVP: event.allowPublicRSVP ?? false,
         allowDocumentUpload: event.allowDocumentUpload ?? false,
+        enableEasyAttendance: event.enableEasyAttendance ?? false,
+        enableSmartVision: event.enableSmartVision ?? false,
       });
       
       // Set coordinates for location picker
@@ -153,6 +157,8 @@ export function EditEventModal({ event, isOpen, onClose }: EditEventModalProps) 
         requiresApproval: formData.requiresApproval,
         allowPublicRSVP: formData.allowPublicRSVP,
         allowDocumentUpload: formData.allowDocumentUpload,
+        enableEasyAttendance: formData.enableEasyAttendance,
+        enableSmartVision: formData.enableSmartVision,
       });
 
       onClose();
@@ -461,6 +467,58 @@ export function EditEventModal({ event, isOpen, onClose }: EditEventModalProps) 
                 <p className="text-gray-400 text-xs mt-1">Attendees must upload proof of citizenship/residency (max 5MB)</p>
               </div>
             </label>
+          </div>
+
+          {/* Demo Attendance Features */}
+          <div className="space-y-3 p-4 bg-gradient-to-r from-emerald-900/20 to-blue-900/20 rounded-lg border border-emerald-500/30">
+            <h4 className="text-emerald-400 font-semibold flex items-center gap-2 mb-3">
+              <Sparkles className="w-4 h-4" />
+              Demo Attendance Features
+            </h4>
+            
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.enableEasyAttendance}
+                onChange={(e) => setFormData({ ...formData, enableEasyAttendance: e.target.checked })}
+                className="w-5 h-5 rounded border-emerald-500/50 bg-emerald-500/10 text-emerald-600 focus:ring-2 focus:ring-emerald-500"
+              />
+              <div className="flex-1">
+                <span className="text-white font-medium flex items-center gap-2">
+                  <QrCode className="w-4 h-4 text-emerald-400" />
+                  Easy Attendance System
+                </span>
+                <p className="text-gray-400 text-xs mt-1">
+                  Generate 4-digit code & QR for instant check-in • No email required
+                </p>
+              </div>
+            </label>
+            
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.enableSmartVision}
+                onChange={(e) => setFormData({ ...formData, enableSmartVision: e.target.checked })}
+                className="w-5 h-5 rounded border-blue-500/50 bg-blue-500/10 text-blue-600 focus:ring-2 focus:ring-blue-500"
+              />
+              <div className="flex-1">
+                <span className="text-white font-medium flex items-center gap-2">
+                  <Camera className="w-4 h-4 text-blue-400" />
+                  Smart Vision Capture
+                </span>
+                <p className="text-gray-400 text-xs mt-1">
+                  Camera-based check-in with hand detection
+                </p>
+              </div>
+            </label>
+            
+            {(formData.enableEasyAttendance || formData.enableSmartVision) && (
+              <div className="mt-3 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+                <p className="text-emerald-300 text-xs">
+                  ✨ Visit the <strong>Attendees page</strong> to access the join code, QR code, and camera check-in features!
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Buttons */}

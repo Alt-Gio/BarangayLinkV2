@@ -25,6 +25,8 @@ export const createEvent = mutation({
     imageUrl: v.optional(v.string()),
     department: v.optional(v.string()),
     milestoneTaskCount: v.optional(v.number()), // For milestone events
+    enableEasyAttendance: v.optional(v.boolean()), // Easy attendance via code/QR
+    enableSmartVision: v.optional(v.boolean()), // Camera check-in with hand detection
   },
   handler: async (ctx, args) => {
     const currentUser = await checkPermission(ctx, ["ADMIN", "MANAGER", "BUILDER", "WORKER"]);
@@ -37,6 +39,21 @@ export const createEvent = mutation({
     // Builder (2) and Worker (1) events go to pending if requiresApproval is true
     // Manager (4) and Admin (5) events are published immediately
     const eventStatus = (userLevel < 4 && args.requiresApproval) ? "pending" : "published";
+    
+    // Generate join code if Easy Attendance is enabled
+    let joinCode: string | undefined;
+    if (args.enableEasyAttendance) {
+      let attempts = 0;
+      do {
+        joinCode = Math.floor(1000 + Math.random() * 9000).toString();
+        const existing = await ctx.db
+          .query("events")
+          .withIndex("by_join_code", q => q.eq("joinCode", joinCode))
+          .first();
+        if (!existing) break;
+        attempts++;
+      } while (attempts < 10);
+    }
     
     const eventId = await ctx.db.insert("events", {
       title: args.title,
@@ -59,6 +76,11 @@ export const createEvent = mutation({
       publicAttendees: [],
       attachments: [],
       milestoneTaskCount: args.milestoneTaskCount, // For milestones
+      // Easy Attendance & Smart Vision
+      enableEasyAttendance: args.enableEasyAttendance ?? false,
+      enableSmartVision: args.enableSmartVision ?? false,
+      joinCode: joinCode,
+      guestAttendees: [],
     });
 
     return eventId;
@@ -121,6 +143,8 @@ export const updateEvent = mutation({
     requiresApproval: v.optional(v.boolean()),
     allowPublicRSVP: v.optional(v.boolean()),
     allowDocumentUpload: v.optional(v.boolean()),
+    enableEasyAttendance: v.optional(v.boolean()),
+    enableSmartVision: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const currentUser = await getCurrentUser(ctx);
@@ -147,6 +171,23 @@ export const updateEvent = mutation({
     }
     
     const { eventId, ...updateData } = args;
+    
+    // Generate join code if enabling easy attendance for the first time
+    let joinCode = event.joinCode;
+    if (args.enableEasyAttendance && !joinCode) {
+      let attempts = 0;
+      do {
+        joinCode = Math.floor(1000 + Math.random() * 9000).toString();
+        const existing = await ctx.db
+          .query("events")
+          .withIndex("by_join_code", q => q.eq("joinCode", joinCode))
+          .first();
+        if (!existing) break;
+        attempts++;
+      } while (attempts < 10);
+      (updateData as any).joinCode = joinCode;
+    }
+    
     await ctx.db.patch(args.eventId, updateData);
     
     return args.eventId;
@@ -1073,5 +1114,203 @@ export const generateEventDocumentUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
     return await ctx.storage.generateUploadUrl();
+  },
+});
+
+// ============================================
+// EASY ATTENDANCE SYSTEM (Code/QR Join)
+// ============================================
+
+// Generate a unique 4-digit join code for an event
+export const generateJoinCode = mutation({
+  args: { eventId: v.id("events") },
+  handler: async (ctx, args) => {
+    const event = await ctx.db.get(args.eventId);
+    if (!event) throw new Error("Event not found");
+    
+    // Generate a unique 4-digit code
+    let code: string;
+    let attempts = 0;
+    do {
+      code = Math.floor(1000 + Math.random() * 9000).toString();
+      const existing = await ctx.db
+        .query("events")
+        .withIndex("by_join_code", q => q.eq("joinCode", code))
+        .first();
+      if (!existing) break;
+      attempts++;
+    } while (attempts < 10);
+    
+    await ctx.db.patch(args.eventId, { joinCode: code });
+    return code;
+  },
+});
+
+// Get event by join code (public - no auth required)
+export const getEventByJoinCode = query({
+  args: { joinCode: v.string() },
+  handler: async (ctx, args) => {
+    const event = await ctx.db
+      .query("events")
+      .withIndex("by_join_code", q => q.eq("joinCode", args.joinCode))
+      .first();
+    
+    if (!event) return null;
+    if (!event.enableEasyAttendance) return null;
+    if (event.status !== "published") return null;
+    
+    return {
+      _id: event._id,
+      title: event.title,
+      description: event.description,
+      startDate: event.startDate,
+      endDate: event.endDate,
+      location: event.location,
+      imageUrl: event.imageUrl,
+      guestCount: event.guestAttendees?.length || 0,
+      attendeeCount: event.attendees.length,
+      welcomeMessage: event.welcomeMessage,
+      checkInInfoText: event.checkInInfoText,
+    };
+  },
+});
+
+// Guest check-in via code or QR (no account needed)
+export const guestCheckIn = mutation({
+  args: {
+    joinCode: v.string(),
+    firstName: v.string(),
+    lastName: v.string(),
+    joinMethod: v.union(v.literal("code"), v.literal("qr"), v.literal("camera"), v.literal("scanner")),
+    photoUrl: v.optional(v.string()),
+    message: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const event = await ctx.db
+      .query("events")
+      .withIndex("by_join_code", q => q.eq("joinCode", args.joinCode))
+      .first();
+    
+    if (!event) throw new Error("Invalid join code");
+    if (!event.enableEasyAttendance) throw new Error("Easy attendance not enabled for this event");
+    if (event.status !== "published") throw new Error("Event is not active");
+    
+    // Check if guest already exists
+    const existingGuests = event.guestAttendees || [];
+    const alreadyJoined = existingGuests.find(
+      g => g.firstName.toLowerCase() === args.firstName.toLowerCase() && 
+           g.lastName.toLowerCase() === args.lastName.toLowerCase()
+    );
+    
+    if (alreadyJoined) {
+      throw new Error("You have already checked in to this event");
+    }
+    
+    // Add guest to event
+    const newGuest = {
+      firstName: args.firstName,
+      lastName: args.lastName,
+      joinedAt: Date.now(),
+      joinMethod: args.joinMethod,
+      photoUrl: args.photoUrl,
+      message: args.message,
+    };
+    
+    await ctx.db.patch(event._id, {
+      guestAttendees: [...existingGuests, newGuest],
+    });
+    
+    return {
+      success: true,
+      message: `Welcome, ${args.firstName}! You have successfully checked in.`,
+      eventTitle: event.title,
+      guestNumber: existingGuests.length + 1,
+      welcomeMessage: event.welcomeMessage,
+    };
+  },
+});
+
+// Get live guest feed for an event (for dashboard display)
+export const getLiveGuestFeed = query({
+  args: { eventId: v.id("events") },
+  handler: async (ctx, args) => {
+    const event = await ctx.db.get(args.eventId);
+    if (!event) return null;
+    
+    const guests = event.guestAttendees || [];
+    // Sort by most recent first
+    const sortedGuests = [...guests].sort((a, b) => b.joinedAt - a.joinedAt);
+    
+    return {
+      totalGuests: guests.length,
+      totalAttendees: event.attendees.length + guests.length,
+      recentGuests: sortedGuests.slice(0, 10), // Last 10 check-ins
+      joinCode: event.joinCode,
+      enableEasyAttendance: event.enableEasyAttendance,
+      enableSmartVision: event.enableSmartVision,
+      welcomeMessage: event.welcomeMessage,
+      checkInInfoText: event.checkInInfoText,
+    };
+  },
+});
+
+// Update event Easy Attendance settings
+export const updateEasyAttendanceSettings = mutation({
+  args: {
+    eventId: v.id("events"),
+    enableEasyAttendance: v.boolean(),
+    enableSmartVision: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await getCurrentUser(ctx);
+    const event = await ctx.db.get(args.eventId);
+    
+    if (!event) throw new Error("Event not found");
+    
+    // Generate join code if enabling easy attendance
+    let joinCode = event.joinCode;
+    if (args.enableEasyAttendance && !joinCode) {
+      let attempts = 0;
+      do {
+        joinCode = Math.floor(1000 + Math.random() * 9000).toString();
+        const existing = await ctx.db
+          .query("events")
+          .withIndex("by_join_code", q => q.eq("joinCode", joinCode))
+          .first();
+        if (!existing) break;
+        attempts++;
+      } while (attempts < 10);
+    }
+    
+    await ctx.db.patch(args.eventId, {
+      enableEasyAttendance: args.enableEasyAttendance,
+      enableSmartVision: args.enableSmartVision,
+      joinCode: args.enableEasyAttendance ? joinCode : undefined,
+      guestAttendees: event.guestAttendees || [],
+    });
+    
+    return { success: true, joinCode };
+  },
+});
+
+// Update event welcome message and check-in info
+export const updateEventWelcomeSettings = mutation({
+  args: {
+    eventId: v.id("events"),
+    welcomeMessage: v.optional(v.string()),
+    checkInInfoText: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await getCurrentUser(ctx);
+    const event = await ctx.db.get(args.eventId);
+    
+    if (!event) throw new Error("Event not found");
+    
+    await ctx.db.patch(args.eventId, {
+      welcomeMessage: args.welcomeMessage,
+      checkInInfoText: args.checkInInfoText,
+    });
+    
+    return { success: true };
   },
 });

@@ -3,7 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { Authenticated, Unauthenticated } from 'convex/react';
-import { SignInButton, UserButton } from '@clerk/nextjs';
+import { SignInButton, UserButton, useUser } from '@clerk/nextjs';
+import { UserCircle2, LogIn } from 'lucide-react';
 import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Button } from '@/components/ui/button';
@@ -82,8 +83,8 @@ function PublicLandingPage() {
   const [feedbackSuccess, setFeedbackSuccess] = useState(false);
 
   // Fetch real data
-  const featuredProjects = useQuery(api.landingPage.getFeaturedProjects, { limit: 6 });
-  const publicProjects = useQuery(api.landingPage.getFeaturedProjects, { limit: 9 });
+  const featuredProjects = useQuery(api.landingPage.getFeaturedProjects, { limit: 6 }) as any[] | undefined;
+  const publicProjects = useQuery(api.landingPage.getFeaturedProjects, { limit: 9 }) as any[] | undefined;
   const events = useQuery(api.events.getUpcomingEvents, { limit: 6 });
   const rsvpToEvent = useMutation(api.events.rsvpToEvent);
   const addAttendeeFromRSVP = useMutation(api.eventAttendees.addAttendeeFromRSVP);
@@ -399,11 +400,22 @@ function PublicLandingPage() {
               <a href="#projects" className="text-sm text-gray-300 hover:text-emerald-400 transition-colors">Projects</a>
               <a href="#events" className="text-sm text-gray-300 hover:text-emerald-400 transition-colors">Events</a>
               <a href="#map" className="text-sm text-gray-300 hover:text-emerald-400 transition-colors">Map</a>
-              <SignInButton>
-                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700">
-                  Sign In
+              <Link href="/join">
+                <Button size="sm" variant="outline" className="border-blue-500 text-blue-400 hover:bg-blue-500/20">
+                  Join Event
                 </Button>
-              </SignInButton>
+              </Link>
+              <Unauthenticated>
+                <SignInButton>
+                  <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+                    <LogIn className="w-4 h-4 mr-1" />
+                    Sign In
+                  </Button>
+                </SignInButton>
+              </Unauthenticated>
+              <Authenticated>
+                <UserButton afterSignOutUrl="/" />
+              </Authenticated>
             </div>
 
             {/* Mobile button */}
@@ -423,11 +435,25 @@ function PublicLandingPage() {
                 <a href="#projects" className="text-sm text-gray-300">Projects</a>
                 <a href="#events" className="text-sm text-gray-300">Events</a>
                 <a href="#map" className="text-sm text-gray-300">Map</a>
-                <SignInButton>
-                  <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 w-full">
-                    Sign In
+                <Link href="/join">
+                  <Button size="sm" variant="outline" className="border-blue-500 text-blue-400 hover:bg-blue-500/20 w-full">
+                    Join Event
                   </Button>
-                </SignInButton>
+                </Link>
+                <Unauthenticated>
+                  <SignInButton>
+                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 w-full">
+                      <LogIn className="w-4 h-4 mr-1" />
+                      Sign In
+                    </Button>
+                  </SignInButton>
+                </Unauthenticated>
+                <Authenticated>
+                  <div className="flex items-center gap-2">
+                    <UserButton afterSignOutUrl="/" />
+                    <span className="text-sm text-gray-300">Account</span>
+                  </div>
+                </Authenticated>
               </div>
             </div>
           )}
