@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, use } from 'react';
+import { useState, use, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { useOfflineData } from '@/contexts/OfflineDataContext';
@@ -51,6 +51,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useVoiceAssistantContext } from '@/components/voice/VoiceAssistantProvider';
 
 // Force dynamic rendering for project pages
 export const dynamic = 'force-dynamic';
@@ -61,6 +62,19 @@ interface ProjectPageProps {
 
 export default function ProjectPage({ params }: ProjectPageProps) {
   const { id } = use(params);
+  
+  // Set voice assistant context for this project
+  const { setVoiceContext } = useVoiceAssistantContext();
+  useEffect(() => {
+    if (id && id !== 'approval' && id !== 'create') {
+      console.log("ProjectPage: Setting voice context with projectId:", id);
+      setVoiceContext({ projectId: id as Id<"projects"> });
+    }
+    return () => {
+      console.log("ProjectPage: Clearing voice context");
+      setVoiceContext({});
+    };
+  }, [id, setVoiceContext]);
   
   // Check if this is a special route (not a project ID)
   if (id === 'approval' || id === 'create') {
@@ -888,8 +902,60 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             <div className="grid grid-cols-3 gap-6">
               {/* Project Details */}
               <Card className="col-span-2 bg-gray-800/50 border-gray-700/50">
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-white">Project Details</CardTitle>
+                  {!isEditing ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setIsEditing(true);
+                        setEditedData({
+                          status: project.status,
+                          startDate: new Date(project.startDate).toISOString().split('T')[0],
+                          endDate: new Date(project.endDate).toISOString().split('T')[0],
+                        });
+                      }}
+                      className="border-purple-500/50 text-purple-400 hover:bg-purple-500/20"
+                    >
+                      <Edit className="w-4 h-4 mr-1" />
+                      Edit
+                    </Button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            await updateProject({
+                              projectId: project._id as any,
+                              updates: {
+                                status: editedData.status,
+                                startDate: new Date(editedData.startDate).getTime(),
+                                endDate: new Date(editedData.endDate).getTime(),
+                              },
+                            });
+                            setIsEditing(false);
+                            toast.success('Project updated successfully!');
+                          } catch (error: any) {
+                            toast.error(error.message || 'Failed to update project');
+                          }
+                        }}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Save className="w-4 h-4 mr-1" />
+                        Save
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsEditing(false)}
+                        className="border-gray-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -898,16 +964,65 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                       <div className="text-white">{project.department}</div>
                     </div>
                     <div>
+                      <div className="text-sm text-gray-500 mb-1">Status</div>
+                      {isEditing ? (
+                        <select
+                          value={editedData.status}
+                          onChange={(e) => setEditedData({ ...editedData, status: e.target.value })}
+                          className="w-full bg-gray-900 border border-gray-700 text-white rounded-md px-3 py-1.5 focus:border-purple-500 focus:outline-none"
+                        >
+                          <option value="draft">📝 Draft</option>
+                          <option value="pending_approval">⏳ Pending Approval</option>
+                          <option value="approved">✅ Approved</option>
+                          <option value="active">🚀 Active</option>
+                          <option value="on_hold">⏸️ On Hold</option>
+                          <option value="completed">🎉 Completed</option>
+                          <option value="cancelled">❌ Cancelled</option>
+                          <option value="archived">📦 Archived</option>
+                        </select>
+                      ) : (
+                        <Badge className={`capitalize ${
+                          project.status === 'active' ? 'bg-green-500/20 text-green-400' :
+                          project.status === 'draft' ? 'bg-gray-500/20 text-gray-400' :
+                          project.status === 'completed' ? 'bg-blue-500/20 text-blue-400' :
+                          project.status === 'on_hold' ? 'bg-yellow-500/20 text-yellow-400' :
+                          project.status === 'cancelled' ? 'bg-red-500/20 text-red-400' :
+                          'bg-purple-500/20 text-purple-400'
+                        }`}>
+                          {project.status?.replace('_', ' ') || 'Draft'}
+                        </Badge>
+                      )}
+                    </div>
+                    <div>
                       <div className="text-sm text-gray-500 mb-1">Priority</div>
                       <Badge variant="outline" className="capitalize">{project.priority}</Badge>
                     </div>
                     <div>
                       <div className="text-sm text-gray-500 mb-1">Start Date</div>
-                      <div className="text-white">{new Date(project.startDate).toLocaleDateString()}</div>
+                      {isEditing ? (
+                        <Input
+                          type="date"
+                          value={editedData.startDate}
+                          onChange={(e) => setEditedData({ ...editedData, startDate: e.target.value })}
+                          className="bg-gray-900 border-gray-700 text-white"
+                        />
+                      ) : (
+                        <div className="text-white">{new Date(project.startDate).toLocaleDateString()}</div>
+                      )}
                     </div>
                     <div>
                       <div className="text-sm text-gray-500 mb-1">End Date</div>
-                      <div className="text-white">{new Date(project.endDate).toLocaleDateString()}</div>
+                      {isEditing ? (
+                        <Input
+                          type="date"
+                          value={editedData.endDate}
+                          min={editedData.startDate}
+                          onChange={(e) => setEditedData({ ...editedData, endDate: e.target.value })}
+                          className="bg-gray-900 border-gray-700 text-white"
+                        />
+                      ) : (
+                        <div className="text-white">{new Date(project.endDate).toLocaleDateString()}</div>
+                      )}
                     </div>
                   </div>
                   

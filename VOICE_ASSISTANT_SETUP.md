@@ -56,6 +56,16 @@ Once set up, users will see a floating green sparkle button (✨) in the bottom-
 | "Go to Analytics" | Navigate to Analytics |
 | "Go to Milestones" / "Kanban" | Navigate to Milestones board |
 | "Go to Team Workload" | Navigate to Team Workload |
+| "Go to Sprints" | Navigate to Sprints page |
+
+**🆕 Create Commands (Opens creation modals):**
+| Say This | Action |
+|----------|--------|
+| "Create a project" / "New project" | Opens Project creation dialog |
+| "Create an event" / "New event" | Opens Event creation modal |
+| "Create a milestone" / "New milestone" | Opens Milestone creation modal |
+| "Create task for event" | Navigates to select event for task |
+| "Create task for milestone" | Opens Milestones kanban for task |
 
 **⏱️ Task Timer Commands:**
 | Say This | Action |

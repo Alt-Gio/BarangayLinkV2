@@ -5,7 +5,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useOfflineData } from '@/contexts/OfflineDataContext';
 import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import RippleLoader from '@/components/ui/RippleLoader';
 import { 
   Calendar, 
@@ -45,6 +45,7 @@ type EventType = "all" | "meeting" | "community" | "project" | "emergency";
 export default function EventsPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [eventType, setEventType] = useState<EventType>("all");
@@ -58,6 +59,24 @@ export default function EventsPage() {
   
   // Get current user from offline context (cached, saves bandwidth)
   const { currentUser, isOnline } = useOfflineData();
+
+  // Voice assistant integration state
+  const [defaultEventTitle, setDefaultEventTitle] = useState("");
+
+  // Voice assistant integration: Auto-open create modal from URL params
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'create') {
+      // Check if title was provided via voice command
+      const title = searchParams.get('title');
+      if (title) {
+        setDefaultEventTitle(decodeURIComponent(title));
+      }
+      setIsCreateModalOpen(true);
+      // Clear the params from URL to prevent re-triggering
+      router.replace('/events', { scroll: false });
+    }
+  }, [searchParams, router]);
   
   // Mutations for event actions
   const archiveEvent = useMutation(api.events.archiveEvent);
@@ -521,7 +540,9 @@ export default function EventsPage() {
         onClose={() => {
           console.log('Closing Create Event modal');
           setIsCreateModalOpen(false);
+          setDefaultEventTitle(""); // Clear title on close
         }}
+        defaultTitle={defaultEventTitle}
       />
       
       {editingEvent && (

@@ -37,6 +37,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { Id } from '../../../../../convex/_generated/dataModel';
+import { useVoiceAssistantContext } from '@/components/voice/VoiceAssistantProvider';
 
 const taskTypeIcons: Record<string, string> = {
   story: '📖',
@@ -67,6 +68,21 @@ interface Column {
 export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const milestoneId = resolvedParams.id;
+
+  // Set voice assistant context for this milestone
+  const { setVoiceContext, voiceContext } = useVoiceAssistantContext();
+  
+  // Debug log on every render
+  console.log("🎯 MilestoneKanbanPage RENDER - milestoneId:", milestoneId, "current voiceContext:", voiceContext);
+  
+  useEffect(() => {
+    console.log("🎯 MilestoneKanbanPage useEffect RUNNING - milestoneId:", milestoneId);
+    setVoiceContext({ milestoneId: milestoneId as Id<"milestones"> });
+    return () => {
+      console.log("🎯 MilestoneKanbanPage CLEANUP");
+      setVoiceContext({});
+    };
+  }, [milestoneId, setVoiceContext]);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -112,6 +128,7 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
   
   const updateTaskStatus = useMutation(api.tasks.updateTask);
   const createTask = useMutation(api.tasks.createTask);
+  const deleteTask = useMutation(api.tasks.deleteTask);
 
   const removeTaskList = useMutation(api.kanbanColumns.removeTaskListColumns);
   const toggleWorkingOnIt = useMutation(api.tasks.toggleWorkingOnIt);
@@ -782,34 +799,12 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
 
         {/* Burndown View */}
         {view === 'burndown' && (
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="max-w-6xl mx-auto">
-              <div className="text-center py-12">
-                <TrendingDown className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-white mb-2">Burndown Chart</h3>
-                <p className="text-gray-400">Track daily progress towards milestone completion</p>
-                <div className="mt-8 bg-gray-800 rounded-lg p-8">
-                  <p className="text-gray-500">Burndown data coming soon...</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <BurndownView milestoneId={milestoneId as Id<"milestones">} />
         )}
 
         {/* Velocity View */}
         {view === 'velocity' && (
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="max-w-6xl mx-auto">
-              <div className="text-center py-12">
-                <BarChart3 className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-white mb-2">Velocity Chart</h3>
-                <p className="text-gray-400">Analyze team velocity across milestones</p>
-                <div className="mt-8 bg-gray-800 rounded-lg p-8">
-                  <p className="text-gray-500">Velocity data coming soon...</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <VelocityView milestoneId={milestoneId as Id<"milestones">} />
         )}
       </div>
 
@@ -820,6 +815,18 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
           isOpen={!!selectedTaskId}
           onClose={() => setSelectedTaskId(null)}
           onUpdate={() => {}}
+          teamMembers={milestone?.teamMembers || []}
+          currentUserId={currentUser?._id}
+          onDelete={async () => {
+            try {
+              await deleteTask({ taskId: selectedTask._id });
+              setSelectedTaskId(null);
+              toast.success(`Task "${selectedTask.title}" deleted`);
+            } catch (error) {
+              console.error('Failed to delete task:', error);
+              toast.error('Failed to delete task');
+            }
+          }}
         />
       )}
 
@@ -957,7 +964,14 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
                   className="w-full bg-gray-950 border border-gray-700 text-white mt-2 h-11 rounded-md px-3 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none cursor-pointer"
                 >
                   <option value="unassigned">👤 Unassigned</option>
-                  {currentUser && (
+                  {/* Show all team members from the project */}
+                  {milestone?.teamMembers?.map((member: any) => (
+                    <option key={member._id} value={member._id}>
+                      👤 {member.name} {member._id === currentUser?._id ? '(Me)' : ''}
+                    </option>
+                  ))}
+                  {/* Fallback to current user if no team members */}
+                  {(!milestone?.teamMembers || milestone.teamMembers.length === 0) && currentUser && (
                     <option value={currentUser._id}>👤 Me ({currentUser.name})</option>
                   )}
                 </select>
@@ -1142,5 +1156,273 @@ function TaskCard({ task, onToggleWorkingOnIt, currentUserId }: {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// Burndown View Component
+function BurndownView({ milestoneId }: { milestoneId: Id<"milestones"> }) {
+  const burndownData = useQuery(api.analytics.getMilestoneBurndown, { milestoneId });
+  
+  if (!burndownData) {
+    return (
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center py-12">
+            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-400">Loading burndown data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const { burndownData: chartData, totalTasks, completedTasks, remainingTasks, targetDate, projectedCompletion, isOnTrack, velocityPerDay } = burndownData;
+
+  return (
+    <div className="flex-1 overflow-y-auto p-4">
+      <div className="max-w-6xl mx-auto space-y-6">
+        {/* Header Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+            <p className="text-gray-400 text-sm">Total Tasks</p>
+            <p className="text-2xl font-bold text-white">{totalTasks}</p>
+          </div>
+          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+            <p className="text-gray-400 text-sm">Completed</p>
+            <p className="text-2xl font-bold text-emerald-400">{completedTasks}</p>
+          </div>
+          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+            <p className="text-gray-400 text-sm">Remaining</p>
+            <p className="text-2xl font-bold text-orange-400">{remainingTasks}</p>
+          </div>
+          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+            <p className="text-gray-400 text-sm">Velocity</p>
+            <p className="text-2xl font-bold text-blue-400">{velocityPerDay}/day</p>
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="bg-gray-800/50 rounded-lg p-6 border border-gray-700">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-white font-semibold">Progress</span>
+            <span className="text-emerald-400 font-bold">
+              {totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0}%
+            </span>
+          </div>
+          <div className="w-full bg-gray-700 rounded-full h-4">
+            <div 
+              className="bg-gradient-to-r from-emerald-500 to-teal-500 h-4 rounded-full transition-all duration-500"
+              style={{ width: `${totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0}%` }}
+            ></div>
+          </div>
+        </div>
+
+        {/* Burndown Chart */}
+        <div className="bg-gray-800/50 rounded-lg p-6 border border-gray-700">
+          <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+            <TrendingDown className="w-5 h-5 text-blue-400" />
+            Burndown Chart
+          </h3>
+          
+          {chartData && chartData.length > 0 ? (
+            <div className="space-y-4">
+              {/* Simple visual chart */}
+              <div className="flex items-end gap-1 h-48 border-b border-l border-gray-600 p-4">
+                {chartData.slice(-14).map((day, idx) => (
+                  <div key={idx} className="flex-1 flex flex-col items-center gap-1">
+                    <div className="w-full flex gap-0.5 justify-center" style={{ height: '100%' }}>
+                      {/* Actual remaining */}
+                      <div 
+                        className="w-3 bg-blue-500 rounded-t transition-all"
+                        style={{ height: `${totalTasks > 0 ? (day.remainingTasks / totalTasks) * 100 : 0}%` }}
+                        title={`Remaining: ${day.remainingTasks}`}
+                      ></div>
+                      {/* Ideal line */}
+                      <div 
+                        className="w-3 bg-gray-500/50 rounded-t transition-all"
+                        style={{ height: `${totalTasks > 0 ? (day.idealTasks / totalTasks) * 100 : 0}%` }}
+                        title={`Ideal: ${day.idealTasks}`}
+                      ></div>
+                    </div>
+                    <span className="text-[10px] text-gray-500 rotate-45 origin-left whitespace-nowrap">
+                      {day.dateLabel}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-center gap-6 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-blue-500 rounded"></div>
+                  <span className="text-gray-400">Actual</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-gray-500 rounded"></div>
+                  <span className="text-gray-400">Ideal</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <p>Not enough data yet. Complete some tasks to see the burndown chart!</p>
+            </div>
+          )}
+        </div>
+
+        {/* Projection */}
+        <div className="bg-gray-800/50 rounded-lg p-6 border border-gray-700">
+          <h3 className="text-lg font-semibold text-white mb-4">Projection</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-gray-400 text-sm">Target Date</p>
+              <p className="text-white font-medium">
+                {targetDate ? new Date(targetDate).toLocaleDateString() : 'Not set'}
+              </p>
+            </div>
+            <div>
+              <p className="text-gray-400 text-sm">Projected Completion</p>
+              <p className={`font-medium ${isOnTrack ? 'text-emerald-400' : 'text-orange-400'}`}>
+                {projectedCompletion ? new Date(projectedCompletion).toLocaleDateString() : 'N/A'}
+                {isOnTrack !== null && (
+                  <span className="ml-2 text-sm">
+                    {isOnTrack ? '✓ On Track' : '⚠ At Risk'}
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Velocity View Component
+function VelocityView({ milestoneId }: { milestoneId: Id<"milestones"> }) {
+  const velocityData = useQuery(api.analytics.getMilestoneVelocity, { milestoneId });
+  
+  if (!velocityData) {
+    return (
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center py-12">
+            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-400">Loading velocity data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const { velocityData: chartData, averageVelocity, averageTasksPerWeek, totalPointsCompleted, totalTasksCompleted, weeksTracked } = velocityData;
+
+  return (
+    <div className="flex-1 overflow-y-auto p-4">
+      <div className="max-w-6xl mx-auto space-y-6">
+        {/* Header Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+            <p className="text-gray-400 text-sm">Avg Story Points/Week</p>
+            <p className="text-2xl font-bold text-purple-400">{averageVelocity}</p>
+          </div>
+          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+            <p className="text-gray-400 text-sm">Avg Tasks/Week</p>
+            <p className="text-2xl font-bold text-blue-400">{averageTasksPerWeek}</p>
+          </div>
+          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+            <p className="text-gray-400 text-sm">Total Points</p>
+            <p className="text-2xl font-bold text-emerald-400">{totalPointsCompleted}</p>
+          </div>
+          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+            <p className="text-gray-400 text-sm">Weeks Tracked</p>
+            <p className="text-2xl font-bold text-white">{weeksTracked}</p>
+          </div>
+        </div>
+
+        {/* Velocity Chart */}
+        <div className="bg-gray-800/50 rounded-lg p-6 border border-gray-700">
+          <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-purple-400" />
+            Weekly Velocity
+          </h3>
+          
+          {chartData && chartData.length > 0 ? (
+            <div className="space-y-4">
+              {/* Bar chart */}
+              <div className="flex items-end gap-2 h-48 border-b border-l border-gray-600 p-4">
+                {chartData.map((week, idx) => {
+                  const maxPoints = Math.max(...chartData.map(w => w.storyPoints), 1);
+                  const height = (week.storyPoints / maxPoints) * 100;
+                  
+                  return (
+                    <div key={idx} className="flex-1 flex flex-col items-center gap-1">
+                      <div className="w-full flex justify-center" style={{ height: '100%' }}>
+                        <div 
+                          className="w-full max-w-12 bg-gradient-to-t from-purple-600 to-purple-400 rounded-t transition-all hover:from-purple-500 hover:to-purple-300"
+                          style={{ height: `${height}%` }}
+                          title={`${week.storyPoints} points, ${week.tasksCompleted} tasks`}
+                        >
+                          <div className="text-center text-xs text-white font-bold pt-1">
+                            {week.storyPoints > 0 ? week.storyPoints : ''}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs text-gray-400 whitespace-nowrap">
+                        {week.weekLabel}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* Average line indicator */}
+              <div className="flex items-center gap-2 justify-center text-sm text-gray-400">
+                <div className="w-8 border-t-2 border-dashed border-yellow-500"></div>
+                <span>Average: {averageVelocity} pts/week</span>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No velocity data yet.</p>
+              <p className="text-sm mt-2">Complete tasks to see your team's velocity!</p>
+            </div>
+          )}
+        </div>
+
+        {/* Weekly Breakdown Table */}
+        {chartData && chartData.length > 0 && (
+          <div className="bg-gray-800/50 rounded-lg p-6 border border-gray-700">
+            <h3 className="text-lg font-semibold text-white mb-4">Weekly Breakdown</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-700">
+                    <th className="text-left py-2 text-gray-400">Week</th>
+                    <th className="text-right py-2 text-gray-400">Story Points</th>
+                    <th className="text-right py-2 text-gray-400">Tasks Completed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {chartData.map((week, idx) => (
+                    <tr key={idx} className="border-b border-gray-700/50">
+                      <td className="py-2 text-white">{week.weekLabel}</td>
+                      <td className="py-2 text-right text-purple-400 font-medium">{week.storyPoints}</td>
+                      <td className="py-2 text-right text-blue-400">{week.tasksCompleted}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-gray-600">
+                    <td className="py-2 text-white font-semibold">Total</td>
+                    <td className="py-2 text-right text-purple-400 font-bold">{totalPointsCompleted}</td>
+                    <td className="py-2 text-right text-blue-400 font-bold">{totalTasksCompleted}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

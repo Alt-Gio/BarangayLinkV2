@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Button } from '@/components/ui/button';
@@ -16,16 +16,24 @@ interface CreateMilestoneModalProps {
   onClose: () => void;
   projects: any[];
   onSuccess?: () => void;
+  defaultTitle?: string; // For voice assistant pre-fill
 }
 
-export function CreateMilestoneModal({ isOpen, onClose, projects, onSuccess }: CreateMilestoneModalProps) {
+export function CreateMilestoneModal({ isOpen, onClose, projects, onSuccess, defaultTitle = "" }: CreateMilestoneModalProps) {
   const [formData, setFormData] = useState({
-    title: '',
+    title: defaultTitle,
     description: '',
     projectId: '',
     targetDate: '',
     isRequired: true,
   });
+
+  // Voice assistant integration: Update title when defaultTitle changes
+  useEffect(() => {
+    if (defaultTitle && isOpen) {
+      setFormData(prev => ({ ...prev, title: defaultTitle }));
+    }
+  }, [defaultTitle, isOpen]);
 
   const createMilestone = useMutation(api.milestones.createMilestone);
 

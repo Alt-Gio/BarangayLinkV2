@@ -33,13 +33,24 @@ interface VoiceAssistantProps {
   userId: Id<"users"> | null;
   userName?: string;
   className?: string;
+  // Context for linking created items to events/milestones/projects
+  context?: {
+    eventId?: Id<"events">;
+    milestoneId?: Id<"milestones">;
+    projectId?: Id<"projects">;
+  };
 }
 
-export function VoiceAssistant({ userId, userName, className }: VoiceAssistantProps) {
+export function VoiceAssistant({ userId, userName, className, context }: VoiceAssistantProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Log context changes for debugging
+  useEffect(() => {
+    console.log("VoiceAssistant received context:", context);
+  }, [context]);
 
   // Detect mobile device
   useEffect(() => {
@@ -73,6 +84,7 @@ export function VoiceAssistant({ userId, userName, className }: VoiceAssistantPr
     autoSpeak: !isMuted,
     onNavigate: (route) => console.log("Navigating to:", route),
     onError: (err) => console.error("Voice error:", err),
+    context, // Pass context for linking tasks to events/milestones
   });
 
   // Get action icon based on action type
@@ -90,6 +102,7 @@ export function VoiceAssistant({ userId, userName, className }: VoiceAssistantPr
       case "list_tasks":
       case "check_due_today":
         return <ListTodo className="w-4 h-4 text-blue-400" />;
+      case "create_event":
       case "check_schedule":
         return <Calendar className="w-4 h-4 text-purple-400" />;
       case "check_notifications":
@@ -219,16 +232,23 @@ export function VoiceAssistant({ userId, userName, className }: VoiceAssistantPr
                     Press the mic button and speak
                   </p>
                   <div className="mt-4 space-y-3 text-xs text-gray-500">
-                    <p>Try saying:</p>
+                    <p className="font-medium text-gray-400">Navigate:</p>
                     <div className="flex flex-wrap gap-2 justify-center">
                       <span className="px-3 py-1.5 bg-gray-800 rounded-full hover:bg-gray-700 cursor-default">"Go to Dashboard"</span>
                       <span className="px-3 py-1.5 bg-gray-800 rounded-full hover:bg-gray-700 cursor-default">"Go to Events"</span>
-                      <span className="px-3 py-1.5 bg-gray-800 rounded-full hover:bg-gray-700 cursor-default">"Stop my timer"</span>
+                      <span className="px-3 py-1.5 bg-gray-800 rounded-full hover:bg-gray-700 cursor-default">"Go to Projects"</span>
                     </div>
+                    <p className="font-medium text-gray-400 mt-2">Create:</p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      <span className="px-3 py-1.5 bg-emerald-900/50 rounded-full hover:bg-emerald-800/50 cursor-default text-emerald-300">"Create a project"</span>
+                      <span className="px-3 py-1.5 bg-emerald-900/50 rounded-full hover:bg-emerald-800/50 cursor-default text-emerald-300">"Create an event"</span>
+                      <span className="px-3 py-1.5 bg-emerald-900/50 rounded-full hover:bg-emerald-800/50 cursor-default text-emerald-300">"Create milestone"</span>
+                    </div>
+                    <p className="font-medium text-gray-400 mt-2">Actions:</p>
                     <div className="flex flex-wrap gap-2 justify-center">
                       <span className="px-3 py-1.5 bg-gray-800 rounded-full hover:bg-gray-700 cursor-default">"Clock in"</span>
-                      <span className="px-3 py-1.5 bg-gray-800 rounded-full hover:bg-gray-700 cursor-default">"Go to Messages"</span>
-                      <span className="px-3 py-1.5 bg-gray-800 rounded-full hover:bg-gray-700 cursor-default">"Open Projects"</span>
+                      <span className="px-3 py-1.5 bg-gray-800 rounded-full hover:bg-gray-700 cursor-default">"Stop my timer"</span>
+                      <span className="px-3 py-1.5 bg-gray-800 rounded-full hover:bg-gray-700 cursor-default">"My tasks"</span>
                     </div>
                   </div>
                 </div>

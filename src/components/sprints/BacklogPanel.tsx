@@ -21,6 +21,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   BarChart3,
@@ -29,8 +37,14 @@ import {
   SortAsc,
   Filter,
   Zap,
+  MoreVertical,
+  Trash2,
+  CheckCircle2,
+  Edit,
+  XCircle,
 } from 'lucide-react';
 import { Id } from '../../../convex/_generated/dataModel';
+import { toast } from 'sonner';
 
 interface BacklogPanelProps {
   backlog: any[];
@@ -65,6 +79,35 @@ export function BacklogPanel({ backlog, activeSprint, onRefresh }: BacklogPanelP
   const [showEstimateDialog, setShowEstimateDialog] = useState(false);
 
   const addTaskToSprint = useMutation(api.sprintsEnhanced.addTaskToSprint);
+  const updateTask = useMutation(api.tasks.updateTask);
+  const deleteTask = useMutation(api.tasks.deleteTask);
+
+  const handleMarkComplete = async (taskId: string, currentStatus: string) => {
+    try {
+      const isComplete = currentStatus === 'done';
+      await updateTask({
+        taskId: taskId as Id<"tasks">,
+        status: isComplete ? 'todo' : 'done',
+        completed: !isComplete,
+      });
+      toast.success(isComplete ? 'Task reopened' : 'Task marked as complete! 🎉');
+      onRefresh();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update task');
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string, taskTitle: string) => {
+    if (!confirm(`Are you sure you want to delete "${taskTitle}"?`)) return;
+    
+    try {
+      await deleteTask({ taskId: taskId as Id<"tasks"> });
+      toast.success('Task deleted');
+      onRefresh();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete task');
+    }
+  };
 
   const handleAddToSprint = async (taskId: string, points: number) => {
     if (!activeSprint) {
@@ -206,7 +249,9 @@ export function BacklogPanel({ backlog, activeSprint, onRefresh }: BacklogPanelP
           filteredBacklog.map((task: any) => (
             <Card 
               key={task._id} 
-              className="bg-gray-800/50 border-gray-700 hover:border-blue-500/50 transition-all cursor-pointer group"
+              className={`bg-gray-800/50 border-gray-700 hover:border-blue-500/50 transition-all cursor-pointer group ${
+                task.status === 'done' || task.completed ? 'opacity-60' : ''
+              }`}
             >
               <CardContent className="p-4">
                 <div className="flex items-start gap-4">
@@ -217,7 +262,15 @@ export function BacklogPanel({ backlog, activeSprint, onRefresh }: BacklogPanelP
                       <span className="text-xs text-gray-500 font-mono">
                         {task._id.slice(-4).toUpperCase()}
                       </span>
-                      <h3 className="text-white font-medium flex-1">{task.title}</h3>
+                      <h3 className={`font-medium flex-1 ${
+                        task.status === 'done' || task.completed ? 'line-through text-gray-400' : 'text-white'
+                      }`}>{task.title}</h3>
+                      {(task.status === 'done' || task.completed) && (
+                        <Badge className="bg-emerald-500/20 text-emerald-300">
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          Done
+                        </Badge>
+                      )}
                       <Badge className={priorityColors[task.priority]}>
                         {task.priority}
                       </Badge>
@@ -253,7 +306,42 @@ export function BacklogPanel({ backlog, activeSprint, onRefresh }: BacklogPanelP
                   </div>
 
                   {/* Actions */}
-                  <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    {/* Quick Actions Dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full">
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Task Actions</DropdownMenuLabel>
+                        <DropdownMenuItem
+                          onClick={() => handleMarkComplete(task._id, task.status)}
+                        >
+                          {task.status === 'done' || task.completed ? (
+                            <>
+                              <XCircle className="w-4 h-4 mr-2 text-yellow-400" />
+                              <span className="text-white">Reopen Task</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="w-4 h-4 mr-2 text-emerald-400" />
+                              <span className="text-white">Mark as Complete</span>
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => handleDeleteTask(task._id, task.title)}
+                          className="text-red-400 hover:bg-red-500/20"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete Task
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
                     <Dialog 
                       open={showEstimateDialog && selectedTaskId === task._id}
                       onOpenChange={(open) => {

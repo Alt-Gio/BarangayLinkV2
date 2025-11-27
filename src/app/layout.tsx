@@ -98,16 +98,17 @@ export default function RootLayout({
                   <ServiceWorkerRegistration />
                   <NotificationPermissionPrompt />
                   <NotificationListener />
-                  <div className="pb-16 md:pb-0">
-                    {children}
-                  </div>
+                  <VoiceAssistantProvider>
+                    <div className="pb-16 md:pb-0">
+                      {children}
+                    </div>
+                  </VoiceAssistantProvider>
                   <Toaster position="top-right" richColors />
                   <DatabaseStatusIndicator />
                   <OfflineIndicator />
                   <OfflineDebugger />
                   <BottomNav />
                   <InstallPrompt />
-                  <VoiceAssistantProvider>{null}</VoiceAssistantProvider>
                 </SidebarProvider>
               </OfflineDataProvider>
             </DatabaseConnectionProvider>

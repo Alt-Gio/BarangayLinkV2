@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSignUp, useUser } from '@clerk/nextjs';
-import { useRouter } from 'next/navigation';
-import { useMutation } from "convex/react";
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { 
   Building2, 
@@ -21,7 +21,10 @@ import {
   Users,
   Hammer,
   HardHat,
-  X
+  X,
+  Sparkles,
+  Shield,
+  Gift
 } from 'lucide-react';
 
 // Exact departments that match your Convex schema
@@ -99,13 +102,40 @@ const USER_ROLES = [
   }
 ];
 
+// Wrapper with Suspense for useSearchParams
 export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+      </div>
+    }>
+      <RegisterContent />
+    </Suspense>
+  );
+}
+
+function RegisterContent() {
   const { signUp, isLoaded, setActive } = useSignUp();
   const { user, isSignedIn } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Check for invitation code in URL
+  const invitationCode = searchParams.get('code');
+  
+  // Validate invitation code (only if code is present)
+  const invitationData = useQuery(
+    api.invitationCodes.validateInvitationCode,
+    invitationCode ? { code: invitationCode } : "skip"
+  );
+  
+  // Is this an invitation-based registration?
+  const isInvitedUser = !!invitationCode && invitationData?.valid;
   
   // DIRECT Convex mutation - bypasses webhook to ensure immediate save
   const syncUserToConvex = useMutation(api.users.syncUserFromClerk);
+  const useInvitationCode = useMutation(api.invitationCodes.useInvitationCode);
   
   // Form state
   const [basicInfo, setBasicInfo] = useState({
@@ -124,7 +154,9 @@ export default function RegisterPage() {
     agreeToTerms: false
   });
   
-  const [step, setStep] = useState(1); // 1: Basic, 2: Profile, 3: Verification
+  // For invited users: 1 = Basic Info, 2 = Verification
+  // For regular users: 1 = Basic Info, 2 = Profile, 3 = Verification
+  const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
@@ -134,6 +166,18 @@ export default function RegisterPage() {
   // Job title suggestions
   const [showJobDropdown, setShowJobDropdown] = useState(false);
   const [jobSuggestions, setJobSuggestions] = useState<string[]>([]);
+  
+  // Auto-fill profile from invitation code
+  useEffect(() => {
+    if (isInvitedUser && invitationData?.code) {
+      setProfileDetails(prev => ({
+        ...prev,
+        department: invitationData.code.department || '',
+        role: invitationData.userLevel?.name || 'WORKER',
+        agreeToTerms: true, // Pre-agree for invited users
+      }));
+    }
+  }, [isInvitedUser, invitationData]);
 
   // Redirect if already signed in
   useEffect(() => {
@@ -234,13 +278,54 @@ export default function RegisterPage() {
     }
   };
 
-  // Step 1: Basic Info → Move to Step 2 (Profile)
+  // Step 1: Basic Info → Move to Step 2 (Profile) OR directly to verification for invited users
   const handleStep1Submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateStep1()) return;
     
-    // Step 1 completed, moving to profile details
-    setStep(2); // Go to profile details
+    // For invited users: skip profile step and go directly to user creation + verification
+    if (isInvitedUser && isLoaded) {
+      setIsLoading(true);
+      setError('');
+      
+      try {
+        // Create Clerk user with pre-filled invitation data
+        const result = await signUp.create({
+          emailAddress: basicInfo.email,
+          password: basicInfo.password,
+          firstName: basicInfo.firstName,
+          lastName: basicInfo.lastName,
+          unsafeMetadata: {
+            phone: basicInfo.phone,
+            jobTitle: 'Team Member', // Default for invited users
+            department: profileDetails.department, // From invitation
+            role: profileDetails.role, // From invitation
+            invitationCode: invitationCode, // Track which code was used
+            profileCompleted: true,
+            registrationStep: 2
+          }
+        });
+
+        if (result.status === "missing_requirements") {
+          await signUp.prepareEmailAddressVerification({ 
+            strategy: "email_code" 
+          });
+          setStep(2); // For invited users, step 2 is verification
+        } else if (result.status === "complete") {
+          await handleRegistrationComplete();
+        }
+      } catch (err: any) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Invited user registration error:', err);
+        }
+        setError(err.errors?.[0]?.message || 'Registration failed. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // Regular flow: go to profile details step
+      setStep(2);
+    }
   };
 
   // Step 2: Profile Details → Create Clerk user and prepare verification
@@ -458,18 +543,69 @@ export default function RegisterPage() {
 
         {/* Register Card */}
         <div className="bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 p-8">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Building2 className="w-8 h-8 text-white" />
+          {/* Header - Different for invited users */}
+          {isInvitedUser ? (
+            <div className="text-center mb-8">
+              <div className="w-20 h-20 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
+                <Gift className="w-10 h-10 text-white" />
+              </div>
+              <h1 className="text-2xl font-bold text-white mb-2">
+                🎉 You're Invited!
+              </h1>
+              <p className="text-gray-400 mb-4">
+                Welcome to BarangayLink! Complete your quick registration
+              </p>
+              
+              {/* Invitation Details Card */}
+              <div className="bg-gradient-to-r from-purple-900/40 to-pink-900/40 border border-purple-500/30 rounded-xl p-4 text-left">
+                <div className="flex items-center gap-2 mb-3">
+                  <Sparkles className="w-5 h-5 text-purple-400" />
+                  <span className="text-purple-300 font-semibold">Your Invitation</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-500">Role:</span>
+                    <span className="ml-2 text-white font-medium capitalize">
+                      {invitationData?.userLevel?.name?.toLowerCase() || 'Member'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Department:</span>
+                    <span className="ml-2 text-white font-medium">
+                      {invitationData?.code?.department || 'General'}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center gap-2 text-xs text-green-400">
+                  <Shield className="w-4 h-4" />
+                  <span>Pre-approved access • Skip profile setup</span>
+                </div>
+              </div>
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">
-              Join BarangayLink
-            </h1>
-            <p className="text-gray-400">
-              Create your account to access community services
-            </p>
-          </div>
+          ) : (
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Building2 className="w-8 h-8 text-white" />
+              </div>
+              <h1 className="text-2xl font-bold text-white mb-2">
+                Join BarangayLink
+              </h1>
+              <p className="text-gray-400">
+                Create your account to access community services
+              </p>
+            </div>
+          )}
+
+          {/* Invalid Invitation Code Warning */}
+          {invitationCode && !isInvitedUser && invitationData && (
+            <div className="mb-6 bg-yellow-900/20 border border-yellow-500/50 rounded-lg p-4 flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0" />
+              <div>
+                <p className="text-yellow-300 text-sm font-medium">Invalid Invitation Code</p>
+                <p className="text-yellow-400/70 text-xs">{invitationData?.message || 'This code is not valid. You can still register normally.'}</p>
+              </div>
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (
@@ -479,29 +615,49 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {/* Step Indicator */}
-          <div className="flex items-center justify-center mb-8">
-            <div className="flex items-center space-x-4">
-              <div className={`flex items-center justify-center w-8 h-8 rounded-full ${step >= 1 ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-400'}`}>
-                1
+          {/* Step Indicator - Simplified for invited users */}
+          {isInvitedUser ? (
+            <>
+              <div className="flex items-center justify-center mb-8">
+                <div className="flex items-center space-x-4">
+                  <div className={`flex items-center justify-center w-10 h-10 rounded-full ${step >= 1 ? 'bg-purple-600 text-white' : 'bg-gray-600 text-gray-400'}`}>
+                    <User className="w-5 h-5" />
+                  </div>
+                  <div className={`w-24 h-1 ${step >= 2 ? 'bg-purple-600' : 'bg-gray-600'}`}></div>
+                  <div className={`flex items-center justify-center w-10 h-10 rounded-full ${step >= 2 ? 'bg-purple-600 text-white' : 'bg-gray-600 text-gray-400'}`}>
+                    <CheckCircle className="w-5 h-5" />
+                  </div>
+                </div>
               </div>
-              <div className={`w-16 h-1 ${step >= 2 ? 'bg-green-600' : 'bg-gray-600'}`}></div>
-              <div className={`flex items-center justify-center w-8 h-8 rounded-full ${step >= 2 ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-400'}`}>
-                2
+              <div className="flex justify-around text-xs text-gray-400 mb-8 -mt-4">
+                <span className={step === 1 ? 'text-purple-400 font-medium' : ''}>Your Details</span>
+                <span className={step === 2 ? 'text-purple-400 font-medium' : ''}>Verify Email</span>
               </div>
-              <div className={`w-16 h-1 ${step >= 3 ? 'bg-green-600' : 'bg-gray-600'}`}></div>
-              <div className={`flex items-center justify-center w-8 h-8 rounded-full ${step >= 3 ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-400'}`}>
-                3
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-center mb-8">
+                <div className="flex items-center space-x-4">
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-full ${step >= 1 ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-400'}`}>
+                    1
+                  </div>
+                  <div className={`w-16 h-1 ${step >= 2 ? 'bg-green-600' : 'bg-gray-600'}`}></div>
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-full ${step >= 2 ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-400'}`}>
+                    2
+                  </div>
+                  <div className={`w-16 h-1 ${step >= 3 ? 'bg-green-600' : 'bg-gray-600'}`}></div>
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-full ${step >= 3 ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-400'}`}>
+                    3
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-
-          {/* Step Labels */}
-          <div className="flex justify-between text-xs text-gray-400 mb-8 -mt-4">
-            <span>Basic Info</span>
-            <span>Profile Details</span>
-            <span>Verification</span>
-          </div>
+              <div className="flex justify-between text-xs text-gray-400 mb-8 -mt-4">
+                <span>Basic Info</span>
+                <span>Profile Details</span>
+                <span>Verification</span>
+              </div>
+            </>
+          )}
 
           {/* Step 1: Basic Information */}
           {step === 1 && (
@@ -691,16 +847,100 @@ export default function RegisterPage() {
 
                 <button
                   type="submit"
-                  className="w-full px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-lg hover:from-emerald-600 hover:to-teal-600 transition-all duration-300 shadow-lg hover:shadow-xl"
+                  disabled={isLoading}
+                  className={`w-full px-6 py-3 ${isInvitedUser ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700' : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-emerald-600 hover:to-teal-600'} text-white font-semibold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 flex items-center justify-center gap-2`}
                 >
-                  Continue to Profile Details
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Creating Account...
+                    </>
+                  ) : isInvitedUser ? (
+                    <>
+                      <Sparkles className="w-5 h-5" />
+                      Continue to Verification
+                    </>
+                  ) : (
+                    'Continue to Profile Details'
+                  )}
                 </button>
               </form>
             </div>
           )}
 
-          {/* Step 2: Profile Details */}
-          {step === 2 && (
+          {/* Step 2: For invited users = Verification, For regular users = Profile Details */}
+          {step === 2 && isInvitedUser && (
+            <div className="animate-in slide-in-from-right-5 duration-500">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Mail className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-semibold text-white mb-2">Verify Your Email</h3>
+                <p className="text-gray-400">We sent a verification code to <span className="text-purple-400 font-medium">{basicInfo.email}</span></p>
+              </div>
+
+              <form onSubmit={handleStep3Submit} className="space-y-6">
+                {/* Verification Code */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Verification Code *
+                  </label>
+                  <input
+                    type="text"
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="w-full px-4 py-4 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-gray-400 text-center text-2xl tracking-widest"
+                    placeholder="000000"
+                    maxLength={6}
+                    required
+                    autoFocus
+                  />
+                  <p className="text-xs text-gray-500 mt-2 text-center">Enter the 6-digit code from your email</p>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={isLoading || verificationCode.length !== 6}
+                  className="w-full py-4 px-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Verifying...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5" />
+                      Complete Registration
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {/* Resend Code */}
+              <div className="mt-4 text-center">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+                      setError('');
+                      alert('New code sent!');
+                    } catch (err) {
+                      setError('Failed to resend code');
+                    }
+                  }}
+                  className="text-purple-400 hover:text-purple-300 text-sm underline"
+                >
+                  Didn't receive the code? Resend
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Profile Details (Regular users only) */}
+          {step === 2 && !isInvitedUser && (
             <div className="animate-in slide-in-from-right-5 duration-500">
               <div className="text-center mb-6">
                 <h3 className="text-xl font-semibold text-white mb-2">Profile Details</h3>

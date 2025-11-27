@@ -64,6 +64,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { useVoiceAssistantContext } from "@/components/voice/VoiceAssistantProvider";
 
 export const dynamic = "force-dynamic";
 
@@ -105,6 +106,21 @@ export default function EventControlPage() {
   const params = useParams();
   const router = useRouter();
   const eventId = params.eventId as Id<"events">;
+
+  // Set voice assistant context for this event
+  const { setVoiceContext, voiceContext } = useVoiceAssistantContext();
+  
+  // Debug log on every render
+  console.log("🎯 EventControlPage RENDER - eventId:", eventId, "current voiceContext:", voiceContext);
+  
+  useEffect(() => {
+    console.log("🎯 EventControlPage useEffect RUNNING - eventId:", eventId);
+    setVoiceContext({ eventId });
+    return () => {
+      console.log("🎯 EventControlPage CLEANUP");
+      setVoiceContext({});
+    };
+  }, [eventId, setVoiceContext]);
 
   const [sidebarOpen, setSidebarOpen] = useState(false); // Sidebar closed by default on mobile
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);

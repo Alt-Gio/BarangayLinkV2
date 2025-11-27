@@ -717,6 +717,16 @@ export const updateProject = mutation({
     updates: v.object({
       title: v.optional(v.string()),
       description: v.optional(v.string()),
+      status: v.optional(v.union(
+        v.literal("draft"),
+        v.literal("pending_approval"),
+        v.literal("approved"),
+        v.literal("active"),
+        v.literal("on_hold"),
+        v.literal("completed"),
+        v.literal("cancelled"),
+        v.literal("archived")
+      )),
       priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("critical"))),
       urgency: v.optional(v.union(v.literal("normal"), v.literal("urgent"), v.literal("emergency"))),
       budget: v.optional(v.number()),
@@ -748,13 +758,15 @@ export const updateProject = mutation({
     await ctx.db.patch(args.projectId, args.updates);
     
     // Notify team members of significant changes
-    const hasSignificantChange = args.updates.priority || args.updates.urgency || args.updates.endDate || args.updates.budget;
+    const hasSignificantChange = args.updates.priority || args.updates.urgency || args.updates.endDate || args.updates.budget || args.updates.status || args.updates.startDate;
     
     if (hasSignificantChange && project.assignedTo && project.assignedTo.length > 0) {
       let changeDescription = [];
+      if (args.updates.status) changeDescription.push(`status changed to ${args.updates.status.replace('_', ' ')}`);
       if (args.updates.priority) changeDescription.push(`priority changed to ${args.updates.priority}`);
       if (args.updates.urgency) changeDescription.push(`urgency changed to ${args.updates.urgency}`);
-      if (args.updates.endDate) changeDescription.push(`deadline updated`);
+      if (args.updates.startDate) changeDescription.push(`start date updated`);
+      if (args.updates.endDate) changeDescription.push(`end date updated`);
       if (args.updates.budget) changeDescription.push(`budget updated`);
       
       for (const userId of project.assignedTo) {

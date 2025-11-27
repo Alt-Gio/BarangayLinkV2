@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from 'convex/react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '../../../../convex/_generated/api';
 import { useOfflineData } from '@/contexts/OfflineDataContext';
 import { Button } from '@/components/ui/button';
@@ -28,12 +29,32 @@ import {
 } from 'lucide-react';
 
 export default function SprintsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedSprint, setSelectedSprint] = useState<string>('active');
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Get current user from offline context (cached, saves bandwidth)
   const { currentUser, isOnline } = useOfflineData();
+
+  // Voice assistant integration state
+  const [defaultMilestoneTitle, setDefaultMilestoneTitle] = useState("");
+
+  // Voice assistant integration: Auto-open create modal from URL params
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'create') {
+      // Check if title was provided via voice command
+      const title = searchParams.get('title');
+      if (title) {
+        setDefaultMilestoneTitle(decodeURIComponent(title));
+      }
+      setShowCreateModal(true);
+      // Clear the params from URL to prevent re-triggering
+      router.replace('/events/sprints', { scroll: false });
+    }
+  }, [searchParams, router]);
   
   // Get milestone data with progress
   const activeSprints = useQuery(api.milestones.getActiveMilestones);
@@ -372,12 +393,16 @@ export default function SprintsPage() {
             {/* Create Milestone Modal */}
             <CreateMilestoneModal
               isOpen={showCreateModal}
-              onClose={() => setShowCreateModal(false)}
+              onClose={() => {
+                setShowCreateModal(false);
+                setDefaultMilestoneTitle(""); // Clear title on close
+              }}
               projects={projects || []}
               onSuccess={() => {
                 // Refresh milestones list
                 window.location.reload();
               }}
+              defaultTitle={defaultMilestoneTitle}
             />
 
 

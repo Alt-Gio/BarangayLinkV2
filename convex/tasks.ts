@@ -502,6 +502,13 @@ export const updateTask = mutation({
       });
     }
 
+    // Sync milestone progress if status or completed changed and task is linked to a milestone
+    if ((args.status !== undefined || args.completed !== undefined) && task.milestoneId) {
+      await ctx.scheduler.runAfter(0, "milestones:updateMilestoneProgress" as any, {
+        milestoneId: task.milestoneId,
+      });
+    }
+
     return { success: true };
   },
 });

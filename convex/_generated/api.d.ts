@@ -18,6 +18,7 @@ import type * as achievements from "../achievements.js";
 import type * as activity from "../activity.js";
 import type * as adminActions from "../adminActions.js";
 import type * as adminUserManagement from "../adminUserManagement.js";
+import type * as analytics from "../analytics.js";
 import type * as attendance from "../attendance.js";
 import type * as auditLogs from "../auditLogs.js";
 import type * as auditSystem from "../auditSystem.js";
@@ -126,6 +127,7 @@ declare const fullApi: ApiFromModules<{
   activity: typeof activity;
   adminActions: typeof adminActions;
   adminUserManagement: typeof adminUserManagement;
+  analytics: typeof analytics;
   attendance: typeof attendance;
   auditLogs: typeof auditLogs;
   auditSystem: typeof auditSystem;

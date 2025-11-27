@@ -36,6 +36,14 @@ interface TaskDetailsPanelProps {
   isOpen: boolean;
   onClose: () => void;
   onUpdate: () => void;
+  teamMembers?: Array<{
+    _id: string;
+    name: string;
+    email?: string;
+    avatarUrl?: string;
+  }>;
+  currentUserId?: string;
+  onDelete?: () => void;
 }
 
 const taskTypeIcons: Record<string, string> = {
@@ -55,7 +63,7 @@ const priorityColors: Record<string, { bg: string; text: string }> = {
 
 const fibonacciPoints = [1, 2, 3, 5, 8, 13, 21];
 
-export function TaskDetailsPanel({ task, isOpen, onClose, onUpdate }: TaskDetailsPanelProps) {
+export function TaskDetailsPanel({ task, isOpen, onClose, onUpdate, teamMembers = [], currentUserId, onDelete }: TaskDetailsPanelProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     title: task?.title || '',
@@ -340,27 +348,58 @@ export function TaskDetailsPanel({ task, isOpen, onClose, onUpdate }: TaskDetail
             {isEditing ? (
               <div className="space-y-2">
                 <div className="bg-gray-800 border border-gray-700 rounded-lg p-3">
-                  <div className="text-sm text-gray-400 mb-2">Select team members:</div>
+                  <div className="text-sm text-gray-400 mb-2">Click to toggle assignment:</div>
                   <div className="flex flex-wrap gap-2">
-                    <Badge className="bg-blue-600 hover:bg-blue-700 cursor-pointer">
-                      👤 You (Creator)
-                    </Badge>
-                    <Badge className="bg-gray-700 hover:bg-gray-600 cursor-pointer">
-                      + Add Member
-                    </Badge>
+                    {teamMembers.length > 0 ? (
+                      teamMembers.map((member) => {
+                        const isAssigned = formData.assignedTo.includes(member._id);
+                        const isCurrentUser = member._id === currentUserId;
+                        return (
+                          <Badge
+                            key={member._id}
+                            onClick={() => {
+                              if (isAssigned) {
+                                setFormData({
+                                  ...formData,
+                                  assignedTo: formData.assignedTo.filter((id: string) => id !== member._id)
+                                });
+                              } else {
+                                setFormData({
+                                  ...formData,
+                                  assignedTo: [...formData.assignedTo, member._id]
+                                });
+                              }
+                            }}
+                            className={`cursor-pointer transition-all ${
+                              isAssigned
+                                ? 'bg-blue-600 hover:bg-blue-700 ring-2 ring-blue-400'
+                                : 'bg-gray-700 hover:bg-gray-600'
+                            }`}
+                          >
+                            👤 {member.name} {isCurrentUser ? '(Me)' : ''} {isAssigned ? '✓' : ''}
+                          </Badge>
+                        );
+                      })
+                    ) : (
+                      <span className="text-gray-500 text-sm">No team members available</span>
+                    )}
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">Multiple users can be assigned to this task</p>
+                  <p className="text-xs text-gray-500 mt-2">Click members to assign/unassign. Multiple users can be assigned.</p>
                 </div>
               </div>
             ) : (
               <div className="space-y-2">
                 {task.assignedTo && task.assignedTo.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
-                    {task.assignedTo.map((userId: string, idx: number) => (
-                      <Badge key={idx} className="bg-blue-600 text-white">
-                        👤 Assigned {idx + 1}
-                      </Badge>
-                    ))}
+                    {task.assignedTo.map((userId: string, idx: number) => {
+                      const member = teamMembers.find((m) => m._id === userId);
+                      const isCurrentUser = userId === currentUserId;
+                      return (
+                        <Badge key={idx} className="bg-blue-600 text-white">
+                          👤 {member?.name || (isCurrentUser ? 'You' : `User ${idx + 1}`)}
+                        </Badge>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-gray-400">
@@ -487,6 +526,11 @@ export function TaskDetailsPanel({ task, isOpen, onClose, onUpdate }: TaskDetail
             <Button
               variant="outline"
               className="flex-1 border-red-600 text-red-400 hover:bg-red-600/20"
+              onClick={() => {
+                if (confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
+                  onDelete?.();
+                }
+              }}
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Delete Task

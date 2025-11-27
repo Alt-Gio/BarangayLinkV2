@@ -18,8 +18,15 @@ import {
   Target,
   Calendar,
   Flag,
+  ExternalLink,
+  Columns,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 import { Id } from '../../../convex/_generated/dataModel';
+import Link from 'next/link';
+import { toast } from 'sonner';
+import { useOfflineData } from '@/contexts/OfflineDataContext';
 
 interface MilestoneManagerProps {
   projectId: Id<"projects">;
@@ -28,6 +35,7 @@ interface MilestoneManagerProps {
 export function MilestoneManager({ projectId }: MilestoneManagerProps) {
   const [showAddMilestone, setShowAddMilestone] = useState(false);
   const [showAddTask, setShowAddTask] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; title: string; message: string } | null>(null);
   const [newMilestone, setNewMilestone] = useState({
     title: '',
     description: '',
@@ -41,11 +49,39 @@ export function MilestoneManager({ projectId }: MilestoneManagerProps) {
     dueDate: '',
   });
 
+  const { currentUser } = useOfflineData();
+  const userRole = currentUser?.role?.toUpperCase() || 'WORKER';
+  const isAdmin = userRole === 'ADMIN';
+
   const milestones = useQuery(api.milestones.getProjectMilestones, { projectId });
   const createMilestone = useMutation(api.milestones.createMilestone);
   const deleteMilestone = useMutation(api.milestones.deleteMilestone);
   const addTaskToMilestone = useMutation(api.milestones.addTaskToMilestone);
   const updateMilestoneProgress = useMutation(api.milestones.updateMilestoneProgress);
+
+  const handleDeleteMilestone = async (milestoneId: Id<"milestones">, forceDelete = false) => {
+    try {
+      await deleteMilestone({ milestoneId, forceDelete });
+      setDeleteConfirm(null);
+      toast.success('Milestone deleted successfully!');
+    } catch (error: any) {
+      const message = error.message || error.data?.message || 'Failed to delete milestone';
+      
+      // Check if it's a confirmation request from ADMIN (Convex may wrap the message)
+      if (message.includes('CONFIRM_DELETE:')) {
+        // Extract the message after CONFIRM_DELETE:
+        const confirmMessage = message.split('CONFIRM_DELETE:')[1]?.trim() || 'All tasks and progress will be permanently deleted.';
+        const milestone = milestones?.find(m => m._id === milestoneId);
+        setDeleteConfirm({
+          id: milestoneId,
+          title: milestone?.title || 'Milestone',
+          message: confirmMessage,
+        });
+      } else {
+        toast.error(message);
+      }
+    }
+  };
 
   const handleCreateMilestone = async () => {
     if (!newMilestone.title.trim()) return;
@@ -210,9 +246,15 @@ export function MilestoneManager({ projectId }: MilestoneManagerProps) {
                     <div className="flex items-center gap-3 mb-2">
                       {getStatusIcon(milestone.status)}
                       <div className="flex-1">
-                        <h3 className="text-lg font-bold text-white">
-                          {index + 1}. {milestone.title}
-                        </h3>
+                        <Link 
+                          href={`/milestones/${milestone._id}/kanban`}
+                          className="group flex items-center gap-2 hover:text-purple-400 transition-colors"
+                        >
+                          <h3 className="text-lg font-bold text-white group-hover:text-purple-400">
+                            {index + 1}. {milestone.title}
+                          </h3>
+                          <ExternalLink className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-purple-400" />
+                        </Link>
                         {milestone.description && (
                           <p className="text-sm text-gray-400 mt-1">{milestone.description}</p>
                         )}
@@ -240,14 +282,27 @@ export function MilestoneManager({ projectId }: MilestoneManagerProps) {
                     </div>
                   </div>
                   
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => deleteMilestone({ milestoneId: milestone._id })}
-                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Link href={`/milestones/${milestone._id}/kanban`}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-purple-500/50 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300"
+                      >
+                        <Columns className="w-4 h-4 mr-1" />
+                        Kanban
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteMilestone(milestone._id)}
+                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                      title={isAdmin ? "Delete milestone (will delete all tasks)" : "Delete milestone"}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
 
@@ -368,6 +423,45 @@ export function MilestoneManager({ projectId }: MilestoneManagerProps) {
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog (for ADMIN) */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-gray-800 border border-red-500/50 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Delete "{deleteConfirm.title}"?</h3>
+                <p className="text-sm text-red-400">This action cannot be undone</p>
+              </div>
+            </div>
+            
+            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6">
+              <p className="text-sm text-gray-300">{deleteConfirm.message}</p>
+            </div>
+            
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 border-gray-600"
+              >
+                <X className="w-4 h-4 mr-2" />
+                Cancel
+              </Button>
+              <Button
+                onClick={() => handleDeleteMilestone(deleteConfirm.id as Id<"milestones">, true)}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete All
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

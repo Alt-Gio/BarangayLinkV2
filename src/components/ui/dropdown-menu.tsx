@@ -110,3 +110,26 @@ export function DropdownMenuItem({ children, className = "", onClick }: Dropdown
     </div>
   )
 }
+
+interface DropdownMenuSeparatorProps {
+  className?: string
+}
+
+export function DropdownMenuSeparator({ className = "" }: DropdownMenuSeparatorProps) {
+  return (
+    <div className={`-mx-1 my-1 h-px bg-white/10 ${className}`} />
+  )
+}
+
+interface DropdownMenuLabelProps {
+  children: React.ReactNode
+  className?: string
+}
+
+export function DropdownMenuLabel({ children, className = "" }: DropdownMenuLabelProps) {
+  return (
+    <div className={`px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider ${className}`}>
+      {children}
+    </div>
+  )
+}

@@ -138,15 +138,40 @@ export const updateMilestone = mutation({
 });
 
 /**
- * Delete milestone
+ * Delete milestone with role-based permissions
+ * - ADMIN: Can delete milestone and all tasks (cascade delete)
+ * - CAPTAIN/MANAGER: Must delete all tasks first
+ * - Others: Cannot delete
  */
 export const deleteMilestone = mutation({
   args: {
     milestoneId: v.id("milestones"),
+    forceDelete: v.optional(v.boolean()), // Only ADMIN can force delete with tasks
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!user) throw new Error("User not found");
+
+    // Get user role
+    const userRole = user.role?.toUpperCase() || "WORKER";
+    const isAdmin = userRole === "ADMIN";
+    const isManagerOrCaptain = userRole === "CAPTAIN" || userRole === "MANAGER";
+
+    // Only ADMIN, CAPTAIN, MANAGER can delete milestones
+    if (!isAdmin && !isManagerOrCaptain) {
+      throw new Error("Only Admin, Captain, or Manager can delete milestones.");
+    }
+
+    // Get milestone info
+    const milestone = await ctx.db.get(args.milestoneId);
+    if (!milestone) throw new Error("Milestone not found");
 
     // Check if milestone has tasks
     const tasks = await ctx.db
@@ -154,13 +179,40 @@ export const deleteMilestone = mutation({
       .withIndex("by_milestone", (q) => q.eq("milestoneId", args.milestoneId))
       .collect();
 
+    // Also delete kanban columns for this milestone
+    const columns = await ctx.db
+      .query("kanbanColumns")
+      .withIndex("by_milestone", (q) => q.eq("milestoneId", args.milestoneId))
+      .collect();
+
     if (tasks.length > 0) {
-      throw new Error("Cannot delete milestone with existing tasks. Remove tasks first.");
+      if (isAdmin && args.forceDelete) {
+        // ADMIN can force delete - cascade delete all tasks
+        for (const task of tasks) {
+          await ctx.db.delete(task._id);
+        }
+      } else if (isAdmin) {
+        // ADMIN but not force deleting - return info for confirmation
+        throw new Error(`CONFIRM_DELETE:${tasks.length} tasks and ${milestone.title} milestone progress will be permanently deleted. This action cannot be undone.`);
+      } else {
+        // CAPTAIN/MANAGER - must delete tasks manually
+        throw new Error(`This milestone has ${tasks.length} task(s). As a ${userRole.toLowerCase()}, you must delete all tasks first before deleting the milestone.`);
+      }
     }
 
+    // Delete kanban columns
+    for (const column of columns) {
+      await ctx.db.delete(column._id);
+    }
+
+    // Delete the milestone
     await ctx.db.delete(args.milestoneId);
 
-    return { success: true };
+    return { 
+      success: true, 
+      message: `Milestone "${milestone.title}" deleted successfully.`,
+      tasksDeleted: tasks.length,
+    };
   },
 });
 
@@ -260,7 +312,8 @@ export const updateMilestoneProgress = mutation({
       .collect();
 
     const totalTasks = tasks.length;
-    const completedTasks = tasks.filter(t => t.completed).length;
+    // Check both status === "done" AND completed === true
+    const completedTasks = tasks.filter(t => t.status === "done" || t.completed === true).length;
     const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
     // Update status based on progress
@@ -439,12 +492,29 @@ export const getMilestoneDetails = query({
 
     // Get project details
     const project = await ctx.db.get(milestone.projectId);
+    
+    // Get team members from project
+    const teamMemberIds = project?.assignedTo || [];
+    const teamMembers = await Promise.all(
+      teamMemberIds.map(async (userId: any) => {
+        const user = await ctx.db.get(userId);
+        return user ? {
+          _id: user._id,
+          name: user.name || user.email || "Unknown",
+          email: user.email,
+          avatarUrl: user.avatarUrl,
+          role: user.role,
+        } : null;
+      })
+    );
 
     return {
       ...milestone,
       tasks: tasksWithAssignees,
       projectName: project?.title || "Unknown Project",
       projectDepartment: project?.department || "Unassigned",
+      projectId: milestone.projectId,
+      teamMembers: teamMembers.filter(Boolean),
     };
   },
 });
@@ -623,6 +693,54 @@ export const getMilestoneStats = query({
       upcoming: upcoming.length,
       completed: completed.length,
       total: allMilestones.length,
+    };
+  },
+});
+
+/**
+ * Sync all milestones progress - call this to fix existing data
+ */
+export const syncAllMilestonesProgress = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const milestones = await ctx.db.query("milestones").collect();
+    const tasks = await ctx.db.query("tasks").collect();
+    
+    let updated = 0;
+
+    for (const milestone of milestones) {
+      const milestoneTasks = tasks.filter(t => t.milestoneId === milestone._id);
+      const totalTasks = milestoneTasks.length;
+      // Check both status === "done" AND completed === true
+      const completedTasks = milestoneTasks.filter(t => t.status === "done" || t.completed === true).length;
+      const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+      // Calculate status based on progress
+      let status: "not_started" | "in_progress" | "completed" | "blocked" = "not_started";
+      if (progress === 100) {
+        status = "completed";
+      } else if (progress > 0) {
+        status = "in_progress";
+      }
+
+      // Only update if status is not blocked (preserve manual blocks)
+      if (milestone.status !== "blocked") {
+        await ctx.db.patch(milestone._id, {
+          progress,
+          status,
+          completedAt: status === "completed" && !milestone.completedAt ? Date.now() : milestone.completedAt,
+        });
+        updated++;
+      }
+    }
+
+    return { 
+      success: true, 
+      message: `Synced ${updated} milestones`,
+      milestonesUpdated: updated 
     };
   },
 });

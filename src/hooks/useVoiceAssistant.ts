@@ -24,6 +24,12 @@ export interface UseVoiceAssistantOptions {
   onError?: (error: string) => void;
   autoSpeak?: boolean;
   language?: string;
+  // Context for linking created items
+  context?: {
+    eventId?: Id<"events">;
+    milestoneId?: Id<"milestones">;
+    projectId?: Id<"projects">;
+  };
 }
 
 export function useVoiceAssistant(options: UseVoiceAssistantOptions) {
@@ -35,6 +41,7 @@ export function useVoiceAssistant(options: UseVoiceAssistantOptions) {
     onError,
     autoSpeak = true,
     language = "fil-PH", // Filipino/Tagalog default
+    context, // Context for linking tasks to events/milestones
   } = options;
 
   // Router for navigation
@@ -198,12 +205,25 @@ export function useVoiceAssistant(options: UseVoiceAssistantOptions) {
         content: msg.content,
       }));
 
+      // Log context for debugging
+      console.log("Voice command context:", {
+        eventId: context?.eventId,
+        milestoneId: context?.milestoneId,
+        projectId: context?.projectId,
+      });
+
       // Send to Convex for processing
       const result = await handleVoiceCommand({
         userId,
         audioBase64,
         mimeType: "audio/webm",
         conversationHistory,
+        // Pass context for linking created items
+        context: context ? {
+          eventId: context.eventId,
+          milestoneId: context.milestoneId,
+          projectId: context.projectId,
+        } : undefined,
       });
 
       if (result.success) {
@@ -268,7 +288,7 @@ export function useVoiceAssistant(options: UseVoiceAssistantOptions) {
         setError(null);
       }, 3000);
     }
-  }, [userId, conversation, handleVoiceCommand, autoSpeak, onTranscription, onResponse, onNavigate, onError, router]);
+  }, [userId, conversation, handleVoiceCommand, autoSpeak, onTranscription, onResponse, onNavigate, onError, router, context]);
 
   // Text-to-Speech with improved natural voice
   const speak = useCallback(

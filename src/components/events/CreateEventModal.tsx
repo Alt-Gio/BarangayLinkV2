@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { X, Calendar, Clock, MapPin, Users, AlertTriangle, Briefcase, MessageSquare, Globe, Image, Upload } from "lucide-react";
@@ -12,15 +12,16 @@ import type { Id } from "../../../convex/_generated/dataModel";
 interface CreateEventModalProps {
   isOpen: boolean;
   onClose: () => void;
+  defaultTitle?: string; // For voice assistant pre-fill
 }
 
-export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
+export function CreateEventModal({ isOpen, onClose, defaultTitle = "" }: CreateEventModalProps) {
   const createEvent = useMutation(api.events.createEvent);
   const generateUploadUrl = useMutation(api.documents.generateUploadUrl);
   const createDocument = useMutation(api.documents.createDocument);
   
   const [formData, setFormData] = useState({
-    title: "",
+    title: defaultTitle,
     description: "",
     type: "community" as "meeting" | "community" | "project" | "emergency" | "milestone",
     startDate: "",
@@ -42,6 +43,13 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
   // Fetch projects and current user from Convex
   const projects = useQuery(api.projects.getAllProjects);
   const currentUser = useQuery(api.users.getCurrentUser);
+
+  // Voice assistant integration: Update title when defaultTitle changes
+  useEffect(() => {
+    if (defaultTitle && isOpen) {
+      setFormData(prev => ({ ...prev, title: defaultTitle }));
+    }
+  }, [defaultTitle, isOpen]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");

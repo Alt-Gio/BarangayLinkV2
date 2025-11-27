@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useUser } from '@clerk/nextjs';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 // Force dynamic rendering for authenticated pages
 export const dynamic = 'force-dynamic';
@@ -21,9 +21,10 @@ import { ExportButton } from '@/components/common/ExportButton';
 import { Plus, Clock, CheckCircle2, AlertCircle, Menu } from 'lucide-react';
 import { exportProjectsReport } from '@/lib/exportUtils';
 
-export default function ProjectsPage() {
+function ProjectsContent() {
   const { user } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showWizard, setShowWizard] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeView, setActiveView] = useState<'all' | 'pending' | 'active' | 'completed'>('all');
@@ -32,6 +33,16 @@ export default function ProjectsPage() {
     department: "all"
   });
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Handle ?action=create query parameter (from voice assistant)
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'create') {
+      setShowWizard(true);
+      // Clear the URL parameter after opening wizard
+      router.replace('/projects', { scroll: false });
+    }
+  }, [searchParams, router]);
 
   // Get current user from offline context (cached, saves bandwidth)
   const { currentUser, isOnline } = useOfflineData();
@@ -269,5 +280,18 @@ export default function ProjectsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Wrap with Suspense for useSearchParams
+export default function ProjectsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+      </div>
+    }>
+      <ProjectsContent />
+    </Suspense>
   );
 }

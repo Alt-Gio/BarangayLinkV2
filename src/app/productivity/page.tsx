@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 
 // Force dynamic rendering for authenticated pages
@@ -112,6 +113,8 @@ const navigationItems: NavigationItem[] = [
 
 export default function ProductivityPage() {
   const { user, isLoaded } = useUser();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [departmentFilter, setDepartmentFilter] = useState("all");
@@ -120,7 +123,7 @@ export default function ProductivityPage() {
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('dashboard');
-  
+
   // Project form state
   const [projectForm, setProjectForm] = useState<ProjectFormData>({
     title: '',
@@ -130,6 +133,21 @@ export default function ProductivityPage() {
     endDate: '',
     budget: '',
   });
+
+  // Voice assistant integration: Auto-open create dialog from URL params
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'create') {
+      // Check if title was provided via voice command
+      const title = searchParams.get('title');
+      if (title) {
+        setProjectForm(prev => ({ ...prev, title: decodeURIComponent(title) }));
+      }
+      setIsProjectDialogOpen(true);
+      // Clear the params from URL to prevent re-triggering
+      router.replace('/productivity', { scroll: false });
+    }
+  }, [searchParams, router]);
 
   // Task form state
   const [taskForm, setTaskForm] = useState<TaskFormData>({
