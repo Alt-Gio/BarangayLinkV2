@@ -12,28 +12,24 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter } from 'next/navigation';
 import type { Coordinate } from '@/lib/gis/gisUtils';
 
-// Barangay 37 - Bitano coordinates
 const BARANGAY_CENTER = {
   lng: 123.7480647,
   lat: 13.1466871
 };
 
-// Barangay Hall coordinates
 const BARANGAY_HALL = {
   name: 'Barangay 37-Bitano Hall',
   lng: 123.7494046,
   lat: 13.1469299,
   icon: '🏛️',
-  color: '#10b981' // Green
+  color: '#10b981'
 };
 
-// Bicol Region bounds (Region V)
 const BICOL_BOUNDS: [[number, number], [number, number]] = [
-  [122.5, 12.0],  // Southwest
-  [124.5, 14.5]   // Northeast
+  [122.5, 12.0],
+  [124.5, 14.5]
 ];
 
-// REAL Flood risk zones
 const FLOOD_ZONES = [
   { maxElevation: 1, color: '#dc2626', label: 'Critical Flood Zone' },
   { maxElevation: 2.5, color: '#ea580c', label: 'High Flood Hazard' },
@@ -51,11 +47,9 @@ function MapboxMap() {
   const [showProjectsEvents, setShowProjectsEvents] = useState(true);
   const [showLandmarks, setShowLandmarks] = useState(true);
   
-  // Fetch ALL events and projects
   const allEvents = useQuery(api.events.getUpcomingEvents, { limit: 50 });
   const allProjects = useQuery(api.projects.getAllProjects);
   
-  // PUBLIC/PRIVATE FILTERING based on login status
   const events = user 
     ? allEvents
     : allEvents?.filter(event => event.isPublic === true);

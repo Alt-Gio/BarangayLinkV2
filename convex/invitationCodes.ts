@@ -2,7 +2,6 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 
-// Generate random invitation code
 function generateCode(length: number = 8): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let code = '';
@@ -12,7 +11,6 @@ function generateCode(length: number = 8): string {
   return code;
 }
 
-// Create invitation code
 export const createInvitationCode = mutation({
   args: {
     code: v.optional(v.string()), // Auto-generate if not provided
@@ -23,13 +21,11 @@ export const createInvitationCode = mutation({
     expiresAt: v.optional(v.number()), // Optional expiration timestamp
   },
   handler: async (ctx, args) => {
-    // Get current user
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
     }
 
-    // Find user in database
     const user = await ctx.db
       .query("users")
       .filter((q) => q.eq(q.field("clerkId"), identity.subject))
@@ -45,11 +41,9 @@ export const createInvitationCode = mutation({
       throw new Error("Unauthorized: Admin access required");
     }
 
-    // Generate code if not provided
     let code = args.code || generateCode();
     code = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
-    // Check if code already exists
     const existingCode = await ctx.db
       .query("invitationCodes")
       .withIndex("by_code", (q) => q.eq("code", code))
@@ -59,7 +53,6 @@ export const createInvitationCode = mutation({
       throw new Error("Invitation code already exists");
     }
 
-    // Create invitation code
     const codeId = await ctx.db.insert("invitationCodes", {
       code,
       description: args.description,

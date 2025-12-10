@@ -1,11 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-// ============================================
-// QUERIES
-// ============================================
-
-// Get all audit logs with pagination
 export const getAllLogs = query({
   args: {
     limit: v.optional(v.number()),
@@ -23,7 +18,6 @@ export const getAllLogs = query({
   },
 });
 
-// Get logs by entity
 export const getLogsByEntity = query({
   args: {
     entity: v.string(),
@@ -44,7 +38,6 @@ export const getLogsByEntity = query({
   },
 });
 
-// Get logs by user
 export const getLogsByUser = query({
   args: {
     userId: v.id("users"),

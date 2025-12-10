@@ -1,10 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-// ============================================
-// GLOBAL SEARCH
-// ============================================
-
 export const globalSearch = query({
   args: { 
     query: v.string(),
@@ -17,11 +13,10 @@ export const globalSearch = query({
 
     const results: any[] = [];
 
-    // Search Projects
     if (!types || types.includes('project')) {
       const projects = await ctx.db
         .query("projects")
-        .take(100); // OPTIMIZED: Limit search results
+        .take(100);
       
       const matchedProjects = projects
         .filter(p => 
@@ -42,11 +37,10 @@ export const globalSearch = query({
       results.push(...matchedProjects);
     }
 
-    // Search Tasks
     if (!types || types.includes('task')) {
       const tasks = await ctx.db
         .query("tasks")
-        .take(200); // OPTIMIZED: Limit search results
+        .take(200);
       
       const matchedTasks = tasks
         .filter(t => 
@@ -67,11 +61,10 @@ export const globalSearch = query({
       results.push(...matchedTasks);
     }
 
-    // Search Users
     if (!types || types.includes('user')) {
       const users = await ctx.db
         .query("users")
-        .take(100); // OPTIMIZED: Limit search results
+        .take(100);
       
       const matchedUsers = users
         .filter(u => 
@@ -123,7 +116,7 @@ export const globalSearch = query({
     if (!types || types.includes('document')) {
       const documents = await ctx.db
         .query("documents")
-        .take(100); // OPTIMIZED: Limit search results
+        .take(100);
       
       const matchedDocuments = documents
         .filter(d => 

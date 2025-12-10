@@ -1,19 +1,13 @@
-/**
- * Project Budget Management
- * Track budget allocation, spending, and alerts
- */
-
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 
-// Create or update project budget
 export const setBudget = mutation({
   args: {
     projectId: v.id("projects"),
     totalBudget: v.number(),
     currency: v.optional(v.string()),
-    alertThresholds: v.optional(v.array(v.number())), // e.g., [75, 90, 100]
+    alertThresholds: v.optional(v.array(v.number())),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -26,7 +20,6 @@ export const setBudget = mutation({
 
     if (!user) throw new Error("User not found");
 
-    // Check if budget already exists
     const existing = await ctx.db
       .query("projectBudgets")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
@@ -57,7 +50,6 @@ export const setBudget = mutation({
   },
 });
 
-// Get project budget
 export const getBudget = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
@@ -68,15 +60,12 @@ export const getBudget = query({
 
     if (!budget) return null;
 
-    // Calculate utilization percentage
     const utilization = budget.totalBudget > 0 
       ? (budget.spent / budget.totalBudget) * 100 
       : 0;
 
-    // Calculate remaining budget
     const remaining = budget.totalBudget - budget.spent;
 
-    // Check alert status
     const alerts = budget.alertThresholds.map((threshold) => ({
       threshold,
       triggered: utilization >= threshold,

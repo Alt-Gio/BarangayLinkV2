@@ -1,15 +1,7 @@
-/**
- * Milestones Management
- * Connects Projects to Sprint Tasks through goal-based milestones
- */
-
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 
-/**
- * Get all milestones for a project
- */
 export const getProjectMilestones = query({
   args: {
     projectId: v.id("projects"),
@@ -21,22 +13,20 @@ export const getProjectMilestones = query({
     const milestones = await ctx.db
       .query("milestones")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .order("asc") // Order by creation
-      .take(50); // OPTIMIZED: Limit milestones per project
+      .order("asc")
+      .take(50);
 
-    // Get tasks for each milestone and calculate progress
     const milestonesWithProgress = await Promise.all(
       milestones.map(async (milestone) => {
         const tasks = await ctx.db
           .query("tasks")
           .withIndex("by_milestone", (q) => q.eq("milestoneId", milestone._id))
-          .take(200); // OPTIMIZED: Limit tasks per milestone
+          .take(200);
 
         const totalTasks = tasks.length;
         const completedTasks = tasks.filter(t => t.completed).length;
         const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-        // Calculate total story points
         const totalPoints = tasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
         const completedPoints = tasks.filter(t => t.completed)
           .reduce((sum, t) => sum + (t.storyPoints || 0), 0);
@@ -53,16 +43,12 @@ export const getProjectMilestones = query({
       })
     );
 
-    // Sort by order
     milestonesWithProgress.sort((a, b) => a.order - b.order);
 
     return milestonesWithProgress;
   },
 });
 
-/**
- * Create a new milestone for a project
- */
 export const createMilestone = mutation({
   args: {
     projectId: v.id("projects"),
@@ -82,7 +68,6 @@ export const createMilestone = mutation({
 
     if (!user) throw new Error("User not found");
 
-    // Get existing milestones to set order
     const existingMilestones = await ctx.db
       .query("milestones")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
@@ -108,9 +93,6 @@ export const createMilestone = mutation({
   },
 });
 
-/**
- * Update milestone
- */
 export const updateMilestone = mutation({
   args: {
     milestoneId: v.id("milestones"),
@@ -137,12 +119,6 @@ export const updateMilestone = mutation({
   },
 });
 
-/**
- * Delete milestone with role-based permissions
- * - ADMIN: Can delete milestone and all tasks (cascade delete)
- * - CAPTAIN/MANAGER: Must delete all tasks first
- * - Others: Cannot delete
- */
 export const deleteMilestone = mutation({
   args: {
     milestoneId: v.id("milestones"),
@@ -159,27 +135,22 @@ export const deleteMilestone = mutation({
 
     if (!user) throw new Error("User not found");
 
-    // Get user role
     const userRole = user.role?.toUpperCase() || "WORKER";
     const isAdmin = userRole === "ADMIN";
     const isManagerOrCaptain = userRole === "CAPTAIN" || userRole === "MANAGER";
 
-    // Only ADMIN, CAPTAIN, MANAGER can delete milestones
     if (!isAdmin && !isManagerOrCaptain) {
       throw new Error("Only Admin, Captain, or Manager can delete milestones.");
     }
 
-    // Get milestone info
     const milestone = await ctx.db.get(args.milestoneId);
     if (!milestone) throw new Error("Milestone not found");
 
-    // Check if milestone has tasks
     const tasks = await ctx.db
       .query("tasks")
       .withIndex("by_milestone", (q) => q.eq("milestoneId", args.milestoneId))
       .collect();
 
-    // Also delete kanban columns for this milestone
     const columns = await ctx.db
       .query("kanbanColumns")
       .withIndex("by_milestone", (q) => q.eq("milestoneId", args.milestoneId))
@@ -187,25 +158,20 @@ export const deleteMilestone = mutation({
 
     if (tasks.length > 0) {
       if (isAdmin && args.forceDelete) {
-        // ADMIN can force delete - cascade delete all tasks
         for (const task of tasks) {
           await ctx.db.delete(task._id);
         }
       } else if (isAdmin) {
-        // ADMIN but not force deleting - return info for confirmation
         throw new Error(`CONFIRM_DELETE:${tasks.length} tasks and ${milestone.title} milestone progress will be permanently deleted. This action cannot be undone.`);
       } else {
-        // CAPTAIN/MANAGER - must delete tasks manually
         throw new Error(`This milestone has ${tasks.length} task(s). As a ${userRole.toLowerCase()}, you must delete all tasks first before deleting the milestone.`);
       }
     }
 
-    // Delete kanban columns
     for (const column of columns) {
       await ctx.db.delete(column._id);
     }
 
-    // Delete the milestone
     await ctx.db.delete(args.milestoneId);
 
     return { 
@@ -216,9 +182,6 @@ export const deleteMilestone = mutation({
   },
 });
 
-/**
- * Add sprint task to milestone
- */
 export const addTaskToMilestone = mutation({
   args: {
     milestoneId: v.id("milestones"),
@@ -244,11 +207,9 @@ export const addTaskToMilestone = mutation({
 
     if (!user) throw new Error("User not found");
 
-    // Get milestone to link to project
     const milestone = await ctx.db.get(args.milestoneId);
     if (!milestone) throw new Error("Milestone not found");
 
-    // Calculate XP and Gold from story points
     const STORY_POINT_TO_XP: Record<number, number> = {
       1: 10, 2: 25, 3: 50, 5: 100, 8: 200, 13: 350, 21: 600
     };
@@ -286,7 +247,6 @@ export const addTaskToMilestone = mutation({
       isBlocking: false,
     });
 
-    // Update milestone status to in_progress if it was not_started
     if (milestone.status === "not_started") {
       await ctx.db.patch(args.milestoneId, {
         status: "in_progress",
@@ -297,10 +257,6 @@ export const addTaskToMilestone = mutation({
   },
 });
 
-/**
- * Update milestone progress when tasks change
- * Call this after completing/uncompleting a task
- */
 export const updateMilestoneProgress = mutation({
   args: {
     milestoneId: v.id("milestones"),
@@ -312,11 +268,9 @@ export const updateMilestoneProgress = mutation({
       .collect();
 
     const totalTasks = tasks.length;
-    // Check both status === "done" AND completed === true
     const completedTasks = tasks.filter(t => t.status === "done" || t.completed === true).length;
     const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-    // Update status based on progress
     let status: "not_started" | "in_progress" | "completed" | "blocked" = "not_started";
     if (progress === 100) {
       status = "completed";
@@ -335,13 +289,11 @@ export const updateMilestoneProgress = mutation({
       });
     }
 
-    // 🎮 INTEGRATION: Award bonus XP and gold for milestone completion
     if (wasJustCompleted && milestone) {
       const project = await ctx.db.get(milestone.projectId);
       const xpBonus = 100;
       const goldBonus = 50;
 
-      // Award to all team members
       if (project && project.assignedTo && project.assignedTo.length > 0) {
         for (const userId of project.assignedTo) {
           const user = await ctx.db.get(userId);
@@ -355,7 +307,6 @@ export const updateMilestoneProgress = mutation({
               level: calculateLevel(newXP),
             });
 
-            // Log activity
             await ctx.db.insert("userActivityLogs", {
               userId,
               activityType: "action",
@@ -371,7 +322,6 @@ export const updateMilestoneProgress = mutation({
               timestamp: Date.now(),
             });
 
-            // Create notification
             await ctx.db.insert("notifications", {
               userId,
               type: "milestone_completed",
@@ -392,7 +342,6 @@ export const updateMilestoneProgress = mutation({
       }
     }
 
-    // Update project progress
     if (milestone) {
       await updateProjectProgress(ctx, milestone.projectId);
     }
@@ -401,7 +350,6 @@ export const updateMilestoneProgress = mutation({
   },
 });
 
-// Helper: Calculate level from XP
 function calculateLevel(xp: number): number {
   if (xp < 100) return 1;
   if (xp < 300) return 2;
@@ -416,9 +364,6 @@ function calculateLevel(xp: number): number {
   return 10 + Math.floor((xp - 5500) / 1000);
 }
 
-/**
- * Helper function to update project progress based on milestones
- */
 async function updateProjectProgress(ctx: any, projectId: Id<"projects">) {
   const milestones = await ctx.db
     .query("milestones")
@@ -438,9 +383,6 @@ async function updateProjectProgress(ctx: any, projectId: Id<"projects">) {
   return projectProgress;
 }
 
-/**
- * Reorder milestones
- */
 export const reorderMilestones = mutation({
   args: {
     milestoneId: v.id("milestones"),
@@ -458,9 +400,6 @@ export const reorderMilestones = mutation({
   },
 });
 
-/**
- * Get milestone with all its tasks (for detail view)
- */
 export const getMilestoneDetails = query({
   args: {
     milestoneId: v.id("milestones"),
@@ -477,7 +416,6 @@ export const getMilestoneDetails = query({
       .withIndex("by_milestone", (q) => q.eq("milestoneId", args.milestoneId))
       .collect();
 
-    // Get assignee details for each task
     const tasksWithAssignees = await Promise.all(
       tasks.map(async (task) => {
         const assignees = await Promise.all(
@@ -490,19 +428,16 @@ export const getMilestoneDetails = query({
       })
     );
 
-    // Get project details
     const project = await ctx.db.get(milestone.projectId);
-    
-    // Get team members from project
     const teamMemberIds = project?.assignedTo || [];
     const teamMembers = await Promise.all(
       teamMemberIds.map(async (userId: any) => {
-        const user = await ctx.db.get(userId);
+        const user = await ctx.db.query("users").filter((q) => q.eq(q.field("_id"), userId)).first();
         return user ? {
           _id: user._id,
           name: user.name || user.email || "Unknown",
           email: user.email,
-          avatarUrl: user.avatarUrl,
+          avatarUrl: user.imageUrl,
           role: user.role,
         } : null;
       })
@@ -519,9 +454,6 @@ export const getMilestoneDetails = query({
   },
 });
 
-/**
- * Get all active milestones (for Sprint Board)
- */
 export const getActiveMilestones = query({
   args: {},
   handler: async (ctx) => {
@@ -531,7 +463,6 @@ export const getActiveMilestones = query({
     const now = Date.now();
     const allMilestones = await ctx.db.query("milestones").take(100); // OPTIMIZED
 
-    // Filter active milestones (have targetDate and not completed)
     const activeMilestones = allMilestones.filter(
       (m: any) =>
         m.targetDate &&
@@ -539,7 +470,6 @@ export const getActiveMilestones = query({
         m.status !== "completed"
     );
 
-    // Enrich with project and task data
     const enriched = await Promise.all(
       activeMilestones.map(async (milestone) => {
         const project = await ctx.db.get(milestone.projectId);
@@ -552,7 +482,6 @@ export const getActiveMilestones = query({
         const completedTasks = tasks.filter((t) => t.completed).length;
         const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-        // Calculate health
         const daysLeft = milestone.targetDate 
           ? Math.ceil((milestone.targetDate - now) / (1000 * 60 * 60 * 24))
           : 0;
@@ -582,9 +511,6 @@ export const getActiveMilestones = query({
   },
 });
 
-/**
- * Get upcoming milestones (for Sprint Board)
- */
 export const getUpcomingMilestones = query({
   args: {},
   handler: async (ctx) => {
@@ -594,7 +520,6 @@ export const getUpcomingMilestones = query({
     const now = Date.now();
     const allMilestones = await ctx.db.query("milestones").take(100); // OPTIMIZED
 
-    // Get milestones with future target dates
     const upcomingMilestones = allMilestones.filter(
       (m: any) =>
         m.targetDate &&
@@ -623,9 +548,6 @@ export const getUpcomingMilestones = query({
   },
 });
 
-/**
- * Get completed milestones (for Sprint Board)
- */
 export const getCompletedMilestones = query({
   args: {},
   handler: async (ctx) => {
@@ -660,9 +582,6 @@ export const getCompletedMilestones = query({
   },
 });
 
-/**
- * Get milestone statistics (for Sprint Board)
- */
 export const getMilestoneStats = query({
   args: {},
   handler: async (ctx) => {
@@ -697,9 +616,6 @@ export const getMilestoneStats = query({
   },
 });
 
-/**
- * Sync all milestones progress - call this to fix existing data
- */
 export const syncAllMilestonesProgress = mutation({
   args: {},
   handler: async (ctx) => {
@@ -714,11 +630,9 @@ export const syncAllMilestonesProgress = mutation({
     for (const milestone of milestones) {
       const milestoneTasks = tasks.filter(t => t.milestoneId === milestone._id);
       const totalTasks = milestoneTasks.length;
-      // Check both status === "done" AND completed === true
       const completedTasks = milestoneTasks.filter(t => t.status === "done" || t.completed === true).length;
       const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-      // Calculate status based on progress
       let status: "not_started" | "in_progress" | "completed" | "blocked" = "not_started";
       if (progress === 100) {
         status = "completed";
@@ -726,7 +640,6 @@ export const syncAllMilestonesProgress = mutation({
         status = "in_progress";
       }
 
-      // Only update if status is not blocked (preserve manual blocks)
       if (milestone.status !== "blocked") {
         await ctx.db.patch(milestone._id, {
           progress,

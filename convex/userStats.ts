@@ -1,14 +1,6 @@
 import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
-/**
- * User Statistics Tracking
- * Makes totalHoursLogged, totalTasksCompleted, streakCount, projectSuccessRate functional
- */
-
-/**
- * Update total tasks completed when a task is marked as done
- */
 export const incrementTasksCompleted = internalMutation({
   args: {
     userId: v.id("users"),
@@ -23,9 +15,6 @@ export const incrementTasksCompleted = internalMutation({
   },
 });
 
-/**
- * Update total hours logged when work time is tracked
- */
 export const addHoursLogged = internalMutation({
   args: {
     userId: v.id("users"),
@@ -41,9 +30,6 @@ export const addHoursLogged = internalMutation({
   },
 });
 
-/**
- * Update streak count when user completes daily tasks
- */
 export const updateStreak = internalMutation({
   args: {
     userId: v.id("users"),
@@ -56,16 +42,12 @@ export const updateStreak = internalMutation({
     const lastActiveDate = (user as any).lastActiveDate || 0;
     const oneDay = 24 * 60 * 60 * 1000;
     
-    // Check if user was active yesterday or today
     const daysSinceActive = Math.floor((now - lastActiveDate) / oneDay);
-    
     let newStreak = (user as any).streakCount || 0;
     
     if (daysSinceActive <= 1) {
-      // Continue streak
       newStreak += 1;
     } else {
-      // Reset streak
       newStreak = 1;
     }
 
@@ -76,8 +58,7 @@ export const updateStreak = internalMutation({
   },
 });
 
-/**
- * Calculate and update project success rate
+/*
  */
 export const updateProjectSuccessRate = internalMutation({
   args: {

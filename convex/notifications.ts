@@ -2,7 +2,6 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, checkPermission } from "./roleBasedAccess";
 
-// Create project notification/announcement
 export const createProjectNotification = mutation({
   args: {
     projectId: v.id("projects"),
@@ -19,17 +18,13 @@ export const createProjectNotification = mutation({
     
     if (!project) throw new Error("Project not found");
     
-    // Check if user can send notifications for this project
     const canNotify = currentUser.userLevel.name === "ADMIN" ||
                      (currentUser.userLevel.name === "MANAGER" && project.department === currentUser.department) ||
                      (currentUser.userLevel.name === "BUILDER" && project.createdBy === currentUser._id);
     
     if (!canNotify) throw new Error("Permission denied");
     
-    // Get project team members
     const teamMembers = project.assignedTo || [];
-    
-    // Filter by target roles if specified
     let targetUsers = teamMembers;
     if (args.targetRoles && args.targetRoles.length > 0) {
       const usersWithRoles = await Promise.all(
@@ -46,7 +41,6 @@ export const createProjectNotification = mutation({
         .map(user => user!.userId);
     }
     
-    // Create notifications for each target user
     const notifications = await Promise.all(
       targetUsers.map(async (userId) => {
         return await ctx.db.insert("notifications", {
@@ -80,7 +74,6 @@ export const createProjectNotification = mutation({
   }
 });
 
-// Get project notifications
 export const getProjectNotifications = query({
   args: { 
     projectId: v.id("projects"),

@@ -2,7 +2,6 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 
-// Create a new version when document is updated
 export const createVersion = mutation({
   args: {
     documentId: v.id("documents"),
@@ -33,11 +32,9 @@ export const createVersion = mutation({
 
     if (!user) throw new Error("User not found");
 
-    // Get the document to verify it exists
     const document = await ctx.db.get(args.documentId);
     if (!document) throw new Error("Document not found");
 
-    // Get the latest version number
     const latestVersion = await ctx.db
       .query("documentVersions")
       .withIndex("by_document", (q) => q.eq("documentId", args.documentId))
@@ -57,7 +54,6 @@ export const createVersion = mutation({
       await ctx.db.patch(version._id, { isCurrentVersion: false });
     }
 
-    // Create new version
     const versionId = await ctx.db.insert("documentVersions", {
       documentId: args.documentId,
       versionNumber,
@@ -73,9 +69,6 @@ export const createVersion = mutation({
       createdAt: Date.now(),
       isCurrentVersion: true,
     });
-
-    // Document updated (documents table doesn't have updatedAt field)
-    // Version creation timestamp is tracked in the version itself
 
     return versionId;
   },

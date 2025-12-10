@@ -16,13 +16,11 @@ export default function ProfileEditPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
-  // Get resident data
   const myResident = useQuery(
     api.residents.getResidentByClerkId,
     user?.id ? { clerkUserId: user.id } : "skip"
   );
 
-  // Profile form state
   const [profileForm, setProfileForm] = useState({
     phoneNumber: "",
     email: "",
@@ -34,10 +32,8 @@ export default function ProfileEditPage() {
     emergencyContactPhone: "",
   });
 
-  // Update profile mutation
   const updateProfile = useMutation(api.residents.updateResidentProfile);
 
-  // Initialize form with resident data
   useEffect(() => {
     if (myResident) {
       setProfileForm({
@@ -66,7 +62,6 @@ export default function ProfileEditPage() {
       setSuccessMessage("✅ Profile updated successfully!");
       setIsEditing(false);
       
-      // Clear success message after 3 seconds
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (error: any) {
       alert(`❌ Error updating profile: ${error.message}`);
@@ -76,7 +71,6 @@ export default function ProfileEditPage() {
   };
 
   const handleCancel = () => {
-    // Reset form to original values
     if (myResident) {
       setProfileForm({
         phoneNumber: myResident.phoneNumber || "",

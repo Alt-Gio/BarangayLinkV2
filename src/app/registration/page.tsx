@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 
-// Force dynamic rendering since this page is wrapped by ClerkProvider
 export const dynamic = 'force-dynamic';
 import { api } from '../../../convex/_generated/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,20 +38,16 @@ export default function RegistrationPage() {
   const [editingUser, setEditingUser] = useState<any>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
-  // Queries
   const currentUser = useQuery(api.users.getCurrentUser);
   const allUsers = useQuery(api.users.getAllUsersWithLevels);
   const userLevels = useQuery(api.userLevels.getAllUserLevels);
 
-  // Mutations
   const assignUserLevel = useMutation(api.users.assignUserLevel);
   const updateUserProfile = useMutation(api.users.updateUserProfile);
   const updateUserStatus = useMutation(api.users.updateUserStatus);
 
-  // Check if current user is admin/manager
   const isAuthorized = currentUser?.userLevel?.name === 'ADMIN' || currentUser?.userLevel?.name === 'MANAGER';
 
-  // Filter users based on search and filters
   const filteredUsers = allUsers?.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -62,7 +57,6 @@ export default function RegistrationPage() {
     return matchesSearch && matchesDepartment && matchesUserLevel;
   }) || [];
 
-  // Get unique departments
   const departments = [...new Set(allUsers?.map(user => user.department).filter(Boolean) || [])];
 
   const handleEditUser = (user: any) => {
@@ -80,7 +74,6 @@ export default function RegistrationPage() {
     if (!editingUser) return;
 
     try {
-      // Update user profile
       await updateUserProfile({
         userId: editingUser._id,
         department: editingUser.newDepartment,
@@ -88,7 +81,6 @@ export default function RegistrationPage() {
         phone: editingUser.newPhone,
       });
 
-      // Update user level if changed
       if (editingUser.newUserLevel !== editingUser.userLevel._id) {
         await assignUserLevel({
           userId: editingUser._id,

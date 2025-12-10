@@ -1,23 +1,13 @@
-/**
- * Gamification Service - Universal Reward System
- * Award XP, gold, and achievements for all productive activities
- */
-
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { Id } from "../_generated/dataModel";
 
 export type RewardableAction =
-  // Tasks
   | "task_created" | "task_completed" | "task_on_time"
-  // Events
   | "event_attended" | "event_organized" | "event_volunteered"
-  // Projects
   | "milestone_completed" | "project_completed"
-  // Collaboration
   | "helpful_comment" | "code_review" | "document_uploaded"
-  // Engagement
   | "daily_login" | "streak_maintained" | "poll_participated";
 
 interface RewardConfig {
@@ -26,34 +16,23 @@ interface RewardConfig {
   mana?: number;
 }
 
-// Base rewards for each action type
 const REWARD_CONFIG: Record<RewardableAction, RewardConfig> = {
-  // Tasks
   task_created: { xp: 5 },
   task_completed: { xp: 10, gold: 5 },
-  task_on_time: { xp: 15, gold: 10 }, // Bonus for completing before due date
-  
-  // Events
+  task_on_time: { xp: 15, gold: 10 },
   event_attended: { xp: 50 },
   event_organized: { xp: 100, gold: 50 },
   event_volunteered: { xp: 75, gold: 25 },
-  
-  // Projects
   milestone_completed: { xp: 100, gold: 50 },
   project_completed: { xp: 500, gold: 250 },
-  
-  // Collaboration
   helpful_comment: { xp: 25 },
   code_review: { xp: 30 },
   document_uploaded: { gold: 10 },
-  
-  // Engagement
   daily_login: { xp: 10 },
-  streak_maintained: { xp: 20 }, // Bonus per day of streak
+  streak_maintained: { xp: 20 },
   poll_participated: { xp: 5 },
 };
 
-// Award points for any action (internal mutation)
 export const awardPoints = internalMutation({
   args: {
     userId: v.id("users"),
@@ -67,7 +46,6 @@ export const awardPoints = internalMutation({
       throw new Error("User not found");
     }
 
-    // Get reward config for this action
     const baseReward = REWARD_CONFIG[args.action as RewardableAction] || { xp: 0, gold: 0 };
     const multiplier = args.multiplier || 1.0;
 

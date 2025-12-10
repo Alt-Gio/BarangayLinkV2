@@ -82,8 +82,8 @@ interface Task {
   creator: any;
   blockedReason?: string;
   verifiedUser?: any;
-  reportTo?: Id<"users">; // Who should review/check this task
-  reportToUser?: any; // Populated reviewer user object
+  reportTo?: Id<"users">;
+  reportToUser?: any;
 }
 
 const priorityColors = {
@@ -107,26 +107,18 @@ export default function EventControlPage() {
   const router = useRouter();
   const eventId = params.eventId as Id<"events">;
 
-  // Set voice assistant context for this event
-  const { setVoiceContext, voiceContext } = useVoiceAssistantContext();
-  
-  // Debug log on every render
-  console.log("🎯 EventControlPage RENDER - eventId:", eventId, "current voiceContext:", voiceContext);
+  const { setVoiceContext } = useVoiceAssistantContext();
   
   useEffect(() => {
-    console.log("🎯 EventControlPage useEffect RUNNING - eventId:", eventId);
     setVoiceContext({ eventId });
-    return () => {
-      console.log("🎯 EventControlPage CLEANUP");
-      setVoiceContext({});
-    };
+    return () => setVoiceContext({});
   }, [eventId, setVoiceContext]);
 
-  const [sidebarOpen, setSidebarOpen] = useState(false); // Sidebar closed by default on mobile
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPriority, setFilterPriority] = useState<string>("all");
-  const [headerCollapsed, setHeaderCollapsed] = useState(false); // Collapsible header for mobile
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Id<"eventTasks"> | null>(null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [isClockInDialogOpen, setIsClockInDialogOpen] = useState(false);
@@ -148,24 +140,19 @@ export default function EventControlPage() {
   const [revisionNote, setRevisionNote] = useState("");
   const [pendingRevisionTask, setPendingRevisionTask] = useState<Id<"eventTasks"> | null>(null);
 
-  // Queries
   const event = useQuery(api.events.getEventById, { eventId });
   const tasks = useQuery(api.eventControl.getEventTasks, { eventId });
   const dashboard = useQuery(api.eventControl.getEventDashboard, { eventId });
-  // Get current user from offline context (cached, saves bandwidth)
   const { currentUser, isOnline } = useOfflineData();
   const currentUserStatus = useQuery(api.users.getCurrentUserStatus);
   const allUsers = useQuery(api.users.getAllActiveUsers);
   const activeTimeEntry = useQuery(api.eventTaskTimeTracking.getActiveTimeEntry, {});
-  // Get all task assignments for the event (needed for validation)
   const allTaskAssignments = useQuery(api.eventTaskAssignments.getAllEventAssignments, { eventId });
-  // Get specific task assignments for the assign dialog
   const taskAssignments = useQuery(
     api.eventTaskAssignments.getTaskAssignments,
     selectedTask ? { taskId: selectedTask } : "skip"
   );
 
-  // Mutations
   const updateTaskStatus = useMutation(api.eventControl.updateTaskStatus);
   const createTask = useMutation(api.eventControl.createEventTask);
   const assignTask = useMutation(api.eventControl.assignTask);
@@ -177,7 +164,6 @@ export default function EventControlPage() {
   const completeAssignment = useMutation(api.eventTaskAssignments.completeAssignment);
   const verifyAssignment = useMutation(api.eventTaskAssignments.verifyAssignment);
 
-  // Archive task handler
   const handleArchiveTask = async (taskId: Id<"eventTasks">) => {
     try {
       await archiveTask({ taskId });
@@ -187,14 +173,12 @@ export default function EventControlPage() {
     }
   };
 
-  // Export comprehensive event report
   const handleExportReport = () => {
     if (!event || !tasks || !dashboard) {
       toast.error('Please wait for data to load');
       return;
     }
 
-    // Calculate comprehensive statistics
     const totalTasks = tasks.length;
     const completedTasks = tasks.filter((t: any) => t.status === 'done').length;
     const inProgressTasks = tasks.filter((t: any) => t.status === 'in_progress').length;
@@ -204,20 +188,17 @@ export default function EventControlPage() {
     const blockedTasks = tasks.filter((t: any) => t.status === 'blocked').length;
     const completionRate = totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(1) : '0.0';
 
-    // Priority breakdown
     const criticalTasks = tasks.filter((t: any) => t.priority === 'critical').length;
     const highTasks = tasks.filter((t: any) => t.priority === 'high').length;
     const mediumTasks = tasks.filter((t: any) => t.priority === 'medium').length;
     const lowTasks = tasks.filter((t: any) => t.priority === 'low').length;
 
-    // Team performance
     const assignedUsers = new Set();
     tasks.forEach((task: any) => {
       task.assignedUsers?.forEach((user: any) => assignedUsers.add(user._id));
     });
     const totalTeamMembers = assignedUsers.size;
 
-    // Generate HTML report
     const reportHTML = `
       <!DOCTYPE html>
       <html>
@@ -457,7 +438,6 @@ export default function EventControlPage() {
       </html>
     `;
 
-    // Open report in new window and trigger print
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(reportHTML);
@@ -471,7 +451,6 @@ export default function EventControlPage() {
     }
   };
 
-  // Update current time every second for live timer
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(Date.now());
@@ -481,11 +460,9 @@ export default function EventControlPage() {
 
   const handleStatusChange = async (taskId: Id<"eventTasks">, newStatus: string, reason?: string) => {
     try {
-      // Get the task being changed
       const task = tasks?.find((t: Task) => t._id === taskId);
       if (!task) return;
 
-      // Handle userLevel as string or object
       const userLevelStr = typeof currentUser?.userLevel === 'string' 
         ? currentUser.userLevel 
         : currentUser?.userLevel?.name || '';
@@ -497,64 +474,48 @@ export default function EventControlPage() {
       const isWorker = userLevelStr === "WORKER";
       const canManage = isAdmin || isCaptain || isManager;
 
-      // Get task assignments to check if user is assigned
       const assignedUserIds = task.assignedUsers?.map((u: any) => u._id) || [];
       const isAssigned = currentUser && assignedUserIds.includes(currentUser._id);
 
-      // Check if current user is the assigned reviewer (reportTo) - but NOT if they're a Worker
       const isReviewer = task.reportTo && currentUser && task.reportTo === currentUser._id && !isWorker;
 
-      // COMPREHENSIVE VALIDATION RULES
-
-      // Rule 1: DONE tasks cannot be moved (locked)
       if (task.status === "done") {
         toast.error("Completed tasks cannot be modified. Task is locked.");
         return;
       }
 
-      // Rule 2: Can only move to DONE from IN_REVIEW by authorized users (NOT Workers)
       if (newStatus === "done") {
         if (task.status !== "in_review") {
           toast.error("Tasks can only be marked as DONE from IN REVIEW status");
           return;
         }
-        // Check permissions: Admin, Captain, Manager, or Builder (if assigned as reviewer)
-        // Workers can NEVER mark as done, even if assigned as reviewer
         const canApproveDone = isAdmin || isCaptain || isManager || (isBuilder && isReviewer);
         if (!canApproveDone) {
           toast.error("Only Admins, Captains, Managers, or assigned Builder reviewer can mark tasks as DONE");
           return;
         }
-        // Show approval confirmation dialog
         setPendingApprovalTask(taskId);
         setIsApprovalDialogOpen(true);
         return;
       }
 
-      // Rule 2b: Moving from IN REVIEW back to IN PROGRESS (needs revision)
       if (task.status === "in_review" && newStatus === "in_progress") {
-        // Check if user can send back for revision
         const canRevise = isAdmin || isCaptain || isManager || (isBuilder && isReviewer) || isReviewer;
         if (!canRevise) {
           toast.error("Only authorized reviewers can send tasks back for revision");
           return;
         }
-        // Show revision dialog
         setPendingRevisionTask(taskId);
         setIsRevisionDialogOpen(true);
         return;
       }
 
-      // Reset timer when task goes back to IN PROGRESS from any status
       if (newStatus === "in_progress" && task.status !== "in_progress") {
-        // Check if there's an active time entry for this task
         if (activeTimeEntry && activeTimeEntry.taskId === taskId) {
-          // Clock out the current session
-          await clockOut({ entryId: activeTimeEntry._id });
+          await clockOut({ taskId: activeTimeEntry.taskId });
         }
       }
 
-      // Rule 3: IN_PROGRESS requires assignments, and CANNOT go back to TODO
       if (newStatus === "in_progress") {
         if (assignedUserIds.length === 0) {
           toast.error("Cannot start task - No users assigned yet. Please assign users first.");
@@ -562,20 +523,17 @@ export default function EventControlPage() {
         }
       }
 
-      // Rule 4: TODO - STRICT! Can NEVER come back once assignments exist
       if (newStatus === "todo") {
         if (assignedUserIds.length > 0) {
           toast.error("Cannot move back to TODO - Task has assigned users. Once assigned, task must stay in workflow.");
           return;
         }
-        // Can only come from BACKLOG (no assignments)
         if (task.status !== "backlog") {
           toast.error("Can only move to TODO from BACKLOG");
           return;
         }
       }
 
-      // Rule 5: BACKLOG - Can only go here from TODO with no assignments
       if (newStatus === "backlog") {
         if (task.status !== "todo") {
           toast.error("Can only move to BACKLOG from TODO status");
@@ -587,9 +545,7 @@ export default function EventControlPage() {
         }
       }
 
-      // Rule 6: IN PROGRESS to IN REVIEW - ALL team members must mark complete
       if (task.status === "in_progress" && newStatus === "in_review") {
-        // Get individual assignment progress from allTaskAssignments
         const assignments = allTaskAssignments?.filter((a: any) => a.taskId === taskId) || [];
         
         if (assignments.length > 0) {
@@ -603,13 +559,11 @@ export default function EventControlPage() {
         }
       }
 
-      // Rule 7: From BACKLOG, can only go to TODO
       if (task.status === "backlog" && newStatus !== "todo") {
         toast.error("Tasks in BACKLOG can only be moved to TODO. Move to TODO first, then assign users.");
         return;
       }
 
-      // Rule 8: TODO restrictions - cannot skip to IN_REVIEW or be BLOCKED
       if (task.status === "todo") {
         if (newStatus === "in_review") {
           toast.error("Cannot move to IN REVIEW from TODO. Work must be started and completed first.");
@@ -625,19 +579,16 @@ export default function EventControlPage() {
         }
       }
 
-      // Rule 9: BACKLOG cannot be BLOCKED
       if (task.status === "backlog" && newStatus === "blocked") {
         toast.error("Cannot block tasks in BACKLOG. Move to TODO and start work first.");
         return;
       }
 
-      // Rule 10: Only IN_PROGRESS and IN_REVIEW can be BLOCKED
       if (newStatus === "blocked") {
         if (task.status !== "in_progress" && task.status !== "in_review") {
           toast.error("Only tasks that are IN PROGRESS or IN REVIEW can be blocked.");
           return;
         }
-        // Require a reason
         if (!reason) {
           setPendingBlockedTask(taskId);
           setIsBlockedDialogOpen(true);
@@ -645,15 +596,13 @@ export default function EventControlPage() {
         }
       }
 
-      // Update status
       await updateTaskStatus({
         taskId,
         newStatus: newStatus as any,
-        blockedReason: reason, // Save blocked reason
-        verifiedBy: newStatus === "done" && currentUser ? currentUser._id : undefined, // Record who approved
+        blockedReason: reason,
+        verifiedBy: newStatus === "done" && currentUser ? currentUser._id : undefined,
       });
       
-      // Show appropriate success message
       if (reason && newStatus === "blocked") {
         toast.success(`Task blocked: ${reason}`);
       } else if (newStatus === "backlog") {
@@ -721,12 +670,9 @@ export default function EventControlPage() {
         onToggle={() => setSidebarOpen(!sidebarOpen)}
       />
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Compact Mobile Header */}
         <div className="bg-gray-800 border-b border-gray-700">
-          {/* Top Bar - Always Visible */}
           <div className="px-3 py-2 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {/* Mobile Menu Button */}
               <Button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 variant="ghost"
@@ -747,7 +693,6 @@ export default function EventControlPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Collapse Toggle Button */}
               <Button
                 onClick={() => setHeaderCollapsed(!headerCollapsed)}
                 variant="ghost"
@@ -779,7 +724,6 @@ export default function EventControlPage() {
             </div>
           </div>
 
-          {/* Event Title - Always Visible, Centered */}
           <div className="text-center px-4 py-3 border-t border-gray-700/50">
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white leading-tight">
               {event.title}
@@ -789,10 +733,8 @@ export default function EventControlPage() {
             )}
           </div>
 
-        {/* Collapsible Stats & Filters Section */}
         {!headerCollapsed && (
           <div className="px-3 py-4 space-y-4 border-t border-gray-700/50">
-        {/* Dashboard Stats */}
         {dashboard && (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3">
             <StatCard
@@ -834,7 +776,6 @@ export default function EventControlPage() {
           </div>
         )}
 
-          {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-2 items-stretch">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -862,9 +803,7 @@ export default function EventControlPage() {
         )}
         </div>
 
-        {/* Centered Kanban Board */}
         <div className="flex-1 overflow-x-auto overflow-y-hidden px-2 py-4">
-          {/* Mobile Scroll Hint */}
           <div className="text-center mb-2 md:hidden">
             <p className="text-xs text-gray-500">← Swipe to browse columns →</p>
           </div>
@@ -939,7 +878,6 @@ export default function EventControlPage() {
           </div>
         </div>
 
-        {/* Assign Task Dialog */}
         {selectedTask && (
           <AssignTaskDialog
             taskId={selectedTask}
@@ -959,7 +897,6 @@ export default function EventControlPage() {
           />
         )}
 
-        {/* Clock In Dialog */}
         {selectedTimeTask && (
           <ClockInDialog
             taskId={selectedTimeTask}
@@ -977,7 +914,6 @@ export default function EventControlPage() {
           />
         )}
 
-        {/* Clock Out Dialog */}
         {selectedTimeTask && (
           <ClockOutDialog
             taskId={selectedTimeTask}
@@ -995,7 +931,6 @@ export default function EventControlPage() {
           />
         )}
 
-        {/* Verify Task Dialog */}
         {selectedTimeTask && (
           <VerifyTaskDialog
             taskId={selectedTimeTask}
@@ -1013,7 +948,6 @@ export default function EventControlPage() {
           />
         )}
 
-        {/* Task Details Dialog */}
         {selectedDetailsTask && (
           <TaskDetailsDialog
             eventId={eventId}
@@ -1023,7 +957,6 @@ export default function EventControlPage() {
           />
         )}
 
-        {/* Manage People Dialog */}
         {managingTask && (
           <ManagePeopleDialog
             taskId={managingTask}
@@ -1033,7 +966,6 @@ export default function EventControlPage() {
           />
         )}
 
-        {/* Blocked Reason Dialog */}
         <Dialog open={isBlockedDialogOpen} onOpenChange={setIsBlockedDialogOpen}>
           <DialogContent className="bg-gray-800 text-white border-gray-700">
             <DialogHeader>
@@ -1090,7 +1022,6 @@ export default function EventControlPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Approval Dialog - Confirm marking as DONE */}
         <Dialog open={isApprovalDialogOpen} onOpenChange={setIsApprovalDialogOpen}>
           <DialogContent className="bg-gray-800 text-white border-gray-700">
             <DialogHeader>
@@ -1149,7 +1080,6 @@ export default function EventControlPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Revision Dialog - Send back to IN PROGRESS */}
         <Dialog open={isRevisionDialogOpen} onOpenChange={setIsRevisionDialogOpen}>
           <DialogContent className="bg-gray-800 text-white border-gray-700">
             <DialogHeader>
@@ -1193,7 +1123,6 @@ export default function EventControlPage() {
                         taskId: pendingRevisionTask,
                         newStatus: "in_progress" as any,
                       });
-                      // Add comment about revision
                       toast.success('Task sent back for revision');
                       setIsRevisionDialogOpen(false);
                       setRevisionNote("");
@@ -1261,7 +1190,6 @@ function AssignedUsersSection({ task, onViewDetails }: { task: any; onViewDetail
     );
   }
 
-  // Calculate overall progress
   const totalProgress = assignments.reduce((sum, a) => sum + a.progress, 0);
   const avgProgress = Math.round(totalProgress / assignments.length);
 
@@ -1381,29 +1309,23 @@ function TaskCard({ task, onStatusChange, onAssign, onDelete, onClockIn, onClock
   const [showActions, setShowActions] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   
-  // Check if THIS SPECIFIC user is clocked in to THIS SPECIFIC task
   const isTaskActive = activeTimeEntry && activeTimeEntry.taskId === task._id && activeTimeEntry.userId === currentUser?._id;
   
   const isAdmin = currentUser?.userLevel?.name === "ADMIN";
   
-  // Check if current user is assigned to this task
   const isAssignedToMe = task.assignedUsers?.some((user: any) => user._id === currentUser?._id);
   
-  // Calculate persistent elapsed time from database startTime
   const [persistentElapsed, setPersistentElapsed] = useState(0);
   
   useEffect(() => {
     if (isTaskActive && activeTimeEntry?.startTime) {
-      // Calculate initial elapsed time from database
       const calculateElapsed = () => {
         const elapsed = Math.floor((Date.now() - activeTimeEntry.startTime) / 1000);
         setPersistentElapsed(elapsed);
       };
       
-      // Calculate immediately
       calculateElapsed();
       
-      // Update every second
       const interval = setInterval(calculateElapsed, 1000);
       
       return () => clearInterval(interval);
@@ -1412,7 +1334,6 @@ function TaskCard({ task, onStatusChange, onAssign, onDelete, onClockIn, onClock
     }
   }, [isTaskActive, activeTimeEntry?.startTime]);
 
-  // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = () => setShowActions(false);
     if (showActions) {
@@ -1421,7 +1342,6 @@ function TaskCard({ task, onStatusChange, onAssign, onDelete, onClockIn, onClock
     }
   }, [showActions]);
   
-  // Calculate elapsed time using persistent timer
   const getElapsedTime = () => {
     if (!isTaskActive || persistentElapsed === 0) return '';
     const hours = Math.floor(persistentElapsed / 3600);
@@ -1735,13 +1655,12 @@ function CreateTaskDialog({ eventId, isOpen, onOpenChange, onTaskCreated }: any)
     e.preventDefault();
 
     try {
-      // Convert time to hours
       let hoursValue = estimatedHours ? parseFloat(estimatedHours) : undefined;
       if (hoursValue) {
         if (timeUnit === "minutes") {
-          hoursValue = hoursValue / 60; // Convert minutes to hours
+          hoursValue = hoursValue / 60;
         } else if (timeUnit === "days") {
-          hoursValue = hoursValue * 24; // Convert days to hours (8 hours per day)
+          hoursValue = hoursValue * 24;
         }
       }
 
@@ -1757,7 +1676,6 @@ function CreateTaskDialog({ eventId, isOpen, onOpenChange, onTaskCreated }: any)
         requirements: requirements.length > 0 ? requirements.join(', ') : undefined,
       });
 
-      // Reset form
       setTitle("");
       setDescription("");
       setPriority("medium");
@@ -2052,7 +1970,6 @@ function AssignTaskDialog({ taskId, isOpen, onOpenChange, allUsers, currentUser,
   );
   const [selectedUsers, setSelectedUsers] = useState<Id<"users">[]>([]);
 
-  // Get IDs of already assigned users
   const assignedUserIds = existingAssignments?.map((a: any) => a.userId) || [];
 
   const toggleUser = (userId: Id<"users">) => {
@@ -2196,7 +2113,6 @@ function AssignTaskDialog({ taskId, isOpen, onOpenChange, allUsers, currentUser,
   );
 }
 
-// Clock In Dialog - Choose start time
 function ClockInDialog({ taskId, isOpen, onOpenChange, onClockIn }: any) {
   const [startNow, setStartNow] = useState(true);
   const [customTime, setCustomTime] = useState('');
@@ -2295,7 +2211,6 @@ function ClockInDialog({ taskId, isOpen, onOpenChange, onClockIn }: any) {
   );
 }
 
-// Clock Out Dialog - Add work description
 function ClockOutDialog({ taskId, isOpen, onOpenChange, onClockOut }: any) {
   const [description, setDescription] = useState('');
   const [markComplete, setMarkComplete] = useState(false);
@@ -2372,7 +2287,6 @@ function ClockOutDialog({ taskId, isOpen, onOpenChange, onClockOut }: any) {
   );
 }
 
-// Verify Task Dialog - Approve or request revision
 function VerifyTaskDialog({ taskId, isOpen, onOpenChange, onVerify }: any) {
   const [feedback, setFeedback] = useState('');
   const [approved, setApproved] = useState(true);
@@ -2440,7 +2354,6 @@ function VerifyTaskDialog({ taskId, isOpen, onOpenChange, onVerify }: any) {
   );
 }
 
-// Task Details Dialog - Show full task information including checklist
 function TaskDetailsDialog({ eventId, taskId, isOpen, onOpenChange }: any) {
   const tasks = useQuery(api.eventControl.getEventTasks, isOpen ? { eventId } : "skip");
   const task = tasks?.find((t: any) => t._id === taskId);
@@ -2451,7 +2364,6 @@ function TaskDetailsDialog({ eventId, taskId, isOpen, onOpenChange }: any) {
   const [selectedReviewer, setSelectedReviewer] = useState<string>("");
   const [isEditMode, setIsEditMode] = useState(false);
   
-  // Editable fields
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editPriority, setEditPriority] = useState("medium");
@@ -2855,7 +2767,6 @@ function TaskDetailsDialog({ eventId, taskId, isOpen, onOpenChange }: any) {
   );
 }
 
-// Manage People Dialog - Add/Remove assigned users
 function ManagePeopleDialog({ taskId, eventId, isOpen, onOpenChange }: any) {
   const tasks = useQuery(api.eventControl.getEventTasks, isOpen ? { eventId } : "skip");
   const task = tasks?.find((t: any) => t._id === taskId);
@@ -2867,12 +2778,10 @@ function ManagePeopleDialog({ taskId, eventId, isOpen, onOpenChange }: any) {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   
   useEffect(() => {
-    // Get currently assigned users from task assignments
     if (taskAssignments && taskAssignments.length > 0) {
       const assignedUserIds = taskAssignments.map((assignment: any) => assignment.user?._id).filter(Boolean);
       setSelectedUsers(assignedUserIds);
     } else if (task?.assignedUsers && task.assignedUsers.length > 0) {
-      // Fallback to task.assignedUsers if assignments not loaded yet
       setSelectedUsers(task.assignedUsers.map((u: any) => u._id));
     }
   }, [taskAssignments, task]);

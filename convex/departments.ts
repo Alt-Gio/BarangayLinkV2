@@ -1,7 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-// Get all departments
 export const getAllDepartments = query({
   args: {},
   handler: async (ctx) => {
@@ -9,7 +8,6 @@ export const getAllDepartments = query({
   },
 });
 
-// Get department by ID
 export const getDepartmentById = query({
   args: { departmentId: v.id("departments") },
   handler: async (ctx, { departmentId }) => {
@@ -17,7 +15,6 @@ export const getDepartmentById = query({
   },
 });
 
-// Get departments by category
 export const getDepartmentsByCategory = query({
   args: { category: v.string() },
   handler: async (ctx, { category }) => {
@@ -29,7 +26,6 @@ export const getDepartmentsByCategory = query({
   },
 });
 
-// Create new department (Admin only)
 export const createDepartment = mutation({
   args: {
     name: v.string(),
@@ -38,7 +34,6 @@ export const createDepartment = mutation({
     isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    // SECURITY: Only admins can create departments
     const { requireAdmin } = await import("./auth");
     const { user } = await requireAdmin(ctx);
     
@@ -59,7 +54,6 @@ export const createDepartment = mutation({
   },
 });
 
-// Update department (Admin only)
 export const updateDepartment = mutation({
   args: {
     departmentId: v.id("departments"),
@@ -73,7 +67,6 @@ export const updateDepartment = mutation({
     isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, { departmentId, ...updates }) => {
-    // SECURITY: Only admins can update departments
     const { requireAdmin } = await import("./auth");
     await requireAdmin(ctx);
     
@@ -82,7 +75,6 @@ export const updateDepartment = mutation({
       updatedAt: Date.now(),
     };
 
-    // Remove undefined values
     Object.keys(updateData).forEach(key => {
       if (updateData[key as keyof typeof updateData] === undefined) {
         delete updateData[key as keyof typeof updateData];
@@ -94,7 +86,6 @@ export const updateDepartment = mutation({
   },
 });
 
-// Delete department (Admin only)
 export const deleteDepartment = mutation({
   args: { id: v.id("departments") },
   handler: async (ctx, { id }) => {

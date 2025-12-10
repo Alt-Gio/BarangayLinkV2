@@ -3,16 +3,13 @@ import { mutation, query, action, internalMutation, internalQuery } from "./_gen
 import { api, internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 
-// Backup Schedule Schema
 export const getBackupSchedule = query({
   args: {},
   handler: async (ctx) => {
-    // Return default backup schedule
-    // In a real app, this would be stored in a table
     return {
       enabled: true,
-      frequency: "daily", // daily, weekly, monthly
-      time: "02:00", // 2 AM
+      frequency: "daily",
+      time: "02:00",
       retentionDays: 90,
       lastBackup: null,
       nextBackup: null,
@@ -20,7 +17,6 @@ export const getBackupSchedule = query({
   },
 });
 
-// Get all backups from database
 export const getAllBackups = query({
   args: {},
   handler: async (ctx) => {
@@ -29,7 +25,6 @@ export const getAllBackups = query({
   },
 });
 
-// Get specific backup
 export const getBackup = query({
   args: { backupId: v.id("systemBackups") },
   handler: async (ctx, args) => {
@@ -37,7 +32,6 @@ export const getBackup = query({
   },
 });
 
-// Update backup schedule
 export const updateBackupSchedule = mutation({
   args: {
     enabled: v.optional(v.boolean()),
@@ -46,8 +40,6 @@ export const updateBackupSchedule = mutation({
     retentionDays: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    // In a real app, this would update a settings table
-    // For now, just return success
     return {
       success: true,
       message: "Backup schedule updated successfully",
@@ -61,7 +53,6 @@ export const updateBackupSchedule = mutation({
   },
 });
 
-// Create full system backup
 export const createFullBackup = action({
   args: {
     type: v.optional(v.union(v.literal("manual"), v.literal("automatic"), v.literal("archive"))),
@@ -75,21 +66,16 @@ export const createFullBackup = action({
     timestamp: number;
     tables: any;
   }> => {
-    // Collect all data from all tables
     const backupData: any = {};
-    
-    // Get user identity
     const identity = await ctx.auth.getUserIdentity();
     const currentUser: any = null;
     
     try {
-      // Helper to bypass type inference issues
       const safeRunQuery = async (fn: any): Promise<any> => {
         return await (ctx.runQuery as any)(fn);
       };
       
-      // Extract function references using bracket notation to bypass type inference
-      // @ts-expect-error - Type instantiation is excessively deep
+      // @ts-expect-error
       const backupModule = internal.backup as any;
       const exportUsers = backupModule['exportUsers'];
       const exportDepartments = backupModule['exportDepartments'];
@@ -97,27 +83,21 @@ export const createFullBackup = action({
       const exportProjects = backupModule['exportProjects'];
       const exportEvents = backupModule['exportEvents'];
       
-      // Users
       const users: any[] = await safeRunQuery(exportUsers);
       backupData.users = users;
       
-      // Departments
       const departments: any[] = await safeRunQuery(exportDepartments);
       backupData.departments = departments;
       
-      // User Levels
       const userLevels: any[] = await safeRunQuery(exportUserLevels);
       backupData.userLevels = userLevels;
       
-      // Projects
       const projects: any[] = await safeRunQuery(exportProjects);
       backupData.projects = projects;
       
-      // Events
       const events: any[] = await safeRunQuery(exportEvents);
       backupData.events = events;
       
-      // Calculate totals
       const recordCount: number = 
         (users?.length || 0) +
         (departments?.length || 0) +
@@ -125,7 +105,6 @@ export const createFullBackup = action({
         (projects?.length || 0) +
         (events?.length || 0);
       
-      // Create backup record in database (cast to bypass type inference)
       const runMutation: any = ctx.runMutation;
       const backupId: Id<"systemBackups"> = await runMutation(internal.backup.saveBackupRecord as any, {
         type: args.type || "manual",
@@ -163,7 +142,6 @@ export const createFullBackup = action({
   },
 });
 
-// Internal query to export users
 export const exportUsers = internalQuery({
   args: {},
   handler: async (ctx) => {
@@ -199,7 +177,6 @@ export const exportEvents = internalQuery({
   },
 });
 
-// Save backup record
 export const saveBackupRecord = internalMutation({
   args: {
     type: v.union(v.literal("manual"), v.literal("automatic"), v.literal("archive")),
@@ -232,7 +209,6 @@ export const saveBackupRecord = internalMutation({
   },
 });
 
-// Delete old backups (maintenance)
 export const deleteOldBackups = mutation({
   args: {
     retentionDays: v.number(),
@@ -246,7 +222,6 @@ export const deleteOldBackups = mutation({
     
     let deletedCount = 0;
     for (const backup of oldBackups) {
-      // Keep at least 3 backups, only delete if we have more
       const allBackups = await ctx.db.query("systemBackups").collect();
       if (allBackups.length > 3) {
         await ctx.db.delete(backup._id);
@@ -262,7 +237,6 @@ export const deleteOldBackups = mutation({
   },
 });
 
-// Restore from backup
 export const restoreFromBackup = action({
   args: {
     backupId: v.id("systemBackups"),

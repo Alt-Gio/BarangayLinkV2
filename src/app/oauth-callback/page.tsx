@@ -12,26 +12,17 @@ export default function OAuthCallbackPage() {
   const [waitingForUser, setWaitingForUser] = useState(true);
 
   useEffect(() => {
-    // Don't do anything until Clerk is loaded
     if (!isLoaded) {
-      console.log("⏳ Waiting for Clerk to load...");
       return;
     }
 
-    // If user exists and is signed in, proceed to dashboard IMMEDIATELY
     if (user && isSignedIn) {
-      console.log("✅ OAuth successful! User loaded:", user.firstName, user.lastName);
-      console.log("✅ Redirecting to dashboard...");
       setWaitingForUser(false);
-      
-      // OPTIMIZED: No delay - redirect immediately for faster navigation
-      router.replace('/dashboard'); // Use replace instead of push to avoid back button
+      router.replace('/dashboard');
       return;
     }
 
-    // If loaded but no user, wait a bit and retry (Clerk might still be syncing)
     if (!user && retryCount < 5) {
-      console.log(`⏳ Waiting for user session... (attempt ${retryCount + 1}/5)`);
       const retryTimer = setTimeout(() => {
         setRetryCount(prev => prev + 1);
       }, 1000);
@@ -39,9 +30,7 @@ export default function OAuthCallbackPage() {
       return () => clearTimeout(retryTimer);
     }
 
-    // After 5 retries, if still no user, redirect to login
     if (!user && retryCount >= 5) {
-      console.log("❌ No user after 5 attempts, redirecting to login");
       router.push('/login');
     }
 

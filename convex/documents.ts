@@ -2,7 +2,6 @@ import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
-// Upload document metadata (file itself is uploaded via Convex file storage)
 export const createDocument = mutation({
   args: {
     fileName: v.string(),
@@ -34,10 +33,8 @@ export const createDocument = mutation({
       throw new Error("User not found");
     }
 
-    // Generate smart tags if none provided or enhance existing tags
     let smartTags = args.tags;
     if (args.tags.length === 0) {
-      // Auto-generate tags
       smartTags = await ctx.runMutation(internal.documentTagging.generateSmartTags, {
         fileName: args.fileName,
         mimeType: args.mimeType,
@@ -54,14 +51,12 @@ export const createDocument = mutation({
       uploadedBy: user._id,
     });
 
-    // 🎮 INTEGRATION: Award gold for document upload
     const goldReward = 10;
     const currentGold = user.gold || 0;
     await ctx.db.patch(user._id, {
       gold: currentGold + goldReward,
     });
 
-    // Log activity
     await ctx.db.insert("userActivityLogs", {
       userId: user._id,
       activityType: "action",
@@ -76,7 +71,6 @@ export const createDocument = mutation({
       timestamp: Date.now(),
     });
 
-    // Create notification
     await ctx.db.insert("notifications", {
       userId: user._id,
       type: "gold_earned",

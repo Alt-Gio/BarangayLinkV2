@@ -46,7 +46,6 @@ export default function ProfilePage() {
     bio: '',
   });
 
-  // Initialize form data when convexUser loads
   useState(() => {
     if (convexUser) {
       setFormData({
@@ -67,26 +66,22 @@ export default function ProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast.error('Please select an image file');
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error('Image must be less than 5MB');
       return;
     }
 
-    // Create preview
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result as string);
     };
     reader.readAsDataURL(file);
 
-    // Upload to Clerk
     try {
       setIsUploading(true);
       await clerkUser?.setProfileImage({ file });
@@ -104,13 +99,11 @@ export default function ProfilePage() {
     if (!convexUser) return;
 
     try {
-      // Update Clerk user
       await clerkUser?.update({
         firstName: formData.name.split(' ')[0],
         lastName: formData.name.split(' ').slice(1).join(' ') || undefined,
       });
 
-      // Update Convex user
       await updateUser({
         name: formData.name,
         email: formData.email,
@@ -205,7 +198,6 @@ export default function ProfilePage() {
                   <button
                     onClick={() => {
                       setIsEditing(false);
-                      // Reset form
                       if (convexUser) {
                         setFormData({
                           name: convexUser.name || '',

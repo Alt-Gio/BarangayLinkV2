@@ -3,7 +3,6 @@ import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 
-// Check and handle level up
 async function checkLevelUp(ctx: any, userId: Id<"users">) {
   const user = await ctx.db.get(userId);
   if (!user) return;
@@ -11,35 +10,30 @@ async function checkLevelUp(ctx: any, userId: Id<"users">) {
   const currentLevel = user.level || 1;
   const currentXP = user.experience || 0;
   
-  // XP required for next level (100 * level)
   let xpToNextLevel = currentLevel * 100;
   
-  // Check if user has enough XP to level up
   if (currentXP >= xpToNextLevel) {
     let newLevel = currentLevel;
     let remainingXP = currentXP;
     
-    // Handle multiple level ups
     while (remainingXP >= xpToNextLevel) {
       remainingXP -= xpToNextLevel;
       newLevel++;
       xpToNextLevel = newLevel * 100;
     }
     
-    // Update user with new level and remaining XP
     await ctx.db.patch(userId, {
       level: newLevel,
       experience: remainingXP,
-      gold: (user.gold || 0) + ((newLevel - currentLevel) * 50), // Bonus gold per level
+      gold: (user.gold || 0) + ((newLevel - currentLevel) * 50),
     });
     
-    return newLevel - currentLevel; // Return number of levels gained
+    return newLevel - currentLevel;
   }
   
   return 0;
 }
 
-// Calculate XP and Gold rewards based on difficulty and hours
 const calculateRewards = (difficulty: string, hours: number) => {
   const baseXP = { trivial: 5, easy: 10, medium: 20, hard: 40 };
   const baseGold = { trivial: 2, easy: 5, medium: 10, hard: 20 };
@@ -50,7 +44,6 @@ const calculateRewards = (difficulty: string, hours: number) => {
   return { xp, gold };
 };
 
-// Create a new gamified task
 export const createTask = mutation({
   args: {
     title: v.string(),
@@ -60,7 +53,7 @@ export const createTask = mutation({
     type: v.union(v.literal("habit"), v.literal("daily"), v.literal("todo"), v.literal("reward")),
     difficulty: v.union(v.literal("trivial"), v.literal("easy"), v.literal("medium"), v.literal("hard")),
     priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent")),
-    assignedTo: v.array(v.id("users")), // Allow multiple assignees
+    assignedTo: v.array(v.id("users")),
     dueDate: v.optional(v.number()),
     estimatedHours: v.optional(v.number()),
     tags: v.array(v.string()),
@@ -98,7 +91,7 @@ export const createTask = mutation({
       priority: args.priority,
       completed: false,
       createdAt: Date.now(),
-      assignedTo: args.assignedTo, // Now an array
+      assignedTo: args.assignedTo,
       createdBy: user._id,
       dueDate: args.dueDate,
       estimatedHours: args.estimatedHours,
@@ -117,7 +110,6 @@ export const createTask = mutation({
       isBlocking: args.isBlocking,
     });
 
-    // Update project progress if linked
     if (args.projectId) {
       await updateProjectProgress(ctx, args.projectId);
     }
@@ -126,7 +118,6 @@ export const createTask = mutation({
   },
 });
 
-// Log hours for a task (Habitica-style time tracking)
 export const logHours = mutation({
   args: {
     taskId: v.id("tasks"),
@@ -153,7 +144,6 @@ export const logHours = mutation({
       throw new Error("Task not found");
     }
 
-    // Add hours to logged hours array
     const newLoggedHours = [
       ...task.loggedHours,
       {
@@ -164,34 +154,28 @@ export const logHours = mutation({
       },
     ];
 
-    // Calculate total logged hours
     const totalLoggedHours = newLoggedHours.reduce((sum, log) => sum + log.hours, 0);
 
-    // Update task
     await ctx.db.patch(args.taskId, {
       loggedHours: newLoggedHours,
       actualHours: totalLoggedHours,
     });
 
-    // Update user's total hours
     await ctx.db.patch(user._id, {
       totalHoursLogged: user.totalHoursLogged + args.hours,
     });
 
-    // Award partial XP for time logging (encourages regular updates)
     const partialXP = Math.floor(args.hours * 1);
     await ctx.db.patch(user._id, {
       experience: user.experience + partialXP,
     });
     
-    // Check for level up
     await checkLevelUp(ctx, user._id);
 
     return { success: true, hoursLogged: args.hours, xpGained: partialXP };
   },
 });
 
-// Complete a task (Habitica-style rewards)
 export const completeTask = mutation({
   args: {
     taskId: v.id("tasks"),
@@ -223,33 +207,28 @@ export const completeTask = mutation({
     const now = Date.now();
     let streakBonus = 1;
 
-    // Handle different task types
     if (task.type === "daily") {
-      // Check if completed within streak window
       const lastCompleted = task.lastCompleted || 0;
       const daysSinceLastCompleted = (now - lastCompleted) / (1000 * 60 * 60 * 24);
       
-      if (daysSinceLastCompleted <= 1.5) { // Allow some flexibility
-        streakBonus = 1 + (task.streak || 0) * 0.1; // 10% bonus per streak day
+      if (daysSinceLastCompleted <= 1.5) {
+        streakBonus = 1 + (task.streak || 0) * 0.1;
         await ctx.db.patch(args.taskId, {
           streak: (task.streak || 0) + 1,
         });
       } else {
-        // Reset streak
         await ctx.db.patch(args.taskId, {
           streak: 1,
         });
       }
     }
 
-    // Calculate rewards with streak bonus
     const baseXP = task.experienceReward * streakBonus;
     const baseGold = task.goldReward * streakBonus;
 
-    // Bonus for completing on time
     let timeBonus = 1;
     if (task.dueDate && now <= task.dueDate) {
-      timeBonus = 1.2; // 20% bonus for on-time completion
+      timeBonus = 1.2;
     }
 
     const finalXP = Math.floor(baseXP * timeBonus);
@@ -262,10 +241,9 @@ export const completeTask = mutation({
       completionCount: task.completionCount + 1,
     });
 
-    // Update user stats
     const newXP = user.experience + finalXP;
     const newGold = user.gold + finalGold;
-    const newLevel = Math.floor(newXP / 100) + 1; // Level up every 100 XP
+    const newLevel = Math.floor(newXP / 100) + 1;
     const leveledUp = newLevel > user.level;
 
     await ctx.db.patch(user._id, {
@@ -281,12 +259,10 @@ export const completeTask = mutation({
       await updateProjectProgress(ctx, task.projectId);
     }
 
-    // Update event progress if linked
     if (task.eventId) {
       await updateEventProgress(ctx, task.eventId);
     }
 
-    // 🏆 Check for achievement unlocks
     await ctx.scheduler.runAfter(0, internal.achievements.checkAchievements, {
       userId: user._id,
       activityType: "task_completed",
@@ -303,7 +279,6 @@ export const completeTask = mutation({
   },
 });
 
-// Update project progress based on task completion
 const updateProjectProgress = async (ctx: any, projectId: any) => {
   const project = await ctx.db.get(projectId);
   if (!project) return;
@@ -318,12 +293,10 @@ const updateProjectProgress = async (ctx: any, projectId: any) => {
   
   let progress = allTasks.length > 0 ? (completedTasks.length / allTasks.length) * 100 : 0;
   
-  // Reduce progress if blocking tasks are incomplete
   if (blockingTasks.length > 0) {
-    progress = Math.min(progress, 50); // Cap at 50% if blocking tasks remain
+    progress = Math.min(progress, 50);
   }
 
-  // Calculate project success score based on task impact scores
   const impactScore = allTasks.reduce((sum: number, task: any) => {
     if (task.status === "completed" && task.projectImpactScore) {
       return sum + task.projectImpactScore;
@@ -335,13 +308,11 @@ const updateProjectProgress = async (ctx: any, projectId: any) => {
     progress: Math.floor(progress),
   });
 
-  // Update project status based on progress
   if (progress >= 100) {
     await ctx.db.patch(projectId, {
       status: "completed",
     });
     
-    // Award bonus XP to all project participants
     const participants = [...project.assignedTo, project.createdBy];
     for (const userId of participants) {
       const user = await ctx.db.get(userId);

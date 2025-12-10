@@ -1,7 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-// Set current activity for a user (with duration tracking like event timers)
 export const setCurrentActivity = mutation({
   args: {
     activityType: v.union(
@@ -27,15 +26,11 @@ export const setCurrentActivity = mutation({
     const metadata = (user.metadata as any) || {};
     const previousActivity = metadata.currentActivity;
 
-    // If switching from an activity, log the duration
     if (previousActivity && previousActivity.type !== 'none' && previousActivity.startedAt) {
-      const duration = Math.floor((now - previousActivity.startedAt) / 1000 / 60); // minutes
-      
-      // Check for achievements based on duration
+      const duration = Math.floor((now - previousActivity.startedAt) / 1000 / 60);
       await checkDurationAchievements(ctx, user._id, duration, previousActivity.type);
     }
 
-    // Update user metadata with current activity
     await ctx.db.patch(user._id, {
       metadata: {
         ...metadata,
@@ -52,7 +47,6 @@ export const setCurrentActivity = mutation({
   },
 });
 
-// Get current user's activity
 export const getCurrentActivity = query({
   args: {},
   handler: async (ctx) => {
@@ -70,7 +64,6 @@ export const getCurrentActivity = query({
   },
 });
 
-// Get recent achievements/milestones for a user (using gamification records)
 export const getRecentAchievements = query({
   args: {
     userId: v.optional(v.id("users")),

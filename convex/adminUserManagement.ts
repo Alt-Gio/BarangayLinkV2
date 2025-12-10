@@ -2,7 +2,6 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser } from "./roleBasedAccess";
 
-// Get all users (Admin only)
 export const getAllUsers = query({
   args: {
     search: v.optional(v.string()),
@@ -13,14 +12,12 @@ export const getAllUsers = query({
   handler: async (ctx, args) => {
     const currentUser = await getCurrentUser(ctx);
     
-    // Only ADMIN can view all users
     if (currentUser.userLevel.name !== "ADMIN") {
       throw new Error("Unauthorized: Admin access required");
     }
 
     let users = await ctx.db.query("users").order("desc").collect();
 
-    // Apply filters
     if (args.search) {
       const searchLower = args.search.toLowerCase();
       users = users.filter(u => 
@@ -46,14 +43,11 @@ export const getAllUsers = query({
       }
     }
 
-    // Enrich with user level details
     const enrichedUsers = await Promise.all(
       users.map(async (user) => {
         const userLevel = await ctx.db.get(user.userLevel);
         
-        // Handle missing user levels (in case of deleted roles)
         if (!userLevel) {
-          // Find a default WORKER level
           const defaultLevel = await ctx.db
             .query("userLevels")
             .filter(q => q.eq(q.field("name"), "WORKER"))
@@ -62,7 +56,7 @@ export const getAllUsers = query({
           return {
             ...user,
             userLevelDetails: defaultLevel || { name: "UNKNOWN", level: 0, description: "Unknown level" },
-            _hasInvalidUserLevel: true, // Flag for admin to fix
+            _hasInvalidUserLevel: true,
           };
         }
         
@@ -77,7 +71,6 @@ export const getAllUsers = query({
   },
 });
 
-// Get user by ID (Admin only)
 export const getUserById = query({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {

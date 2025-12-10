@@ -1,28 +1,14 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-// ============================================================================
-// COMPREHENSIVE DATABASE MANAGER FOR BARANGAYLINK V2
-// ============================================================================
-
-// Initialize complete database with all required data
 export const initializeDatabase = mutation({
   args: {},
   handler: async (ctx) => {
     try {
-      // Step 1: Initialize User Levels
       await initUserLevels(ctx);
-      
-      // Step 2: Initialize Sample Data
       await initSampleData(ctx);
-      
-      // Step 3: Initialize Chat Rooms
       await initChatRooms(ctx);
-      
-      // Step 4: Initialize Projects
       await initProjects(ctx);
-      
-      // Step 5: Initialize Events
       await initEvents(ctx);
       
       return {
@@ -36,7 +22,6 @@ export const initializeDatabase = mutation({
   },
 });
 
-// Initialize User Levels with complete permissions
 async function initUserLevels(ctx: any) {
   const existingLevels = await ctx.db.query("userLevels").collect();
   if (existingLevels.length > 0) {

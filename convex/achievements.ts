@@ -1,15 +1,8 @@
-/**
- * Achievement System - Badges and Unlocks
- * Tracks user accomplishments and awards badges
- */
-
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 
-// Achievement definitions
 export const ACHIEVEMENTS = {
-  // Task Achievements
   first_task: {
     id: "first_task",
     title: "Getting Started",
@@ -56,7 +49,6 @@ export const ACHIEVEMENTS = {
     xpReward: 200,
   },
 
-  // Event Achievements
   first_event: {
     id: "first_event",
     title: "First Event",

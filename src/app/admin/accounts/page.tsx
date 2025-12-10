@@ -35,16 +35,12 @@ export default function AccountsManagementPage() {
   const [linkEmail, setLinkEmail] = useState("");
   const [linkClerkId, setLinkClerkId] = useState("");
 
-  // Fetch all residents
   const residents = useQuery(api.residents.getAllResidents, { limit: 500 });
   const stats = useQuery(api.residents.getResidentStats);
 
-  // Manual linking mutation
   const updateClerkId = useMutation(api.residents.updateResidentClerkId);
 
-  // Filter residents
   const filteredResidents = residents?.filter((resident) => {
-    // Search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       const matchesSearch =
@@ -55,14 +51,12 @@ export default function AccountsManagementPage() {
       if (!matchesSearch) return false;
     }
 
-    // Status filter
     if (filterStatus === "linked" && !resident.clerkUserId) return false;
     if (filterStatus === "unlinked" && resident.clerkUserId) return false;
 
     return true;
   });
 
-  // Calculate stats
   const linkedCount = residents?.filter(r => r.clerkUserId).length || 0;
   const unlinkedCount = (residents?.length || 0) - linkedCount;
 

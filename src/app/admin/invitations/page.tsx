@@ -60,10 +60,8 @@ export default function AdminInvitationsPage() {
   const [showCreateCodeModal, setShowCreateCodeModal] = useState(false);
   const [codeStatusFilter, setCodeStatusFilter] = useState<"all" | "active" | "inactive" | "expired">("all");
 
-  // Get current user from offline context (cached, saves bandwidth)
   const { currentUser, isOnline } = useOfflineData();
 
-  // Only fetch data when authenticated
   const invitations = useQuery(
     api.adminUserManagement.getAllInvitations,
     isLoaded && user ? { status: statusFilter } : "skip"
@@ -75,7 +73,6 @@ export default function AdminInvitationsPage() {
   const userLevels = useQuery(api.userLevels.getAllUserLevels);
   const departments = useQuery(api.departments.getAllDepartments);
   
-  // Invitation codes
   const invitationCodes = useQuery(
     api.invitationCodes.getAllInvitationCodes,
     isLoaded && user ? { status: codeStatusFilter } : "skip"

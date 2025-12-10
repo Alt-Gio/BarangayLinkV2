@@ -1,22 +1,19 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-// Get security settings
 export const getSecuritySettings = query({
   args: {},
   handler: async (ctx) => {
-    // Get the first (and should be only) security settings record
     const settings = await ctx.db.query("securitySettings").first();
     
-    // Return default settings if none exist
     if (!settings) {
       return {
-        sessionTimeout: 30, // minutes
+        sessionTimeout: 30,
         passwordMinLength: 8,
         requireMFA: false,
         allowPublicRegistration: false,
         maxLoginAttempts: 5,
-        lockoutDuration: 15, // minutes
+        lockoutDuration: 15,
         passwordRequireUppercase: true,
         passwordRequireNumbers: true,
         passwordRequireSpecialChars: true,
@@ -34,7 +31,6 @@ export const getSecuritySettings = query({
   },
 });
 
-// Update security settings
 export const updateSecuritySettings = mutation({
   args: {
     sessionTimeout: v.optional(v.number()),
@@ -69,13 +65,11 @@ export const updateSecuritySettings = mutation({
       throw new Error("User not found");
     }
 
-    // Check if user is admin
     const userLevel = await ctx.db.get(user.userLevel);
     if (!userLevel || (userLevel.name !== "ADMIN" && userLevel.name !== "SUPER_ADMIN")) {
       throw new Error("Unauthorized: Admin access required");
     }
 
-    // Get existing settings
     const existingSettings = await ctx.db.query("securitySettings").first();
 
     const settingsData = {

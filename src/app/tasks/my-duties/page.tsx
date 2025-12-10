@@ -44,23 +44,17 @@ export default function MyDutiesPage() {
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Get current user from offline context (cached, saves bandwidth)
   const { currentUser, isOnline } = useOfflineData();
   
-  // Get user's event tasks
   const myEventTasks = useQuery(api.eventControl.getMyEventTasks);
-  
-  // Get user's project tasks
   const myProjectTasks = useQuery(api.gamifiedTasks.getMyProjectTasks);
 
-  // Mutations
   const updateEventTaskStatus = useMutation(api.eventControl.updateTaskStatus);
   const startWorkingOn = useMutation(api.gamifiedTasks.startWorkingOnTask);
   const stopWorkingOn = useMutation(api.gamifiedTasks.stopWorkingOnTask);
   const clockIn = useMutation(api.eventTaskTimeTracking.clockIn);
   const clockOut = useMutation(api.eventTaskTimeTracking.clockOut);
   
-  // Get active time entries
   const activeTimeEntry = useQuery(api.eventTaskTimeTracking.getActiveTimeEntry);
 
   if (!currentUser) {
@@ -74,14 +68,10 @@ export default function MyDutiesPage() {
     );
   }
 
-  // Process event tasks
   const eventTasks = myEventTasks || [];
-  
-  // Process project tasks
   const allProjectTasks = myProjectTasks ? Object.values(myProjectTasks).flatMap((group: any) => group.tasks) : [];
   const uniqueProjectTasks = Array.from(new Map(allProjectTasks.map((task: any) => [task._id, task])).values());
 
-  // Apply filters to event tasks
   let filteredEventTasks = eventTasks;
   
   if (searchQuery) {
@@ -106,7 +96,6 @@ export default function MyDutiesPage() {
     );
   }
   
-  // Sort tasks
   filteredEventTasks = [...filteredEventTasks].sort((a: any, b: any) => {
     if (sortBy === 'dueDate') {
       if (!a.dueDate) return 1;
@@ -121,7 +110,6 @@ export default function MyDutiesPage() {
     }
   });
 
-  // Calculate stats
   const totalDuties = eventTasks.length + uniqueProjectTasks.length;
   const eventDutiesCount = eventTasks.length;
   const projectDutiesCount = uniqueProjectTasks.length;

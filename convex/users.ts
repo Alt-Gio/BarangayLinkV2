@@ -1,7 +1,6 @@
 import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
-// Sync user from Clerk to Convex
 export const createOrUpdateUser = mutation({
   args: {
     clerkId: v.string(),
@@ -25,7 +24,6 @@ export const createOrUpdateUser = mutation({
     const fullName = `${firstName} ${lastName}`;
 
     if (existingUser) {
-      // Update existing user
       const updateData: any = {
         email,
         name: fullName,
@@ -35,13 +33,11 @@ export const createOrUpdateUser = mutation({
         },
       };
       
-      // Only update these fields if they're provided
       if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
       if (phone !== undefined) updateData.phone = phone;
       if (department !== undefined) updateData.department = department;
       if (jobTitle !== undefined) updateData.position = jobTitle;
       
-      // Handle role update
       if (role) {
         const roleLevel = await ctx.db
           .query("userLevels")
@@ -55,7 +51,6 @@ export const createOrUpdateUser = mutation({
       await ctx.db.patch(existingUser._id, updateData);
       return existingUser._id;
     } else {
-      // Get default WORKER user level
       let selectedUserLevel = await ctx.db
         .query("userLevels")
         .filter((q) => q.eq(q.field("name"), "WORKER"))
@@ -65,7 +60,6 @@ export const createOrUpdateUser = mutation({
         throw new Error("Default WORKER user level not found. Please seed user levels first.");
       }
 
-      // Determine user level based on role
       if (role) {
         const roleLevel = await ctx.db
           .query("userLevels")
@@ -76,7 +70,6 @@ export const createOrUpdateUser = mutation({
         }
       }
 
-      // Create new user with appropriate level
       const userId = await ctx.db.insert("users", {
         clerkId,
         email,
@@ -84,14 +77,13 @@ export const createOrUpdateUser = mutation({
         userLevel: selectedUserLevel._id,
         department: department || "General",
         position: jobTitle || "Community Member",
-        role: "worker", // Default role
+        role: "worker",
         phone: phone || undefined,
         isActive: false,
         status: "pending",
-        // Gamification stats
         level: 1,
         experience: 0,
-        gold: 50, // Starting gold
+        gold: 50,
         health: 100,
         mana: 50,
         streakCount: 0,
@@ -114,7 +106,6 @@ export const createOrUpdateUser = mutation({
   },
 });
 
-// Internal mutation to handle Clerk webhook data
 export const createOrUpdateFromClerk = internalMutation({
   args: {
     data: v.any(),
@@ -122,59 +113,29 @@ export const createOrUpdateFromClerk = internalMutation({
   handler: async (ctx, { data }) => {
     const user = data;
     
-    // DEBUG: Log the entire user object to see what we're receiving
-    console.log("🔍 WEBHOOK RECEIVED - Full user data:", JSON.stringify({
-      id: user.id,
-      email: user.email_addresses?.[0]?.email_address,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      unsafeMetadata: user.unsafe_metadata,
-      publicMetadata: user.public_metadata,
-    }, null, 2));
-    
-    // Check if user already exists
     const existingUser = await ctx.db
       .query("users")
       .filter((q) => q.eq(q.field("clerkId"), user.id))
       .first();
 
-    // Get role from user metadata - THIS DETERMINES THE ACTUAL USER LEVEL
     const userRole = user.unsafe_metadata?.role;
     const department = user.unsafe_metadata?.department;
     const jobTitle = user.unsafe_metadata?.jobTitle;
     const phone = user.unsafe_metadata?.phone;
 
-    // DEBUG: Log what we extracted
-    console.log("📋 EXTRACTED DATA:", {
-      userRole,
-      department,
-      jobTitle,
-      phone,
-      existingUser: !!existingUser
-    });
-
-    // IMPORTANT: Only use defaults if user has NOT provided data during registration
-    // If user selected a role, use that exact role - don't default to WORKER
     let selectedUserLevel = null;
 
     if (userRole && typeof userRole === 'string') {
-      // User selected a role during registration - use their choice
-      console.log("🔎 Looking for role:", userRole.toUpperCase());
       const roleLevel = await ctx.db
         .query("userLevels")
         .filter((q) => q.eq(q.field("name"), userRole.toUpperCase()))
         .first();
       if (roleLevel) {
         selectedUserLevel = roleLevel;
-        console.log("✅ Found role level:", roleLevel.name, "- Level", roleLevel.level);
-      } else {
-        console.log("❌ Role not found in database:", userRole.toUpperCase());
       }
     }
 
-    // Only if no role was provided, default to WORKER
     if (!selectedUserLevel) {
-      console.log("⚠️ No role found, defaulting to WORKER");
       selectedUserLevel = await ctx.db
         .query("userLevels")
         .filter((q) => q.eq(q.field("name"), "WORKER"))
@@ -191,10 +152,9 @@ export const createOrUpdateFromClerk = internalMutation({
       email: user.email_addresses?.[0]?.email_address || "",
       name: `${user.first_name || ""} ${user.last_name || ""}`.trim() || "New User",
       userLevel: selectedUserLevel._id,
-      // Use exact user selections - only default if truly not provided
       department: department || "General",
-      position: jobTitle || "Community Member", // jobTitle → position (this is the Job Title they entered)
-      role: "worker" as const, // Default role
+      position: jobTitle || "Community Member",
+      role: "worker" as const,
       phone: phone || user.phone_numbers?.[0]?.phone_number || undefined,
       isActive: false,
       status: "pending" as const,
@@ -218,19 +178,7 @@ export const createOrUpdateFromClerk = internalMutation({
       },
     };
 
-    // DEBUG: Log what we're about to save
-    console.log("💾 SAVING TO DATABASE:", {
-      name: userData.name,
-      email: userData.email,
-      department: userData.department,
-      position: userData.position,
-      phone: userData.phone,
-      userLevelName: selectedUserLevel.name,
-      userLevelId: selectedUserLevel._id,
-    });
-
     if (existingUser) {
-      // Update existing user
       await ctx.db.patch(existingUser._id, {
         ...userData,
         metadata: {
@@ -240,10 +188,7 @@ export const createOrUpdateFromClerk = internalMutation({
       });
       return existingUser._id;
     } else {
-      // Create new user
       const userId = await ctx.db.insert("users", userData);
-      
-      // Create welcome notification if notifications table exists
       try {
         await ctx.db.insert("notifications", {
           userId,
@@ -254,16 +199,14 @@ export const createOrUpdateFromClerk = internalMutation({
           isRead: false,
           createdAt: now,
         });
-      } catch (error) {
-        // Notifications table not available, skipping
-      }
+      } catch (error) {}
+
 
       return userId;
     }
   },
 });
 
-// Public mutation for manual user creation/sync (MAIN REGISTRATION FUNCTION)
 export const syncUserFromClerk = mutation({
   args: {
     clerkId: v.string(),
@@ -277,10 +220,8 @@ export const syncUserFromClerk = mutation({
     imageUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // IMPORTANT: Prioritize user's selected role - don't default to WORKER first
     let userLevel = null;
 
-    // If user provided a role, use that exact role
     if (args.role && typeof args.role === 'string') {
       const roleUpperCase = args.role.toUpperCase();
       
@@ -294,7 +235,6 @@ export const syncUserFromClerk = mutation({
       }
     }
 
-    // Only default to WORKER if no role was provided
     if (!userLevel) {
       userLevel = await ctx.db
         .query("userLevels")
@@ -306,7 +246,6 @@ export const syncUserFromClerk = mutation({
       throw new Error("User level not found. Please run database initialization.");
     }
 
-    // Check if user exists
     const existingUser = await ctx.db
       .query("users")
       .filter((q) => q.eq(q.field("clerkId"), args.clerkId))
@@ -318,10 +257,9 @@ export const syncUserFromClerk = mutation({
       email: args.email,
       name: `${args.firstName} ${args.lastName}`.trim(),
       userLevel: userLevel._id,
-      // Use exact values provided by user - position is the Job Title
       department: args.department || "General",
-      position: args.jobTitle || "Community Member", // jobTitle from form → position in database
-      role: "worker" as const, // Default role
+      position: args.jobTitle || "Community Member",
+      role: "worker" as const,
       phone: args.phone || undefined,
       isActive: false,
       status: "pending" as const,
@@ -350,8 +288,6 @@ export const syncUserFromClerk = mutation({
       return existingUser._id;
     } else {
       const userId = await ctx.db.insert("users", userData);
-      
-      // Create welcome notification if possible
       try {
         await ctx.db.insert("notifications", {
           userId,
@@ -362,16 +298,13 @@ export const syncUserFromClerk = mutation({
           isRead: false,
           createdAt: now,
         });
-      } catch (error) {
-        // Notifications table not available
-      }
+      } catch (error) {}
       
       return userId;
     }
   },
 });
 
-// Delete user (for webhook)
 export const deleteUser = internalMutation({
   args: {
     clerkUserId: v.string(),
@@ -388,15 +321,12 @@ export const deleteUser = internalMutation({
   },
 });
 
-// Get current user with full details including role
 export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return null;
 
-    // Use .first() instead of .unique() to handle duplicate users gracefully
-    // (duplicates can occur from backup restores)
     const user = await ctx.db
       .query("users")
       .filter((q) => q.eq(q.field("clerkId"), identity.subject))
@@ -415,14 +345,12 @@ export const getCurrentUser = query({
   },
 });
 
-// Get users that can be assigned to tasks
 export const getAssignableUsers = query({
   args: {
     department: v.string(),
     userRole: v.string()
   },
   handler: async (ctx, args) => {
-    // Get all users in the same department with appropriate roles
     const users = await ctx.db
       .query("users")
       .filter((q) => q.eq(q.field("department"), args.department))
@@ -435,12 +363,10 @@ export const getAssignableUsers = query({
       })
     );
 
-    // Filter out users with null userLevels and apply role-based filtering
     const validUsersWithLevels = usersWithLevels.filter(u => u.userLevel !== null);
 
-    // Filter based on requesting user's role
     if (args.userRole === "ADMIN") {
-      return validUsersWithLevels; // ADMIN can assign to anyone
+      return validUsersWithLevels;
     } else if (args.userRole === "MANAGER") {
       return validUsersWithLevels.filter(u => u.userLevel && ["WORKER", "BUILDER"].includes(u.userLevel.name));
     } else if (args.userRole === "BUILDER") {
@@ -451,7 +377,6 @@ export const getAssignableUsers = query({
   },
 });
 
-// Get available users for project team assignment
 export const getAvailableProjectMembers = query({
   args: {
     department: v.string(),
@@ -471,7 +396,6 @@ export const getAvailableProjectMembers = query({
       })
     );
 
-    // Filter out current members, null userLevels, and apply role restrictions
     return usersWithLevels.filter(user => 
       user.userLevel !== null &&
       !args.currentMembers.includes(user._id) &&
@@ -480,7 +404,6 @@ export const getAvailableProjectMembers = query({
   },
 });
 
-// Get detailed information for project team members
 export const getTeamMembersDetails = query({
   args: {
     userIds: v.array(v.string())
@@ -491,7 +414,6 @@ export const getTeamMembersDetails = query({
         const user = await ctx.db.get(userId as any);
         if (!user) return null;
         
-        // Type assertion to ensure user has userLevel property
         const userWithLevel = user as any;
         if (!userWithLevel.userLevel) return null;
         
@@ -504,7 +426,6 @@ export const getTeamMembersDetails = query({
   },
 });
 
-// Get user permissions
 export const getUserPermissions = query({
   args: {},
   handler: async (ctx) => {
@@ -527,7 +448,6 @@ export const getUserPermissions = query({
   },
 });
 
-// Assign user level (Admin/Manager only)
 export const assignUserLevel = mutation({
   args: {
     userId: v.id("users"),
@@ -540,7 +460,6 @@ export const assignUserLevel = mutation({
       throw new Error("Not authenticated");
     }
 
-    // Get current user and check permissions
     const currentUser = await ctx.db
       .query("users")
       .filter((q) => q.eq(q.field("clerkId"), identity.subject))
@@ -555,7 +474,6 @@ export const assignUserLevel = mutation({
       throw new Error("Insufficient permissions. Manager level or higher required.");
     }
 
-    // Get target user and new user level
     const targetUser = await ctx.db.get(args.userId);
     if (!targetUser) {
       throw new Error("User not found");
@@ -573,12 +491,10 @@ export const assignUserLevel = mutation({
       throw new Error("Cannot assign a user level equal to or higher than your own");
     }
 
-    // Update user level
     await ctx.db.patch(args.userId, {
       userLevel: args.newUserLevelId,
     });
 
-    // Create audit trail if analytics table exists
     try {
       await ctx.db.insert("analytics", {
         eventType: "user_level_changed",
@@ -595,15 +511,13 @@ export const assignUserLevel = mutation({
         sessionId: identity.subject,
         timestamp: Date.now(),
       });
-    } catch (error) {
-      // Analytics table not available
-    }
+    } catch (error) {}
+
 
     return args.userId;
   },
 });
 
-// Get all users with their levels (Manager+ only)
 export const getAllUsers = query({
   args: {
     department: v.optional(v.string()),
@@ -615,7 +529,6 @@ export const getAllUsers = query({
       throw new Error("Not authenticated");
     }
 
-    // Check permissions
     const currentUser = await ctx.db
       .query("users")
       .filter((q: any) => q.eq(q.field("clerkId"), identity.subject))
@@ -630,7 +543,6 @@ export const getAllUsers = query({
       throw new Error("Insufficient permissions. Manager level or higher required.");
     }
 
-    // Build query
     let query = ctx.db.query("users");
 
     if (department) {
@@ -643,7 +555,6 @@ export const getAllUsers = query({
 
     const users = await query.collect();
 
-    // Get user levels for all users
     const usersWithLevels = await Promise.all(
       users.map(async (user: any) => {
         const userLevel = await ctx.db.get(user.userLevel);
@@ -654,12 +565,10 @@ export const getAllUsers = query({
       })
     );
 
-    // Filter out users with null userLevels
     return usersWithLevels.filter(user => user.userLevel !== null);
   },
 });
 
-// Get users by level
 export const getUsersByLevel = query({
   args: {
     userLevelId: v.id("userLevels"),
@@ -668,13 +577,12 @@ export const getUsersByLevel = query({
     const users = await ctx.db
       .query("users")
       .filter((q) => q.eq(q.field("userLevel"), args.userLevelId))
-      .take(100); // OPTIMIZED: Limit to 100 users per level
+      .take(100);
 
     return users;
   },
 });
 
-// Get users by department
 export const getUsersByDepartment = query({
   args: {
     department: v.string(),
@@ -685,7 +593,6 @@ export const getUsersByDepartment = query({
       .filter((q) => q.eq(q.field("department"), args.department))
       .collect();
 
-    // Get user levels for each user
     const usersWithLevels = await Promise.all(
       users.map(async (user) => {
         const userLevel = await ctx.db.get(user.userLevel);
@@ -696,12 +603,10 @@ export const getUsersByDepartment = query({
       })
     );
 
-    // Filter out users with null userLevels
     return usersWithLevels.filter(user => user.userLevel !== null);
   },
 });
 
-// Get user by Clerk ID
 export const getUserByClerkId = query({
   args: { clerkId: v.string() },
   handler: async (ctx, { clerkId }) => {
@@ -723,7 +628,6 @@ export const getUserByClerkId = query({
   },
 });
 
-// Get all users with their levels (OPTIMIZED with pagination)
 export const getAllUsersWithLevels = query({
   args: {
     page: v.optional(v.number()),
@@ -870,7 +774,6 @@ export const updateUserStatus = mutation({
       throw new Error("Not authenticated");
     }
 
-    // Check permissions
     const currentUser = await ctx.db
       .query("users")
       .filter((q) => q.eq(q.field("clerkId"), identity.subject))
@@ -896,7 +799,6 @@ export const updateUserStatus = mutation({
       isActive,
     });
 
-    // Create audit trail if analytics table exists
     try {
       await ctx.db.insert("analytics", {
         eventType: "user_status_changed",
@@ -912,9 +814,8 @@ export const updateUserStatus = mutation({
         sessionId: identity.subject,
         timestamp: Date.now(),
       });
-    } catch (error) {
-      // Analytics table not available
-    }
+    } catch (error) {}
+
     return userId;
   },
 });

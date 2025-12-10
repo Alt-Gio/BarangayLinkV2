@@ -34,19 +34,15 @@ export default function EventApprovalPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('pending');
 
-  // Get current user from offline context
   const { currentUser, isOnline } = useOfflineData();
   
-  // Get user role
   const userRole = currentUser?.userLevel?.name || 'WORKER';
   
-  // Get events by status
   const pendingEvents = useQuery(api.events.getPendingEvents);
   const approvedEvents = useQuery(api.events.getApprovedEvents);
   const rejectedEvents = useQuery(api.events.getRejectedEvents);
   const allReviewedEvents = useQuery(api.events.getAllReviewedEvents);
   
-  // Approval mutations
   const approveEvent = useMutation(api.events.approveEvent);
   const rejectEvent = useMutation(api.events.rejectEvent);
 

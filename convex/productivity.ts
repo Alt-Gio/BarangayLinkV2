@@ -2,7 +2,6 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, checkPermission, checkDepartmentAccess } from "./roleBasedAccess";
 
-// Create a new barangay project
 export const createProject = mutation({
   args: {
     title: v.string(),
@@ -13,18 +12,14 @@ export const createProject = mutation({
     budget: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    // Check permission - ADMIN, CAPTAIN, MANAGER, BUILDER can create projects
     const currentUser = await checkPermission(ctx, ["BUILDER", "MANAGER", "CAPTAIN", "ADMIN"]);
     
     const userRole = currentUser.userLevel.name;
     
-    // MANAGER and BUILDER can only create projects in their own department
     if (userRole === "MANAGER" || userRole === "BUILDER") {
       checkDepartmentAccess(currentUser, args.department);
     }
-    // ADMIN and CAPTAIN can create projects in any department (no restriction)
     
-    // Set initial status based on role
     const initialStatus = userRole === "BUILDER" ? "draft" : "active";
 
     const projectId = await ctx.db.insert("projects", {
@@ -57,7 +52,6 @@ export const createProject = mutation({
       statusHistory: [{ status: initialStatus, changedBy: currentUser._id, changedAt: Date.now() }],
     });
 
-    // If created by BUILDER, notify department MANAGER for approval
     if (currentUser.userLevel.name === "BUILDER") {
       const managers = await ctx.db
         .query("users")
@@ -73,7 +67,6 @@ export const createProject = mutation({
       
       const validManagers = departmentManagers.filter(Boolean);
       
-      // Notify all department managers
       for (const manager of validManagers) {
         await ctx.db.insert("notifications", {
           userId: manager!._id,
@@ -101,7 +94,6 @@ export const createProject = mutation({
   },
 });
 
-// Create a new task
 export const createTask = mutation({
   args: {
     projectId: v.optional(v.id("projects")),
@@ -115,21 +107,18 @@ export const createTask = mutation({
   handler: async (ctx, args) => {
     const currentUser = await checkPermission(ctx, ["BUILDER", "MANAGER", "ADMIN"]);
     
-    // Verify all assigned users exist and check department access
     const assignedUsers = await Promise.all(
       args.assignedTo.map(userId => ctx.db.get(userId))
     );
     
     if (assignedUsers.some(u => !u)) throw new Error("One or more assigned users not found");
     
-    // Check department access for BUILDER and MANAGER roles
     if (["BUILDER", "MANAGER"].includes(currentUser.userLevel.name)) {
       for (const user of assignedUsers) {
         if (user) checkDepartmentAccess(currentUser, user.department || "");
       }
     }
     
-    // If projectId is provided, verify access to the project
     if (args.projectId) {
       const project = await ctx.db.get(args.projectId);
       if (!project) throw new Error("Project not found");
@@ -143,7 +132,7 @@ export const createTask = mutation({
       }
     }
     const taskId = await ctx.db.insert("tasks", {
-      userId: args.assignedTo[0] || currentUser._id, // Primary assignee (first in array)
+      userId: args.assignedTo[0] || currentUser._id,
       projectId: args.projectId,
       title: args.title,
       description: args.description,
@@ -173,7 +162,6 @@ export const createTask = mutation({
       isBlocking: false,
     });
 
-    // Notify all assigned users
     for (const userId of args.assignedTo) {
       await ctx.db.insert("notifications", {
         userId: userId,

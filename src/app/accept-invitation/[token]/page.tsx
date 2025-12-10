@@ -21,7 +21,6 @@ export default function AcceptInvitationPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  // Auto-accept when user signs in with matching email
   useEffect(() => {
     if (isSignedIn && clerkId && invitation && !invitation.isExpired && !invitation.isAccepted && !success && !isAccepting) {
       handleAcceptInvitation();
@@ -43,7 +42,6 @@ export default function AcceptInvitationPage() {
 
       setSuccess(true);
       
-      // Redirect to dashboard after 2 seconds
       setTimeout(() => {
         router.push("/dashboard");
       }, 2000);
@@ -54,7 +52,6 @@ export default function AcceptInvitationPage() {
     }
   };
 
-  // Loading state
   if (invitation === undefined) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
@@ -66,7 +63,6 @@ export default function AcceptInvitationPage() {
     );
   }
 
-  // Invalid invitation
   if (!invitation) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
@@ -87,7 +83,6 @@ export default function AcceptInvitationPage() {
     );
   }
 
-  // Expired invitation
   if (invitation.isExpired) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
@@ -108,7 +103,6 @@ export default function AcceptInvitationPage() {
     );
   }
 
-  // Already accepted
   if (invitation.isAccepted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
@@ -129,7 +123,6 @@ export default function AcceptInvitationPage() {
     );
   }
 
-  // Success state
   if (success) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
@@ -150,7 +143,6 @@ export default function AcceptInvitationPage() {
     );
   }
 
-  // Show sign up form if not signed in
   if (!isSignedIn) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
@@ -274,7 +266,6 @@ export default function AcceptInvitationPage() {
     );
   }
 
-  // Processing acceptance
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
       <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-8 max-w-md w-full text-center">

@@ -2,21 +2,6 @@ import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 
-/**
- * HABITICA-STYLE TASK MANAGEMENT SYSTEM
- * 
- * Features:
- * - Todos: One-time tasks
- * - Dailies: Tasks that repeat every day
- * - Milestones: Important project milestones
- * - XP & Gold rewards based on difficulty
- * - Streak tracking
- * - Project integration
- */
-
-/**
- * Get current user's tasks
- */
 export const getMyTasks = query({
   args: {},
   handler: async (ctx) => {
@@ -40,9 +25,6 @@ export const getMyTasks = query({
   },
 });
 
-/**
- * Get user stats (level, XP, streak, gold)
- */
 export const getUserStats = query({
   args: {},
   handler: async (ctx) => {
@@ -56,13 +38,11 @@ export const getUserStats = query({
 
     if (!user) return null;
 
-    // Get user stats (don't create in query - that's done in mutation)
     const stats = await ctx.db
       .query("userStats")
       .filter((q) => q.eq(q.field("userId"), user._id))
       .first();
 
-    // Return default stats if none exist yet
     if (!stats) {
       return {
         _id: "" as any,
@@ -80,9 +60,6 @@ export const getUserStats = query({
   },
 });
 
-/**
- * Create a new task
- */
 export const createTask = mutation({
   args: {
     title: v.string(),
@@ -101,12 +78,12 @@ export const createTask = mutation({
       v.literal("urgent")
     )),
     storyPoints: v.optional(v.number()),
-    projectId: v.id("projects"), // Required: every task must be linked to a project
-    milestoneId: v.optional(v.id("milestones")), // Optional: link to a milestone
+    projectId: v.id("projects"),
+    milestoneId: v.optional(v.id("milestones")),
     dueDate: v.optional(v.number()),
-    assignedTo: v.optional(v.array(v.id("users"))), // Optional: assigned users
-    status: v.optional(v.string()), // Allow any status for custom columns
-    tags: v.optional(v.array(v.string())), // Optional: task tags
+    assignedTo: v.optional(v.array(v.id("users"))),
+    status: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -119,7 +96,6 @@ export const createTask = mutation({
 
     if (!user) throw new Error("User not found");
 
-    // Calculate rewards based on difficulty
     const rewards = {
       trivial: { xp: 5, gold: 1 },
       easy: { xp: 10, gold: 2 },
@@ -156,7 +132,6 @@ export const createTask = mutation({
       isBlocking: false,
     });
 
-    // Sync project progress
     await ctx.scheduler.runAfter(0, "tasks:syncProjectProgress" as any, {
       projectId: args.projectId,
     });
@@ -165,9 +140,6 @@ export const createTask = mutation({
   },
 });
 
-/**
- * Complete a task (awards XP and Gold)
- */
 export const completeTask = mutation({
   args: {
     taskId: v.id("tasks"),
@@ -187,11 +159,9 @@ export const completeTask = mutation({
     if (!task) throw new Error("Task not found");
     if (task.userId !== user._id) throw new Error("Not authorized");
 
-    // Get rewards from task
     const xpReward = task.experienceReward;
     const goldReward = task.goldReward;
 
-    // Update task - mark as completed
     await ctx.db.patch(args.taskId, {
       completed: true,
       completedAt: Date.now(),
@@ -199,21 +169,18 @@ export const completeTask = mutation({
       lastCompleted: Date.now(),
     });
 
-    // Sync project progress if task is linked to a project
     if (task.projectId) {
       await ctx.scheduler.runAfter(0, "tasks:syncProjectProgress" as any, {
         projectId: task.projectId,
       });
     }
 
-    // Update user stats
     let stats = await ctx.db
       .query("userStats")
       .filter((q) => q.eq(q.field("userId"), user._id))
       .first();
 
     if (!stats) {
-      // Create stats if doesn't exist
       const statsId = await ctx.db.insert("userStats", {
         userId: user._id,
         level: 1,
@@ -230,27 +197,21 @@ export const completeTask = mutation({
     const newXp = stats.xp + xpReward;
     const newGold = stats.gold + goldReward;
     let newLevel = stats.level;
-
-    // Check for level up (100 XP per level)
     const xpToNextLevel = stats.level * 100;
     if (newXp >= xpToNextLevel) {
       newLevel = stats.level + 1;
     }
 
-    // Update streak (if completed today)
     const today = new Date().setHours(0, 0, 0, 0);
     const lastCompleted = new Date(stats.lastCompletedDate).setHours(0, 0, 0, 0);
     const daysDiff = Math.floor((today - lastCompleted) / (1000 * 60 * 60 * 24));
 
     let newStreak = stats.streak;
     if (daysDiff === 0) {
-      // Same day, keep streak
       newStreak = stats.streak;
     } else if (daysDiff === 1) {
-      // Next day, increment streak
       newStreak = stats.streak + 1;
     } else {
-      // Streak broken
       newStreak = 1;
     }
 
@@ -271,9 +232,6 @@ export const completeTask = mutation({
   },
 });
 
-/**
- * Uncomplete a task
- */
 export const uncompleteTask = mutation({
   args: {
     taskId: v.id("tasks"),
@@ -298,7 +256,6 @@ export const uncompleteTask = mutation({
       completedAt: undefined,
     });
 
-    // Sync project progress if task is linked to a project
     if (task.projectId) {
       await ctx.scheduler.runAfter(0, "tasks:syncProjectProgress" as any, {
         projectId: task.projectId,
@@ -309,9 +266,6 @@ export const uncompleteTask = mutation({
   },
 });
 
-/**
- * Delete a task
- */
 export const deleteTask = mutation({
   args: {
     taskId: v.id("tasks"),
@@ -335,7 +289,6 @@ export const deleteTask = mutation({
     
     await ctx.db.delete(args.taskId);
 
-    // Sync project progress if task was linked to a project
     if (projectId) {
       await ctx.scheduler.runAfter(0, "tasks:syncProjectProgress" as any, {
         projectId: projectId,
@@ -346,9 +299,6 @@ export const deleteTask = mutation({
   },
 });
 
-/**
- * Get tasks for a specific project
- */
 export const getProjectTasks = query({
   args: {
     projectId: v.id("projects"),
@@ -359,7 +309,6 @@ export const getProjectTasks = query({
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
 
-    // Get user info for each task
     const tasksWithUsers = await Promise.all(
       tasks.map(async (task) => {
         const user = await ctx.db.get(task.userId);
@@ -378,16 +327,12 @@ export const getProjectTasks = query({
   },
 });
 
-/**
- * Reset dailies (called via cron at midnight)
- */
 export const resetDailies = mutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
     const today = new Date().setHours(0, 0, 0, 0);
 
-    // Get all daily tasks that were completed yesterday
     const dailyTasks = await ctx.db
       .query("tasks")
       .filter((q) => q.eq(q.field("type"), "daily"))
@@ -397,7 +342,6 @@ export const resetDailies = mutation({
       if (task.completed && task.completedAt) {
         const completedDate = new Date(task.completedAt).setHours(0, 0, 0, 0);
         
-        // If completed yesterday or before, reset it
         if (completedDate < today) {
           await ctx.db.patch(task._id, {
             completed: false,
@@ -411,13 +355,10 @@ export const resetDailies = mutation({
   },
 });
 
-/**
- * Update task status and other fields (for kanban drag & drop)
- */
 export const updateTask = mutation({
   args: {
     taskId: v.id("tasks"),
-    status: v.optional(v.string()), // Allow any status for custom columns
+    status: v.optional(v.string()),
     completed: v.optional(v.boolean()),
     title: v.optional(v.string()),
     description: v.optional(v.string()),
@@ -444,7 +385,6 @@ export const updateTask = mutation({
       v.literal("milestone"),
       v.literal("reward")
     )),
-    // Role-based permission fields
     completedBy: v.optional(v.id("users")),
     completedByRole: v.optional(v.string()),
     lastMovedBy: v.optional(v.id("users")),
@@ -457,7 +397,6 @@ export const updateTask = mutation({
     const task = await ctx.db.get(args.taskId);
     if (!task) throw new Error("Task not found");
 
-    // Build update object with only provided fields
     const updates: any = {};
     if (args.status !== undefined) updates.status = args.status;
     if (args.completed !== undefined) {
@@ -465,7 +404,6 @@ export const updateTask = mutation({
       if (args.completed) {
         updates.completedAt = Date.now();
         
-        // Update stats for all assigned users
         if (task.assignedTo && task.assignedTo.length > 0) {
           for (const userId of task.assignedTo) {
             const user = await ctx.db.get(userId);
@@ -492,17 +430,14 @@ export const updateTask = mutation({
     if (args.lastMovedBy !== undefined) updates.lastMovedBy = args.lastMovedBy;
     if (args.lockedInReview !== undefined) updates.lockedInReview = args.lockedInReview;
 
-    // Update the task
     await ctx.db.patch(args.taskId, updates);
 
-    // Sync project progress if status or completed changed and task is linked to a project
     if ((args.status !== undefined || args.completed !== undefined) && task.projectId) {
       await ctx.scheduler.runAfter(0, "tasks:syncProjectProgress" as any, {
         projectId: task.projectId,
       });
     }
 
-    // Sync milestone progress if status or completed changed and task is linked to a milestone
     if ((args.status !== undefined || args.completed !== undefined) && task.milestoneId) {
       await ctx.scheduler.runAfter(0, "milestones:updateMilestoneProgress" as any, {
         milestoneId: task.milestoneId,
@@ -513,45 +448,32 @@ export const updateTask = mutation({
   },
 });
 
-/**
- * HELPER: Calculate and update project progress based on tasks
- * This is called automatically when tasks are created, updated, or deleted
- */
 export const syncProjectProgress = internalMutation({
   args: {
     projectId: v.id("projects"),
   },
   handler: async (ctx, args) => {
-    // Get all tasks for this project
     const tasks = await ctx.db
       .query("tasks")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
 
     if (tasks.length === 0) {
-      // No tasks, set progress to 0
       await ctx.db.patch(args.projectId, { progress: 0 });
       return { progress: 0, totalTasks: 0, completedTasks: 0 };
     }
 
-    // Count completed tasks (status === 'done' or 'completed' or completed === true)
     const completedTasks = tasks.filter(
       (t) => t.status === "done" || t.status === "completed" || t.completed === true
     ).length;
 
-    // Calculate progress percentage
     const progress = Math.round((completedTasks / tasks.length) * 100);
-
-    // Update project progress field
     await ctx.db.patch(args.projectId, { progress });
 
     return { progress, totalTasks: tasks.length, completedTasks };
   },
 });
 
-/**
- * Toggle "Working On It" status
- */
 export const toggleWorkingOnIt = mutation({
   args: {
     taskId: v.id("tasks"),
@@ -570,16 +492,13 @@ export const toggleWorkingOnIt = mutation({
     const task = await ctx.db.get(args.taskId);
     if (!task) throw new Error("Task not found");
 
-    // Toggle working status
     if (task.workingOnIt === user._id) {
-      // Stop working
       await ctx.db.patch(args.taskId, {
         workingOnIt: undefined,
         workingOnItStartedAt: undefined,
       });
       return { working: false, message: "Stopped working on task" };
     } else {
-      // Start working
       await ctx.db.patch(args.taskId, {
         workingOnIt: user._id,
         workingOnItStartedAt: Date.now(),

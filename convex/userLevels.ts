@@ -1,7 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
-// Get all user levels
 export const getAll = query({
   args: {},
   handler: async (ctx) => {
@@ -9,12 +8,10 @@ export const getAll = query({
       .query("userLevels")
       .collect();
     
-    // Sort by level number in descending order (ADMIN first, WORKER last)
     return levels.sort((a, b) => b.level - a.level);
   },
 });
 
-// Get all user levels (alias for registration page)
 export const getAllUserLevels = query({
   args: {},
   handler: async (ctx) => {
@@ -22,18 +19,15 @@ export const getAllUserLevels = query({
       .query("userLevels")
       .collect();
     
-    // Sort by level number in descending order (ADMIN first, WORKER last)
     return levels.sort((a, b) => b.level - a.level);
   },
 });
 
-// Add ADMIN role (Recovery function)
 export const addAdminRole = mutation({
   args: {},
   handler: async (ctx) => {
     const existingLevels = await ctx.db.query("userLevels").collect();
     
-    // Check if ADMIN already exists
     const adminExists = existingLevels.find(level => level.name === "ADMIN");
     
     if (adminExists) {
@@ -44,7 +38,6 @@ export const addAdminRole = mutation({
       };
     }
     
-    // Add ADMIN role at level 5
     const adminLevel = {
       name: "ADMIN",
       level: 5,
@@ -70,7 +63,6 @@ export const addAdminRole = mutation({
   },
 });
 
-// Fix users with invalid user level references
 export const fixInvalidUserLevels = mutation({
   args: {},
   handler: async (ctx) => {
@@ -80,10 +72,7 @@ export const fixInvalidUserLevels = mutation({
     let fixedCount = 0;
     let errors = [];
     
-    // Get valid level IDs
     const validLevelIds = new Set(allLevels.map(l => l._id.toString()));
-    
-    // Get WORKER level as default
     const workerLevel = allLevels.find(l => l.name === "WORKER");
     if (!workerLevel) {
       return {
@@ -93,10 +82,8 @@ export const fixInvalidUserLevels = mutation({
     }
     
     for (const user of allUsers) {
-      // Check if user's level ID is valid
       if (!validLevelIds.has(user.userLevel.toString())) {
         try {
-          // Update user to WORKER level
           await ctx.db.patch(user._id, {
             userLevel: workerLevel._id
           });

@@ -1,7 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-// Start a new user session (called on login)
 export const startSession = mutation({
   args: {
     clerkSessionId: v.string(),
@@ -23,15 +22,12 @@ export const startSession = mutation({
       throw new Error("Not authenticated");
     }
 
-    // Get the user from Convex, create if doesn't exist
     let user = await ctx.db
       .query("users")
       .filter((q: any) => q.eq(q.field("clerkId"), identity.subject))
       .first();
 
     if (!user) {
-      // User doesn't exist in Convex yet, create them with default WORKER level
-      console.log("User not found, creating new user for:", identity.subject);
       
       let workerLevel;
       try {
@@ -65,7 +61,7 @@ export const startSession = mutation({
           userLevel: workerLevel._id,
           department: "General",
           position: "Community Member",
-          role: "worker", // Default role
+          role: "worker",
           phone: undefined,
           isActive: false,
           status: "pending",

@@ -54,7 +54,6 @@ export default function CompleteProfilePage() {
     phone: "",
   });
 
-  // Pre-fill OAuth data
   useEffect(() => {
     if (user && isLoaded) {
       setFormData(prev => ({
@@ -70,7 +69,6 @@ export default function CompleteProfilePage() {
   const convexUser = useQuery(api.users.getCurrentUser, isLoaded && user ? {} : "skip");
   const completeOAuthProfile = useMutation(api.users.completeOAuthProfile);
 
-  // Validate invitation code
   const validateInvitation = async () => {
     if (!invitationCode.trim()) {
       toast.error("Please enter an invitation code");
@@ -87,7 +85,6 @@ export default function CompleteProfilePage() {
 
       if (result.valid) {
         setInvitationValid(result.invitation);
-        // Pre-fill form with invitation data
         setFormData({
           firstName: result.invitation.firstName || "",
           lastName: result.invitation.lastName || "",
@@ -108,7 +105,6 @@ export default function CompleteProfilePage() {
   };
 
   const handleSubmit = async () => {
-    // Validate required fields
     if (!formData.firstName || !formData.lastName || !formData.department || !formData.position) {
       toast.error("Please fill in all required fields (Name, Department, Position)");
       return;
@@ -122,8 +118,6 @@ export default function CompleteProfilePage() {
     setIsSubmitting(true);
     
     try {
-      // Step 1: Update Clerk metadata first
-      console.log("📝 Updating Clerk metadata...");
       await user?.update({
         unsafeMetadata: {
           ...user.unsafeMetadata,
@@ -137,10 +131,6 @@ export default function CompleteProfilePage() {
           profileCompleted: true,
         },
       });
-      console.log("✅ Clerk metadata updated");
-
-      // Step 2: Update existing Convex user (created by webhook)
-      console.log("📝 Updating Convex user profile...");
       
       if (!convexUser) {
         throw new Error("User not found in database. Please try signing in again.");
@@ -150,22 +140,17 @@ export default function CompleteProfilePage() {
         department: formData.department,
         position: formData.position,
         phone: formData.phone || undefined,
-        // Activate user if they have invitation code
         status: invitationValid ? "active" : "pending",
         isActive: invitationValid ? true : false,
       });
-      console.log("✅ Convex user updated");
-
       toast.success(
         invitationValid
           ? "Profile completed! Welcome to BarangayLink!"
           : "Registration submitted! Waiting for admin approval."
       );
       
-      // Small delay to ensure updates propagate
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Redirect to appropriate page
       if (invitationValid) {
         router.push("/dashboard");
       } else {

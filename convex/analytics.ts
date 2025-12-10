@@ -1,10 +1,6 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 
-/**
- * Get comprehensive analytics data for the dashboard
- * Includes real milestone data, department stats, and team leaderboard
- */
 export const getComprehensiveAnalytics = query({
   args: {
     timeRange: v.optional(v.string()), // "week", "month", "quarter", "year"
@@ -15,7 +11,6 @@ export const getComprehensiveAnalytics = query({
 
     const now = Date.now();
     
-    // Calculate time range filter
     let startDate = 0;
     switch (args.timeRange) {
       case "week":
@@ -34,7 +29,6 @@ export const getComprehensiveAnalytics = query({
         startDate = 0; // All time
     }
 
-    // Get all data
     const projects = await ctx.db.query("projects").collect();
     const milestones = await ctx.db.query("milestones").collect();
     const tasks = await ctx.db.query("tasks").collect();
@@ -43,7 +37,6 @@ export const getComprehensiveAnalytics = query({
     const departments = await ctx.db.query("departments").collect();
     const events = await ctx.db.query("events").collect();
 
-    // ========== MILESTONE ANALYTICS ==========
     const milestonesWithProgress = await Promise.all(
       milestones.map(async (milestone) => {
         const project = projects.find(p => p._id === milestone.projectId);
@@ -74,24 +67,21 @@ export const getComprehensiveAnalytics = query({
     const pendingMilestones = milestonesWithProgress.filter(m => m.progress === 0).length;
     const totalMilestones = milestonesWithProgress.length;
     
-    // Calculate overall milestone progress (weighted average by task count)
     const totalMilestoneTasks = milestonesWithProgress.reduce((sum, m) => sum + m.totalTasks, 0);
     const completedMilestoneTasks = milestonesWithProgress.reduce((sum, m) => sum + m.completedTasks, 0);
     const overallMilestoneProgress = totalMilestoneTasks > 0 
       ? Math.round((completedMilestoneTasks / totalMilestoneTasks) * 100) 
       : 0;
     
-    // On-time milestone delivery - milestones completed before or on target date
     const completedOnTimeMilestones = milestonesWithProgress.filter(m => {
       if (m.progress !== 100) return false;
-      if (!m.targetDate) return true; // No target = on time by default
+      if (!m.targetDate) return true;
       return now <= m.targetDate;
     }).length;
     const milestoneOnTimeRate = completedMilestones > 0 
       ? Math.round((completedOnTimeMilestones / completedMilestones) * 100) 
       : 0;
     
-    // Milestones due this month
     const thisMonthEnd = new Date();
     thisMonthEnd.setMonth(thisMonthEnd.getMonth() + 1);
     const upcomingMilestones = milestonesWithProgress

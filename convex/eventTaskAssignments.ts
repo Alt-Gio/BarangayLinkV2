@@ -3,9 +3,6 @@ import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 
-/**
- * Assign users to a task - Each gets their own progress tracking
- */
 export const assignUsersToTask = mutation({
   args: {
     taskId: v.id("eventTasks"),
@@ -28,23 +25,19 @@ export const assignUsersToTask = mutation({
     const now = Date.now();
     const newAssignments: Id<"eventTaskAssignments">[] = [];
 
-    // Get all current assignments for this task
     const allAssignments = await ctx.db
       .query("eventTaskAssignments")
       .withIndex("by_task", (q) => q.eq("taskId", args.taskId))
       .collect();
 
-    // Deactivate assignments for users not in the new list
     for (const assignment of allAssignments) {
       if (!args.userIds.includes(assignment.userId) && assignment.isActive) {
         await ctx.db.patch(assignment._id, {
           isActive: false,
         });
         
-        // Log removal
         const user = await ctx.db.get(assignment.userId);
         
-        // Send notification to removed user
         await ctx.db.insert("notifications", {
           userId: assignment.userId,
           type: "info",
@@ -80,9 +73,7 @@ export const assignUsersToTask = mutation({
       }
     }
 
-    // Create individual assignment for each user in the new list
     for (const userId of args.userIds) {
-      // Check if already assigned
       const existing = await ctx.db
         .query("eventTaskAssignments")
         .withIndex("by_task_user", (q) =>

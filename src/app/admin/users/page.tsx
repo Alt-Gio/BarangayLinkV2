@@ -49,10 +49,8 @@ export default function AdminUsersPage() {
   const [editingUser, setEditingUser] = useState<any>(null);
   const [viewingUser, setViewingUser] = useState<any>(null);
 
-  // Get current user from offline context (cached, saves bandwidth)
   const { currentUser, isOnline } = useOfflineData();
 
-  // Only fetch data when authenticated
   const users = useQuery(
     api.adminUserManagement.getAllUsers,
     isLoaded && user
@@ -71,7 +69,6 @@ export default function AdminUsersPage() {
   const userLevels = useQuery(api.userLevels.getAllUserLevels);
   const departments = useQuery(api.departments.getAllDepartments);
 
-  // Redirect if not authenticated
   if (isLoaded && !user) {
     router.push("/login");
     return null;

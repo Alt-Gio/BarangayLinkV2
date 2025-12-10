@@ -41,10 +41,8 @@ function JoinEventContent() {
   const qrScannerRef = useRef<any>(null);
   const hasSubmittedRef = useRef(false);
   
-  // Get the full code as string
   const fullCode = joinCode.join("");
   
-  // Pre-fill code from URL if provided
   useEffect(() => {
     const codeFromUrl = searchParams.get("code");
     if (codeFromUrl && codeFromUrl.length === 4) {
@@ -53,7 +51,6 @@ function JoinEventContent() {
     }
   }, [searchParams]);
   
-  // Query event by join code
   const event = useQuery(
     api.events.getEventByJoinCode, 
     fullCode.length === 4 ? { joinCode: fullCode } : "skip"
@@ -61,7 +58,6 @@ function JoinEventContent() {
   
   const guestCheckIn = useMutation(api.events.guestCheckIn);
   
-  // Countdown timer for success screen
   useEffect(() => {
     if (step === "success") {
       const timer = setInterval(() => {
@@ -77,7 +73,6 @@ function JoinEventContent() {
     }
   }, [step]);
   
-  // Handle code input
   const handleCodeInput = (index: number, value: string) => {
     if (value.length > 1) {
       const digits = value.replace(/\D/g, "").slice(0, 4).split("");
@@ -106,14 +101,12 @@ function JoinEventContent() {
     }
   };
   
-  // Auto-advance to name step when code is complete and event is found
   useEffect(() => {
     if (fullCode.length === 4 && event && step === "code") {
       setStep("name");
     }
   }, [fullCode, event, step]);
   
-  // Physical scanner handler
   const handleScannerInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setScannerBuffer(value);
@@ -128,15 +121,12 @@ function JoinEventContent() {
     }
   }, []);
   
-  // QR Scanner - properly stop camera
   const stopQRScanner = useCallback(async () => {
     if (qrScannerRef.current) {
       try {
         await qrScannerRef.current.stop();
         qrScannerRef.current.clear();
-      } catch (e) {
-        // Ignore errors when stopping
-      }
+      } catch (e) {}
       qrScannerRef.current = null;
     }
     setShowQRScanner(false);
@@ -145,7 +135,6 @@ function JoinEventContent() {
   const startQRScanner = async () => {
     setShowQRScanner(true);
     
-    // Small delay to ensure DOM is ready
     await new Promise(resolve => setTimeout(resolve, 100));
     
     try {
@@ -160,7 +149,6 @@ function JoinEventContent() {
           qrbox: { width: 250, height: 250 },
         },
         async (decodedText) => {
-          // Extract code from URL or direct code
           let code = decodedText;
           if (decodedText.includes("code=")) {
             try {
@@ -174,16 +162,13 @@ function JoinEventContent() {
           }
           
           if (/^\d{4}$/.test(code)) {
-            // IMMEDIATELY stop scanner before setting state
             await stopQRScanner();
             setJoinCode(code.split(""));
             setJoinMethod("qr");
             toast.success("QR Code scanned!");
           }
         },
-        () => {
-          // Ignore scan errors
-        }
+        () => {}
       );
     } catch (err) {
       console.error("Camera error:", err);
@@ -192,7 +177,6 @@ function JoinEventContent() {
     }
   };
   
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopQRScanner();
@@ -200,7 +184,6 @@ function JoinEventContent() {
   }, [stopQRScanner]);
   
   const handleSubmit = async () => {
-    // Prevent double submission
     if (hasSubmittedRef.current || isSubmitting) return;
     
     if (!firstName.trim() || !lastName.trim()) {
@@ -220,7 +203,6 @@ function JoinEventContent() {
         message: customMessage.trim() || undefined,
       });
       
-      // Show confetti
       confetti({
         particleCount: 150,
         spread: 100,

@@ -2,19 +2,17 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, checkPermission } from "./roleBasedAccess";
 
-// Public stats for landing page (no authentication required)
 export const getPublicStats = query({
   args: {},
   handler: async (ctx, args) => {
     try {
-      // Get public data only
       const [publicProjects, publicEvents] = await Promise.all([
         ctx.db.query("projects")
           .filter((q) => q.eq(q.field("isPublic"), true))
-          .take(20), // OPTIMIZED: Limit to 20 featured public projects
+          .take(20),
         ctx.db.query("events")
           .filter((q) => q.eq(q.field("isPublic"), true))
-          .take(10) // OPTIMIZED: Limit to 10 upcoming events
+          .take(10)
       ]);
 
       const activeProjects = publicProjects.filter(p => p.status === "active");
@@ -22,11 +20,11 @@ export const getPublicStats = query({
 
       return {
         systemOverview: {
-          totalUsers: 0, // Don't expose user count publicly
+          totalUsers: 0,
           activeUsers: 0,
           totalProjects: publicProjects.length,
           activeProjects: activeProjects.length,
-          totalTasks: 0, // Don't expose task count publicly
+          totalTasks: 0,
           completedTasks: 0,
           totalBudget: publicProjects.reduce((sum, p) => sum + (p.budget || 0), 0),
           totalSpent: 0
@@ -78,7 +76,6 @@ async function getDepartmentStats(ctx: any, users: any[], projects: any[]) {
 async function getRecentSystemActivity(ctx: any, oneWeekAgo: number) {
   const activities: any[] = [];
   
-  // Get recent projects
   const recentProjects = await ctx.db
     .query("projects")
     .filter((q: any) => q.gte(q.field("_creationTime"), oneWeekAgo))
@@ -101,7 +98,6 @@ async function getCriticalAlerts(ctx: any, projects: any[], tasks: any[]) {
   const alerts = [];
   const now = Date.now();
   
-  // Overdue projects
   const overdueProjects = projects.filter(p => 
     p.endDate && p.endDate < now && p.status !== "completed"
   );
@@ -113,7 +109,6 @@ async function getCriticalAlerts(ctx: any, projects: any[], tasks: any[]) {
     });
   }
   
-  // Budget overruns
   const budgetOverruns = projects.filter(p => 
     p.budget && p.spent && p.spent > p.budget
   );

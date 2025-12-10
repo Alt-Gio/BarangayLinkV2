@@ -1,17 +1,7 @@
-/**
- * Event ↁETask ↁEProject Integration
- * Automatic workflow synchronization between events, tasks, and projects
- */
-
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "../_generated/server";
 import { Id } from "../_generated/dataModel";
 
-// ============================================
-// EVENT ↁEPROJECT INTEGRATION
-// ============================================
-
-// Link event to project and create tasks
 export const linkEventToProject = mutation({
   args: {
     eventId: v.id("events"),
@@ -29,12 +19,10 @@ export const linkEventToProject = mutation({
       throw new Error("Project not found");
     }
 
-    // Update event with project link
     await ctx.db.patch(args.eventId, {
       projectId: args.projectId,
     });
 
-    // If createTasks is true, create project tasks from event
     if (args.createTasks) {
       const taskIds = await createProjectTasksFromEvent(ctx, args.eventId, args.projectId);
       return { success: true, tasksCreated: taskIds.length, taskIds };
@@ -44,7 +32,6 @@ export const linkEventToProject = mutation({
   },
 });
 
-// Sync event completion to project
 export const syncEventCompletionToProject = mutation({
   args: {
     eventId: v.id("events"),
@@ -60,7 +47,6 @@ export const syncEventCompletionToProject = mutation({
       return { success: false, reason: "Project not found" };
     }
 
-    // Get event tasks completion stats
     const eventTasks = await ctx.db
       .query("eventTasks")
       .withIndex("by_event", (q) => q.eq("eventId", args.eventId))
@@ -70,7 +56,6 @@ export const syncEventCompletionToProject = mutation({
     const completedTasks = eventTasks.filter((t) => t.status === "done").length;
     const completionRate = totalTasks > 0 ? completedTasks / totalTasks : 0;
 
-    // Log activity in project
     await ctx.db.insert("projectActivities", {
       projectId: event.projectId,
       userId: event.organizer,

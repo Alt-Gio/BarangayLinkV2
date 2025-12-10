@@ -1,11 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-// ============================================
-// QUERIES
-// ============================================
-
-// Get all households with pagination
 export const getAllHouseholds = query({
   args: {
     limit: v.optional(v.number()),
@@ -22,14 +17,12 @@ export const getAllHouseholds = query({
   },
 });
 
-// Get household by ID with all members
 export const getHouseholdById = query({
   args: { householdId: v.id("households") },
   handler: async (ctx, args) => {
     const household = await ctx.db.get(args.householdId);
     if (!household) return null;
     
-    // Get all members
     const members = await ctx.db
       .query("residents")
       .withIndex("by_household", (q) => q.eq("householdId", args.householdId))
@@ -42,7 +35,6 @@ export const getHouseholdById = query({
   },
 });
 
-// Search households
 export const searchHouseholds = query({
   args: {
     searchTerm: v.optional(v.string()),
@@ -52,12 +44,10 @@ export const searchHouseholds = query({
   handler: async (ctx, args) => {
     let households = await ctx.db.query("households").collect();
     
-    // Filter by purok
     if (args.purok) {
       households = households.filter((h) => h.purok === args.purok);
     }
     
-    // Filter by indigent status
     if (args.isIndigent !== undefined) {
       households = households.filter((h) => h.isIndigent === args.isIndigent);
     }

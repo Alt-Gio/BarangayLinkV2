@@ -27,7 +27,6 @@ import {
   Gift
 } from 'lucide-react';
 
-// Exact departments that match your Convex schema
 const DEPARTMENTS = [
   'Administration',
   'Secretary Office', 
@@ -49,7 +48,6 @@ const DEPARTMENTS = [
   'General'
 ];
 
-// Job titles for suggestions
 const BARANGAY_JOBS = [
   'Barangay Captain', 'Barangay Secretary', 'Barangay Treasurer', 'Barangay Councilor',
   'SK Chairperson', 'SK Secretary', 'SK Treasurer', 'SK Councilor',
@@ -59,7 +57,6 @@ const BARANGAY_JOBS = [
   'Project Coordinator', 'Community Organizer', 'Disaster Risk Reduction Officer'
 ];
 
-// Exact roles that match your Convex userLevels
 const USER_ROLES = [
   {
     value: 'WORKER',
@@ -102,7 +99,6 @@ const USER_ROLES = [
   }
 ];
 
-// Wrapper with Suspense for useSearchParams
 export default function RegisterPage() {
   return (
     <Suspense fallback={
@@ -121,23 +117,18 @@ function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  // Check for invitation code in URL
   const invitationCode = searchParams.get('code');
   
-  // Validate invitation code (only if code is present)
   const invitationData = useQuery(
     api.invitationCodes.validateInvitationCode,
     invitationCode ? { code: invitationCode } : "skip"
   );
   
-  // Is this an invitation-based registration?
   const isInvitedUser = !!invitationCode && invitationData?.valid;
   
-  // DIRECT Convex mutation - bypasses webhook to ensure immediate save
   const syncUserToConvex = useMutation(api.users.syncUserFromClerk);
   const useInvitationCode = useMutation(api.invitationCodes.useInvitationCode);
   
-  // Form state
   const [basicInfo, setBasicInfo] = useState({
     firstName: '',
     lastName: '',
@@ -154,8 +145,6 @@ function RegisterContent() {
     agreeToTerms: false
   });
   
-  // For invited users: 1 = Basic Info, 2 = Verification
-  // For regular users: 1 = Basic Info, 2 = Profile, 3 = Verification
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -163,23 +152,20 @@ function RegisterContent() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
-  // Job title suggestions
   const [showJobDropdown, setShowJobDropdown] = useState(false);
   const [jobSuggestions, setJobSuggestions] = useState<string[]>([]);
   
-  // Auto-fill profile from invitation code
   useEffect(() => {
     if (isInvitedUser && invitationData?.code) {
       setProfileDetails(prev => ({
         ...prev,
         department: invitationData.code.department || '',
         role: invitationData.userLevel?.name || 'WORKER',
-        agreeToTerms: true, // Pre-agree for invited users
+        agreeToTerms: true,
       }));
     }
   }, [isInvitedUser, invitationData]);
 
-  // Redirect if already signed in
   useEffect(() => {
     if (isSignedIn && user) {
       router.push('/dashboard');
@@ -222,12 +208,8 @@ function RegisterContent() {
     return Object.keys(errors).length === 0;
   };
 
-  // Phone number validation with dash formatting (0925-643-3456)
   const handlePhoneChange = (value: string) => {
-    // Remove all non-digits
     const numbersOnly = value.replace(/\D/g, '');
-    
-    // Format as 0925-643-3456 (13 characters total)
     let formatted = numbersOnly;
     if (numbersOnly.length >= 4) {
       formatted = numbersOnly.slice(0, 4) + '-' + numbersOnly.slice(4);
@@ -242,9 +224,7 @@ function RegisterContent() {
     }
   };
 
-  // Auto-capitalize names (letters only)
   const handleNameChange = (field: 'firstName' | 'lastName', value: string) => {
-    // Only allow letters and spaces
     const lettersOnly = value.replace(/[^a-zA-Z\s]/g, '');
     const capitalized = lettersOnly.split(' ').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
@@ -254,22 +234,19 @@ function RegisterContent() {
     clearFieldError(field);
   };
 
-  // Clear field function
   const clearField = (field: keyof typeof basicInfo) => {
     setBasicInfo(prev => ({ ...prev, [field]: '' }));
     clearFieldError(field);
   };
 
-  // Job title handling - autocomplete/predictive
   const handleJobTitleChange = (value: string) => {
     setProfileDetails(prev => ({ ...prev, jobTitle: value }));
     clearFieldError('jobTitle');
     
-    // Show suggestions immediately as user types (autocomplete)
     if (value.length > 0) {
       const suggestions = BARANGAY_JOBS.filter(job =>
         job.toLowerCase().includes(value.toLowerCase())
-      ).slice(0, 8); // Show more suggestions
+      ).slice(0, 8);
       setJobSuggestions(suggestions);
       setShowJobDropdown(suggestions.length > 0);
     } else {
@@ -278,18 +255,15 @@ function RegisterContent() {
     }
   };
 
-  // Step 1: Basic Info → Move to Step 2 (Profile) OR directly to verification for invited users
   const handleStep1Submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateStep1()) return;
     
-    // For invited users: skip profile step and go directly to user creation + verification
     if (isInvitedUser && isLoaded) {
       setIsLoading(true);
       setError('');
       
       try {
-        // Create Clerk user with pre-filled invitation data
         const result = await signUp.create({
           emailAddress: basicInfo.email,
           password: basicInfo.password,
@@ -297,10 +271,10 @@ function RegisterContent() {
           lastName: basicInfo.lastName,
           unsafeMetadata: {
             phone: basicInfo.phone,
-            jobTitle: 'Team Member', // Default for invited users
-            department: profileDetails.department, // From invitation
-            role: profileDetails.role, // From invitation
-            invitationCode: invitationCode, // Track which code was used
+            jobTitle: 'Team Member',
+            department: profileDetails.department,
+            role: profileDetails.role,
+            invitationCode: invitationCode,
             profileCompleted: true,
             registrationStep: 2
           }
@@ -310,7 +284,7 @@ function RegisterContent() {
           await signUp.prepareEmailAddressVerification({ 
             strategy: "email_code" 
           });
-          setStep(2); // For invited users, step 2 is verification
+          setStep(2);
         } else if (result.status === "complete") {
           await handleRegistrationComplete();
         }
@@ -323,12 +297,10 @@ function RegisterContent() {
         setIsLoading(false);
       }
     } else {
-      // Regular flow: go to profile details step
       setStep(2);
     }
   };
 
-  // Step 2: Profile Details → Create Clerk user and prepare verification
   const handleStep2Submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateStep2() || !isLoaded) return;
@@ -346,8 +318,8 @@ function RegisterContent() {
         unsafeMetadata: {
           phone: basicInfo.phone,
           jobTitle: profileDetails.jobTitle,
-          department: profileDetails.department, // Exact department
-          role: profileDetails.role, // Exact role (WORKER, BUILDER, MANAGER)
+          department: profileDetails.department,
+          role: profileDetails.role,
           profileCompleted: true,
           registrationStep: 2
         }
@@ -357,9 +329,8 @@ function RegisterContent() {
         await signUp.prepareEmailAddressVerification({ 
           strategy: "email_code" 
         });
-        setStep(3); // Go to email verification
+        setStep(3);
       } else if (result.status === "complete") {
-        // Handle immediate completion
         await handleRegistrationComplete();
       }
     } catch (err: any) {
@@ -372,7 +343,6 @@ function RegisterContent() {
     }
   };
 
-  // Step 3: Email Verification → Complete registration
   const handleStep3Submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isLoaded || !verificationCode || !signUp) return;
@@ -400,24 +370,13 @@ function RegisterContent() {
     }
   };
 
-  // Handle registration completion
   const handleRegistrationComplete = async () => {
     try {
-      // Set session active
       if (signUp?.createdSessionId && setActive) {
         await setActive({ session: signUp.createdSessionId });
       }
 
-      // DIRECT SYNC TO CONVEX - Don't wait for webhook!
-      // This ensures data is saved immediately with correct values
       try {
-        console.log("🚀 DIRECTLY SYNCING TO CONVEX:", {
-          phone: basicInfo.phone,
-          jobTitle: profileDetails.jobTitle,
-          department: profileDetails.department,
-          role: profileDetails.role
-        });
-
         await syncUserToConvex({
           clerkId: signUp!.createdUserId!,
           email: basicInfo.email,
@@ -429,16 +388,10 @@ function RegisterContent() {
           role: profileDetails.role,
         });
 
-        console.log("✅ CONVEX SYNC SUCCESSFUL!");
-      } catch (convexError) {
-        console.error("❌ Convex sync error (non-fatal):", convexError);
-        // Continue anyway - webhook might still handle it
-      }
+      } catch (convexError) {}
 
-      // Show success message
       setShowSuccessMessage(true);
       
-      // Always redirect to dashboard
       setTimeout(() => {
         router.push('/dashboard');
       }, 2000);
@@ -447,7 +400,6 @@ function RegisterContent() {
       if (process.env.NODE_ENV === 'development') {
         console.error('Registration completion error:', err);
       }
-      // Still redirect to dashboard even on error
       setError('Registration completed! Redirecting to dashboard...');
       setTimeout(() => {
         router.push('/dashboard');
@@ -457,7 +409,6 @@ function RegisterContent() {
 
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-      {/* Glitch Animation CSS */}
       <style jsx>{`
         @keyframes glitch {
           0% { transform: translate(0); }
@@ -506,7 +457,6 @@ function RegisterContent() {
           100% { transform: translate(0); }
         }
       `}</style>
-      {/* Success Message Modal */}
       {showSuccessMessage && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-gradient-to-br from-green-600 to-emerald-600 rounded-3xl p-8 max-w-md w-full text-center">
@@ -960,8 +910,7 @@ function RegisterContent() {
                       value={profileDetails.jobTitle}
                       onChange={(e) => handleJobTitleChange(e.target.value)}
                       onFocus={() => {
-                        // Show suggestions when focused if there's text
-                        if (profileDetails.jobTitle) {
+                          if (profileDetails.jobTitle) {
                           handleJobTitleChange(profileDetails.jobTitle);
                         }
                       }}
@@ -1204,7 +1153,7 @@ function RegisterContent() {
                     type="text"
                     value={verificationCode}
                     onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, ''); // Only allow digits
+                      const value = e.target.value.replace(/\D/g, '');
                       if (value.length <= 6) {
                         setVerificationCode(value);
                       }

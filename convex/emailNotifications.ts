@@ -1,11 +1,6 @@
 import { mutation, query, action } from "./_generated/server";
 import { v } from "convex/values";
 
-// ============================================
-// EMAIL NOTIFICATION SETTINGS
-// ============================================
-
-// Get user's notification preferences
 export const getNotificationPreferences = query({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
@@ -31,7 +26,6 @@ export const getNotificationPreferences = query({
   },
 });
 
-// Update notification preferences
 export const updateNotificationPreferences = mutation({
   args: {
     userId: v.id("users"),
@@ -52,11 +46,6 @@ export const updateNotificationPreferences = mutation({
   },
 });
 
-// ============================================
-// EMAIL QUEUE SYSTEM
-// ============================================
-
-// Queue an email to be sent
 export const queueEmail = mutation({
   args: {
     to: v.string(),

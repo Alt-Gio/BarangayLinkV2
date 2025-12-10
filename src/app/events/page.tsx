@@ -57,28 +57,22 @@ export default function EventsPage() {
   const [emergencyAlerts, setEmergencyAlerts] = useState<any[]>([]);
   const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
   
-  // Get current user from offline context (cached, saves bandwidth)
   const { currentUser, isOnline } = useOfflineData();
 
-  // Voice assistant integration state
   const [defaultEventTitle, setDefaultEventTitle] = useState("");
 
-  // Voice assistant integration: Auto-open create modal from URL params
   useEffect(() => {
     const action = searchParams.get('action');
     if (action === 'create') {
-      // Check if title was provided via voice command
       const title = searchParams.get('title');
       if (title) {
         setDefaultEventTitle(decodeURIComponent(title));
       }
       setIsCreateModalOpen(true);
-      // Clear the params from URL to prevent re-triggering
       router.replace('/events', { scroll: false });
     }
   }, [searchParams, router]);
   
-  // Mutations for event actions
   const archiveEvent = useMutation(api.events.archiveEvent);
   const restoreEvent = useMutation(api.events.restoreEvent);
   const deleteEvent = useMutation(api.events.deleteEvent);
@@ -91,7 +85,6 @@ export default function EventsPage() {
   const upcomingEvents = useQuery(api.events.getUpcomingEvents, { limit: 10 });
   const exportData = useQuery(api.events.getEventsForExport, {});
 
-  // Check for emergency events
   useEffect(() => {
     if (events) {
       const emergencies = events.filter(e => 
@@ -103,7 +96,6 @@ export default function EventsPage() {
     }
   }, [events, dismissedAlerts]);
 
-  // Redirect to login if not authenticated
   if (isLoaded && !user) {
     router.push('/login');
     return null;
@@ -117,7 +109,6 @@ export default function EventsPage() {
     );
   }
 
-  // Filter events based on search
   const filteredEvents = events?.filter(event =>
     event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||

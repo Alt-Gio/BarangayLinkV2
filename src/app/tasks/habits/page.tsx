@@ -33,7 +33,6 @@ export default function HabitsPage() {
   const [showAddDaily, setShowAddDaily] = useState(false);
   const [showAddTodo, setShowAddTodo] = useState(false);
   
-  // Form states
   const [habitForm, setHabitForm] = useState({
     title: '',
     notes: '',
@@ -54,18 +53,14 @@ export default function HabitsPage() {
     difficulty: 'medium' as 'easy' | 'medium' | 'hard',
   });
 
-  // Get current user from offline context (cached, saves bandwidth)
   const { currentUser, isOnline } = useOfflineData();
   
-  // Get user stats
   const userStats = useQuery(api.gamifiedTasks.getUserStats, {});
 
-  // Get habits data
   const habits = useQuery(api.habits.getMyHabits);
   const dailies = useQuery(api.habits.getMyDailies);
   const todos = useQuery(api.habits.getMyTodos);
 
-  // Mutations
   const createHabit = useMutation(api.habits.createHabit);
   const completeHabit = useMutation(api.habits.completeHabit);
   const deleteHabit = useMutation(api.habits.deleteHabit);
@@ -77,7 +72,6 @@ export default function HabitsPage() {
   const deleteTodo = useMutation(api.habits.deleteTodo);
   const resetDailies = useMutation(api.habits.resetDailies);
 
-  // Reset dailies on page load
   useEffect(() => {
     if (currentUser) {
       resetDailies();
@@ -96,17 +90,15 @@ export default function HabitsPage() {
     );
   }
 
-  // User stats
   const level = currentUser?.level || 1;
   const xp = currentUser?.experience || 0;
-  const xpToNextLevel = level * 100; // XP needed for next level
-  const xpProgress = Math.min((xp / xpToNextLevel) * 100, 100); // Cap at 100%
+  const xpToNextLevel = level * 100;
+  const xpProgress = Math.min((xp / xpToNextLevel) * 100, 100);
   const health = currentUser?.health || 50;
   const mana = currentUser?.mana || 50;
   const streak = userStats?.user?.streakCount || 0;
   const gold = currentUser?.gold || 0;
 
-  // Create handlers
   const handleCreateHabit = async () => {
     if (!habitForm.title.trim()) return;
     try {
@@ -140,7 +132,6 @@ export default function HabitsPage() {
     }
   };
 
-  // Helper to check if habit is on cooldown
   const isHabitOnCooldown = (habit: any) => {
     if (!habit.lastCompleted) return false;
     const oneDayMs = 24 * 60 * 60 * 1000;
@@ -148,7 +139,6 @@ export default function HabitsPage() {
     return timeSinceLastComplete < oneDayMs;
   };
 
-  // Helper to get time until habit is available
   const getTimeUntilAvailable = (habit: any) => {
     if (!habit.lastCompleted) return '';
     const oneDayMs = 24 * 60 * 60 * 1000;
@@ -164,7 +154,6 @@ export default function HabitsPage() {
     return `${minutes}m`;
   };
 
-  // Action handlers
   const handleCompleteHabit = async (habitId: Id<"habits">, isPositive: boolean) => {
     try {
       await completeHabit({ habitId, isPositive });

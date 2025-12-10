@@ -1,14 +1,8 @@
-/**
- * Project Expense Management
- * Log, approve, and track project expenses
- */
-
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { api } from "./_generated/api";
 
-// Create expense
 export const createExpense = mutation({
   args: {
     projectId: v.id("projects"),
@@ -46,7 +40,6 @@ export const createExpense = mutation({
       rejectionReason: undefined,
     });
 
-    // Notify approvers
     const budget = await ctx.db
       .query("projectBudgets")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
@@ -72,7 +65,6 @@ export const createExpense = mutation({
       }
     }
 
-    // Log activity
     await ctx.db.insert("userActivityLogs", {
       userId: user._id,
       activityType: "action",

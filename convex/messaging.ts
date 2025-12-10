@@ -2,11 +2,6 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
-// ============================================
-// CHAT ROOMS
-// ============================================
-
-// Create or get direct message room between two users (convenience method)
 export const getOrCreateDirectChat = mutation({
   args: {
     participantId: v.id("users"),
@@ -22,12 +17,11 @@ export const getOrCreateDirectChat = mutation({
 
     if (!currentUser) throw new Error("Current user not found");
 
-    // Check if a direct chat already exists between these two users
     const existingRoom = await ctx.db
       .query("chatRooms")
       .filter((q) => q.eq(q.field("type"), "direct"))
       .filter((q) => q.eq(q.field("isActive"), true))
-      .take(100); // OPTIMIZED: Limit room search
+      .take(100);
 
     const dmRoom = existingRoom.find((room) => {
       const participants = room.participants.map(String);
@@ -42,7 +36,6 @@ export const getOrCreateDirectChat = mutation({
       return dmRoom._id;
     }
 
-    // Create new direct message room
     const participant = await ctx.db.get(args.participantId);
     if (!participant) throw new Error("Participant not found");
 
@@ -58,7 +51,6 @@ export const getOrCreateDirectChat = mutation({
   },
 });
 
-// Create a group chat (convenience method)
 export const createGroupChat = mutation({
   args: {
     name: v.string(),
@@ -75,7 +67,6 @@ export const createGroupChat = mutation({
 
     if (!currentUser) throw new Error("Current user not found");
 
-    // Add current user to participants if not already included
     const participants = [...new Set([currentUser._id, ...args.participantIds])];
 
     const roomId = await ctx.db.insert("chatRooms", {
@@ -90,7 +81,6 @@ export const createGroupChat = mutation({
   },
 });
 
-// Alias for getUserChatRooms (for compatibility)
 export const getUserRooms = query({
   args: {},
   handler: async (ctx) => {
@@ -104,7 +94,7 @@ export const getUserRooms = query({
 
     if (!user) return [];
 
-    const allRooms = await ctx.db.query("chatRooms").take(50); // OPTIMIZED: Limit to 50 recent rooms
+    const allRooms = await ctx.db.query("chatRooms").take(50);
     
     const userRooms = allRooms.filter((room) =>
       room.participants.some((p) => p === user._id)
@@ -114,7 +104,6 @@ export const getUserRooms = query({
   },
 });
 
-// Get messages for current user (simple query for compatibility with messages.ts)
 export const getForCurrentUser = query({
   args: {},
   handler: async (ctx) => {
@@ -125,11 +114,10 @@ export const getForCurrentUser = query({
     return await ctx.db
       .query('messages')
       .filter((q) => q.eq(q.field('sender'), identity.subject))
-      .take(100); // OPTIMIZED: Limit to 100 recent messages
+      .take(100);
   },
 });
 
-// Alias for markMessagesAsRead (for compatibility with chat.ts)
 export const markMessagesAsRead = mutation({
   args: {
     roomId: v.id("chatRooms"),
@@ -149,7 +137,7 @@ export const markMessagesAsRead = mutation({
       .query("messages")
       .filter((q) => q.eq(q.field("roomId"), roomId))
       .order("desc")
-      .take(100); // OPTIMIZED: Limit to 100 recent messages
+      .take(100);
 
     for (const message of messages) {
       if (message.sender !== user._id && !message.readBy.some((r) => r.userId === user._id)) {
@@ -163,7 +151,6 @@ export const markMessagesAsRead = mutation({
   },
 });
 
-// Create a new chat room
 export const createChatRoom = mutation({
   args: {
     name: v.string(),
@@ -183,12 +170,11 @@ export const createChatRoom = mutation({
 
     if (!user) throw new Error("User not found");
 
-    // Check if direct message room already exists
     if (args.type === "direct" && args.participants.length === 2) {
       const existing = await ctx.db
         .query("chatRooms")
         .filter((q) => q.eq(q.field("type"), "direct"))
-        .take(100); // OPTIMIZED: Limit room check
+        .take(100);
 
       const existingRoom = existing.find((room) => {
         const roomParticipants = new Set(room.participants.map(String));
@@ -214,7 +200,6 @@ export const createChatRoom = mutation({
   },
 });
 
-// Get all chat rooms for current user
 export const getMyChatRooms = query({
   args: {},
   handler: async (ctx) => {
@@ -228,25 +213,23 @@ export const getMyChatRooms = query({
 
     if (!user) return [];
 
-    const allRooms = await ctx.db.query("chatRooms").take(50); // OPTIMIZED: Limit to 50 rooms
+    const allRooms = await ctx.db.query("chatRooms").take(50);
     
     const userRooms = allRooms.filter((room) =>
       room.participants.some((p) => p === user._id)
     );
 
-    // Enrich with participant info and unread count
     const enrichedRooms = await Promise.all(
       userRooms.map(async (room) => {
         const participants = await Promise.all(
           room.participants.map((id) => ctx.db.get(id))
         );
 
-        // Get unread count
         const messages = await ctx.db
           .query("messages")
           .filter((q) => q.eq(q.field("roomId"), room._id))
           .order("desc")
-          .take(50); // OPTIMIZED: Check only recent 50 messages for unread count
+          .take(50);
 
         const unreadCount = messages.filter(
           (msg) =>
@@ -254,7 +237,6 @@ export const getMyChatRooms = query({
             !msg.readBy.some((r) => r.userId === user._id)
         ).length;
 
-        // For direct messages, get the other user's name
         let displayName = room.name;
         if (room.type === "direct") {
           const otherUser = participants.find((p) => p?._id !== user._id);
@@ -276,7 +258,6 @@ export const getMyChatRooms = query({
   },
 });
 
-// Get chat room by ID
 export const getChatRoom = query({
   args: { roomId: v.id("chatRooms") },
   handler: async (ctx, { roomId }) => {

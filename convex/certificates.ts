@@ -1,11 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-// ============================================
-// QUERIES
-// ============================================
-
-// Get all certificates
 export const getAllCertificates = query({
   args: {
     certificateType: v.optional(v.string()),
@@ -33,7 +28,6 @@ export const getAllCertificates = query({
   },
 });
 
-// Get certificate by ID
 export const getCertificateById = query({
   args: { certificateId: v.id("certificates") },
   handler: async (ctx, args) => {
@@ -49,7 +43,6 @@ export const getCertificateById = query({
   },
 });
 
-// Get certificate by certificate number
 export const getCertificateByCertificateNumber = query({
   args: { certificateNumber: v.string() },
   handler: async (ctx, args) => {

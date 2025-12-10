@@ -37,25 +37,20 @@ export default function TeamTasksPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Get current user from offline context (cached, saves bandwidth)
   const { currentUser, isOnline } = useOfflineData();
   
-  // Get all projects user has access to
   const projects = useQuery(api.projects.getAllProjects);
   
-  // Get tasks for selected project
   const projectTasks = useQuery(
     api.gamifiedTasks.getProjectTasks,
     selectedProjectId ? { projectId: selectedProjectId } : "skip"
   );
 
-  // Get project stats
   const projectStats = useQuery(
     api.gamifiedTasks.getProjectStats,
     selectedProjectId ? { projectId: selectedProjectId } : "skip"
   );
 
-  // Get all team members for selected project
   const teamMembers = useQuery(
     api.projects.getProjectTeamMembers,
     selectedProjectId ? { projectId: selectedProjectId } : "skip"
@@ -63,7 +58,6 @@ export default function TeamTasksPage() {
 
   const selectedProject = projects?.find(p => p._id === selectedProjectId);
 
-  // Group tasks by team member
   const tasksByMember = projectTasks?.reduce((acc: any, task: any) => {
     const assignedUserId = task.assignedTo;
     if (!acc[assignedUserId]) {
@@ -73,7 +67,6 @@ export default function TeamTasksPage() {
     return acc;
   }, {}) || {};
 
-  // Filter tasks
   const filteredTasks = projectTasks?.filter((task: any) => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          task.description?.toLowerCase().includes(searchTerm.toLowerCase());

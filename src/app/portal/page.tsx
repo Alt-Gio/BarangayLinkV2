@@ -43,16 +43,13 @@ export default function ResidentPortalPage() {
     requestFor: "self" as "self" | string, // "self" or resident ID
   });
 
-  // Get resident linked to Clerk user
   const myResident = useQuery(
     api.residents.getResidentByClerkId,
     user?.id ? { clerkUserId: user.id } : "skip"
   );
 
-  // Link Clerk user to resident
   const linkUser = useMutation(api.residents.linkClerkUserToResident);
 
-  // Auto-link on first visit if not linked
   useEffect(() => {
     if (isLoaded && user && myResident === null && !linkingAttempted) {
       setLinkingAttempted(true);
@@ -66,7 +63,6 @@ export default function ResidentPortalPage() {
       return;
     }
 
-    // ✅ Check if email is verified
     const emailVerified = user.primaryEmailAddress.verification?.status === "verified";
     if (!emailVerified) {
       alert("⚠️ Please verify your email address before accessing the portal. Check your inbox for the verification link.");
@@ -84,7 +80,6 @@ export default function ResidentPortalPage() {
     }
   };
 
-  // Loading state
   if (!isLoaded || myResident === undefined) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
@@ -96,7 +91,6 @@ export default function ResidentPortalPage() {
     );
   }
 
-  // Not linked to resident
   if (!myResident) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-6">
@@ -140,7 +134,6 @@ export default function ResidentPortalPage() {
     );
   }
 
-  // Use real resident data
   const residentData = {
     _id: myResident._id,
     firstName: myResident.firstName,
@@ -155,19 +148,16 @@ export default function ResidentPortalPage() {
     household: myResident.household,
   };
 
-  // ✅ Get REAL certificate requests for this resident
   const myRequests = useQuery(
     api.certificateRequests.getRequestsByResident,
     { residentId: myResident._id }
   );
 
-  // Get certificates for download
   const myCertificates = useQuery(
     api.certificates.getCertificatesByResident,
     { residentId: myResident._id }
   );
 
-  // Get household members for family requests
   const householdMembers = useQuery(
     api.residents.getHouseholdMembers,
     myResident?.household?._id ? { householdId: myResident.household._id } : "skip"
@@ -175,7 +165,6 @@ export default function ResidentPortalPage() {
 
   const createRequest = useMutation(api.certificateRequests.createRequest);
 
-  // Check if can request for family members
   const canRequestForFamily = myResident?.relationToHead === "Head" || 
                                myResident?.relationToHead === "Spouse";
 

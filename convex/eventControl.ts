@@ -2,7 +2,6 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
-// Get current user with role check
 const getCurrentUser = async (ctx: any) => {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) throw new Error("Not authenticated");
@@ -18,7 +17,6 @@ const getCurrentUser = async (ctx: any) => {
   return { ...user, userLevel };
 };
 
-// Check if user can assign tasks (MANAGER, ADMIN, CAPTAIN)
 const canAssignTasks = (userLevel: any): boolean => {
   return userLevel && (
     userLevel.name === "ADMIN" ||
@@ -28,11 +26,6 @@ const canAssignTasks = (userLevel: any): boolean => {
   );
 };
 
-// ============================================
-// EVENT TASK MANAGEMENT
-// ============================================
-
-// Create a new event task
 export const createEventTask = mutation({
   args: {
     eventId: v.id("events"),
@@ -61,23 +54,18 @@ export const createEventTask = mutation({
   handler: async (ctx, args) => {
     const currentUser = await getCurrentUser(ctx);
 
-    // Verify event exists
     const event = await ctx.db.get(args.eventId);
     if (!event) throw new Error("Event not found");
 
-    // Check if event has ended (time-sensitive validation)
     const now = Date.now();
     if (event.endDate < now) {
       throw new Error("Cannot add tasks to past events. This event has already ended.");
     }
 
-    // Warn if event is starting soon
     const threeDaysFromNow = now + (3 * 24 * 60 * 60 * 1000);
     if (event.startDate < threeDaysFromNow && event.startDate > now) {
-      // Event starting soon - allowed but noted
     }
 
-    // Get the highest order index for new tasks
     const tasks = await ctx.db
       .query("eventTasks")
       .withIndex("by_event_status", (q) => 
@@ -87,7 +75,6 @@ export const createEventTask = mutation({
 
     const maxOrder = tasks.reduce((max, task) => Math.max(max, task.orderIndex), -1);
 
-    // Process checklist items if provided
     const checklistItems = args.checklistItems?.map((text, index) => ({
       id: `item-${index}-${Date.now()}`,
       text: text.trim(),
@@ -103,10 +90,10 @@ export const createEventTask = mutation({
       taskType: args.taskType,
       location: args.location,
       requirements: args.requirements,
-      assignedTo: [], // Start with no assignments - use assignment system instead
+      assignedTo: [],
       createdBy: currentUser._id,
-      assignedBy: undefined, // Set only when users are assigned
-      reportTo: undefined, // Set only when explicitly assigned a reviewer
+      assignedBy: undefined,
+      reportTo: undefined,
       dueDate: args.dueDate,
       estimatedHours: args.estimatedHours,
       category: args.category,
@@ -124,7 +111,6 @@ export const createEventTask = mutation({
       isArchived: false,
     });
 
-    // If this is a subtask, update parent
     if (args.parentTaskId) {
       const parent = await ctx.db.get(args.parentTaskId);
       if (parent) {
@@ -135,7 +121,6 @@ export const createEventTask = mutation({
       }
     }
 
-    // Create activity log
     await ctx.db.insert("eventTaskComments", {
       taskId,
       userId: currentUser._id,
@@ -146,7 +131,6 @@ export const createEventTask = mutation({
       isEdited: false,
     });
 
-    // Notify assigned users
     if (args.assignedTo && args.assignedTo.length > 0) {
       for (const userId of args.assignedTo) {
         await ctx.db.insert("notifications", {
@@ -165,14 +149,12 @@ export const createEventTask = mutation({
   },
 });
 
-// Get all tasks for an event (Kanban board view)
 export const getEventTasks = query({
   args: {
     eventId: v.id("events"),
     includeArchived: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    // Public read access - no auth required to view tasks
     const tasks = await ctx.db
       .query("eventTasks")
       .withIndex("by_event", (q) => q.eq("eventId", args.eventId))
@@ -181,7 +163,6 @@ export const getEventTasks = query({
       )
       .collect();
 
-    // Enrich tasks with user information
     const enrichedTasks = await Promise.all(
       tasks.map(async (task) => {
         const assignedUsers = await Promise.all(

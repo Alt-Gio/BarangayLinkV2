@@ -1,14 +1,6 @@
 import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
-/**
- * PERFORMANCE OPTIMIZATION MODULE
- * 
- * Cleans up old logs and activity data to improve system performance
- * Run these periodically (weekly/monthly) or when system gets slow
- */
-
-// Get statistics about log tables
 export const getLogStatistics = query({
   args: {},
   handler: async (ctx) => {
@@ -22,7 +14,6 @@ export const getLogStatistics = query({
 
     if (!currentUser) throw new Error("User not found");
 
-    // Check admin permissions - allow admin/captain roles OR system:manage permission
     const userLevel = await ctx.db.get(currentUser.userLevel);
     const isAdmin = currentUser.role === "admin" || currentUser.role === "captain";
     const hasPermission = userLevel?.permissions.includes("system:manage");
@@ -31,7 +22,6 @@ export const getLogStatistics = query({
       throw new Error("Insufficient permissions - Admin or Captain access required");
     }
 
-    // Count records in each log table (optimized - take limited samples)
     const userActivityLogs = await ctx.db.query("userActivityLogs").take(10000);
     const userSessions = await ctx.db.query("userSessions").take(5000);
     const auditLogs = await ctx.db.query("auditLogs").take(5000);
@@ -39,7 +29,6 @@ export const getLogStatistics = query({
     const searchHistory = await ctx.db.query("searchHistory").take(5000);
     const messageSyncLog = await ctx.db.query("messageSyncLog").take(5000);
 
-    // Calculate age of oldest records
     const now = Date.now();
     const thirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000);
     const sixtyDaysAgo = now - (60 * 24 * 60 * 60 * 1000);

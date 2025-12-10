@@ -1,11 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-// ============================================
-// QUERIES
-// ============================================
-
-// Get all certificate requests
 export const getAllRequests = query({
   args: {
     status: v.optional(v.string()),
@@ -29,7 +24,6 @@ export const getAllRequests = query({
         .take(limit);
     }
     
-    // Enrich with resident info
     const enrichedRequests = await Promise.all(
       requests.map(async (request) => {
         const resident = await ctx.db.get(request.residentId);
@@ -44,7 +38,6 @@ export const getAllRequests = query({
   },
 });
 
-// Get request by ID
 export const getRequestById = query({
   args: { requestId: v.id("certificateRequests") },
   handler: async (ctx, args) => {
@@ -60,7 +53,6 @@ export const getRequestById = query({
   },
 });
 
-// Get requests by resident
 export const getRequestsByResident = query({
   args: { residentId: v.id("residents") },
   handler: async (ctx, args) => {
@@ -74,7 +66,6 @@ export const getRequestsByResident = query({
   },
 });
 
-// Get request statistics
 export const getRequestStats = query({
   handler: async (ctx) => {
     const requests = await ctx.db.query("certificateRequests").collect();
@@ -86,7 +77,6 @@ export const getRequestStats = query({
     const released = requests.filter((r) => r.status === "Released").length;
     const rejected = requests.filter((r) => r.status === "Rejected").length;
     
-    // Count by certificate type
     const byType: Record<string, number> = {};
     requests.forEach((r) => {
       byType[r.certificateType] = (byType[r.certificateType] || 0) + 1;

@@ -1,23 +1,7 @@
-/**
- * Enhanced Sprint System - JIRA-like functionality
- * 
- * Features:
- * - Sprint management with story points
- * - Backlog management
- * - Burndown chart data
- * - Velocity tracking
- * - Sprint planning
- */
-
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 
-// ==================== SPRINT QUERIES ====================
-
-/**
- * Get active sprint with full details including tasks
- */
 export const getActiveSprint = query({
   args: {
     projectId: v.optional(v.id("projects")),
@@ -28,7 +12,6 @@ export const getActiveSprint = query({
 
     const now = Date.now();
     
-    // Find active sprint for this project (or standalone)
     const sprints = await ctx.db
       .query("sprints")
       .filter((q) => 
@@ -46,13 +29,11 @@ export const getActiveSprint = query({
 
     if (!sprint) return null;
 
-    // Get all tasks in this sprint
     const tasks = await ctx.db
       .query("sprintTasks")
       .withIndex("by_sprint", (q) => q.eq("sprintId", sprint._id))
       .collect();
 
-    // Enrich with task details
     const enrichedTasks = await Promise.all(
       tasks.map(async (sprintTask) => {
         const task = await ctx.db.get(sprintTask.taskId);
@@ -81,7 +62,6 @@ export const getActiveSprint = query({
 
     const validTasks = enrichedTasks.filter((t): t is NonNullable<typeof t> => t !== null);
 
-    // Calculate sprint metrics
     const totalPoints = validTasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
     const completedPoints = validTasks
       .filter(t => t.sprintStatus === "done")
@@ -91,11 +71,9 @@ export const getActiveSprint = query({
     const inProgressTasks = validTasks.filter(t => t.sprintStatus === "in_progress").length;
     const todoTasks = validTasks.filter(t => t.sprintStatus === "todo").length;
 
-    // Calculate velocity (points per day so far)
     const daysElapsed = Math.max(1, (now - sprint.startDate) / (1000 * 60 * 60 * 24));
     const velocity = completedPoints / daysElapsed;
 
-    // Calculate burn rate for projection
     const totalDays = (sprint.endDate - sprint.startDate) / (1000 * 60 * 60 * 24);
     const daysRemaining = Math.max(0, (sprint.endDate - now) / (1000 * 60 * 60 * 24));
     const projectedPoints = completedPoints + (velocity * daysRemaining);

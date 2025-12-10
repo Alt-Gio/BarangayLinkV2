@@ -41,41 +41,34 @@ export default function CollaborationPage() {
   const [showPendingFeedback, setShowPendingFeedback] = useState(false);
 
   const currentUser = useQuery(api.users.getCurrentUser);
-  // OPTIMIZED: Use better query that already has role-based filtering and limits
   const projects = useQuery(api.productivity.getProjects, { limit: 100 });
   const events = useQuery(api.events.getAllEvents, { status: "published" });
   
-  // Get public feedback for selected project (approved only)
   const publicFeedback = useQuery(
     api.projectFeedback.getProjectFeedback,
     selectedResource?.type === 'project' ? { projectId: selectedResource.id as any } : "skip"
   );
   
-  // Get pending feedback for THIS project (admin/manager only)
   const pendingProjectFeedback = useQuery(
     api.projectFeedback.getAllFeedback,
     selectedResource?.type === 'project' && (currentUser?.userLevel?.name === 'ADMIN' || currentUser?.userLevel?.name === 'MANAGER')
       ? { status: "pending", limit: 50 } : "skip"
   );
   
-  // Filter pending feedback for the selected project only
   const selectedProjectPendingFeedback = pendingProjectFeedback?.filter(
     (f: any) => f.projectId === selectedResource?.id
   ) || [];
   
-  // Get feedback stats
   const feedbackCount = useQuery(
     api.projectFeedback.getProjectFeedbackCount,
     selectedResource?.type === 'project' ? { projectId: selectedResource.id as any } : "skip"
   );
   
-  // Get pending feedback for admins/managers
   const pendingFeedback = useQuery(
     api.projectFeedback.getAllFeedback,
     showPendingFeedback ? { status: "pending", limit: 50 } : "skip"
   );
   
-  // Mutations for feedback moderation
   const approveFeedbackMut = useMutation(api.projectFeedback.approveFeedback);
   const rejectFeedbackMut = useMutation(api.projectFeedback.rejectFeedback);
   const markAsSpamMut = useMutation(api.projectFeedback.markAsSpam);
@@ -88,18 +81,13 @@ export default function CollaborationPage() {
     );
   }
 
-  // Combine all resources
   const allResources = [
     ...(projects?.map((p: any) => ({ type: 'project', id: p._id, title: p.title, icon: FolderKanban })) || []),
     ...(events?.map((e: any) => ({ type: 'event', id: e._id, title: e.title, icon: Calendar })) || []),
   ];
 
-  // Filter resources
   const filteredResources = allResources.filter((resource: any) => {
-    // Filter by type
     if (resourceFilter !== 'all' && resource.type !== resourceFilter) return false;
-
-    // Filter by search
     if (searchQuery && !resource.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
 
     return true;

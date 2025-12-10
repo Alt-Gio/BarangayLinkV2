@@ -1,12 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
 
-/**
- * SMART AUTO-TAGGING SYSTEM FOR DOCUMENTS
- * Automatically generates tags based on file type, name, and context
- */
-
-// Smart tag generation based on file analysis
 export const generateSmartTags = internalMutation({
   args: {
     fileName: v.string(),
@@ -21,7 +15,6 @@ export const generateSmartTags = internalMutation({
     const fileName = args.fileName.toLowerCase();
     const mimeType = args.mimeType.toLowerCase();
 
-    // 1. FILE TYPE TAGS
     if (mimeType.includes('pdf')) {
       tags.push('pdf', 'document');
     } else if (mimeType.includes('image')) {
@@ -45,7 +38,6 @@ export const generateSmartTags = internalMutation({
       tags.push('text', 'plain-text');
     }
 
-    // 2. PURPOSE/CONTENT TAGS (based on filename patterns)
     const contentPatterns = [
       { pattern: /report|summary|analysis/i, tag: 'report' },
       { pattern: /proposal|pitch|plan/i, tag: 'proposal' },
@@ -74,7 +66,6 @@ export const generateSmartTags = internalMutation({
       }
     }
 
-    // 3. DATE TAGS (if filename contains dates)
     const yearMatch = fileName.match(/20\d{2}/);
     if (yearMatch) {
       tags.push(`year-${yearMatch[0]}`);

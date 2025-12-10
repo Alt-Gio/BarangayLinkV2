@@ -3,7 +3,6 @@ import { mutation, query, action } from "./_generated/server";
 import { api } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 
-// Resend notification (email/in-app)
 export const resendNotification = mutation({
   args: {
     notificationId: v.id("notifications"),
@@ -14,7 +13,6 @@ export const resendNotification = mutation({
       throw new Error("Notification not found");
     }
 
-    // Update notification with resent flag
     await ctx.db.patch(args.notificationId, {
       resentAt: Date.now(),
       resentCount: (notification.resentCount || 0) + 1,
@@ -27,7 +25,6 @@ export const resendNotification = mutation({
   },
 });
 
-// Send email notification (action for external API calls)
 export const sendEmailNotification = action({
   args: {
     userId: v.id("users"),
@@ -40,7 +37,6 @@ export const sendEmailNotification = action({
     message: string;
   }> => {
     try {
-      // Get user details
       const user = await ctx.runQuery(api.adminUserManagement.getUserById, { userId: args.userId });
       
       if (!user || !user.email) {
@@ -50,7 +46,6 @@ export const sendEmailNotification = action({
         };
       }
 
-      // Send real email with Resend
       const { Resend } = await import('resend');
       const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -63,16 +58,15 @@ export const sendEmailNotification = action({
         });
 
         if (error) {
-          console.error('❌ Email error:', error);
+          console.error('Email error:', error);
           return {
             success: false,
             message: `Failed to send email: ${error.message}`,
           };
         }
 
-        console.log('✅ Email sent successfully:', data);
       } catch (emailError: any) {
-        console.error('❌ Email send failed:', emailError);
+        console.error('Email send failed:', emailError);
         return {
           success: false,
           message: `Email error: ${emailError.message}`,

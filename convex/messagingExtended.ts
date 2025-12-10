@@ -2,11 +2,6 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
-// ============================================
-// MESSAGE REACTIONS
-// ============================================
-
-// Add reaction to a message
 export const addReaction = mutation({
   args: {
     messageId: v.id("messages"),
@@ -28,13 +23,11 @@ export const addReaction = mutation({
 
     const reactions = message.reactions || [];
     
-    // Check if user already reacted with this emoji
     const existingReaction = reactions.find(
       (r) => r.userId === user._id && r.emoji === emoji
     );
 
     if (existingReaction) {
-      // Remove reaction if already exists (toggle)
       await ctx.db.patch(messageId, {
         reactions: reactions.filter(
           (r) => !(r.userId === user._id && r.emoji === emoji)
@@ -42,7 +35,6 @@ export const addReaction = mutation({
       });
       return { action: "removed" };
     } else {
-      // Add new reaction
       await ctx.db.patch(messageId, {
         reactions: [
           ...reactions,
@@ -50,7 +42,6 @@ export const addReaction = mutation({
         ],
       });
 
-      // 🔔 INTEGRATION: Notify message author (if not self)
       if (message.sender !== user._id) {
         const room = await ctx.db.get(message.roomId);
         const messagePreview = message.content.substring(0, 50);
@@ -73,7 +64,6 @@ export const addReaction = mutation({
           createdAt: Date.now(),
         });
 
-        // Log activity
         await ctx.db.insert("userActivityLogs", {
           userId: user._id,
           activityType: "action",
@@ -93,14 +83,12 @@ export const addReaction = mutation({
   },
 });
 
-// Get reactions for a message (grouped by emoji)
 export const getMessageReactions = query({
   args: { messageId: v.id("messages") },
   handler: async (ctx, { messageId }) => {
     const message = await ctx.db.get(messageId);
     if (!message || !message.reactions) return [];
 
-    // Group reactions by emoji
     const grouped = message.reactions.reduce((acc: any, reaction) => {
       if (!acc[reaction.emoji]) {
         acc[reaction.emoji] = {
@@ -118,11 +106,6 @@ export const getMessageReactions = query({
   },
 });
 
-// ============================================
-// MESSAGE SEARCH
-// ============================================
-
-// Search messages in a room
 export const searchMessages = query({
   args: {
     roomId: v.id("chatRooms"),
@@ -140,7 +123,6 @@ export const searchMessages = query({
       msg.content.toLowerCase().includes(searchLower)
     );
 
-    // Enrich with sender info
     const enriched = await Promise.all(
       filtered.slice(0, limit).map(async (msg) => {
         const sender = await ctx.db.get(msg.sender);

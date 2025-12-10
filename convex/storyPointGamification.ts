@@ -1,24 +1,17 @@
-/**
- * Story Point Gamification Integration
- * Automatically calculates XP and Gold based on story points
- */
-
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 
-// Story Points to XP Conversion
 export const STORY_POINT_TO_XP: Record<number, number> = {
-  1: 10,   // Trivial task
-  2: 25,   // Simple task
-  3: 50,   // Easy task
-  5: 100,  // Medium task
-  8: 200,  // Complex task
-  13: 350, // Very complex task
-  21: 600, // Epic task
+  1: 10,
+  2: 25,
+  3: 50,
+  5: 100,
+  8: 200,
+  13: 350,
+  21: 600,
 };
 
-// Story Points to Gold Conversion (50% of XP)
 export const STORY_POINT_TO_GOLD: Record<number, number> = {
   1: 5,
   2: 12,
@@ -29,9 +22,6 @@ export const STORY_POINT_TO_GOLD: Record<number, number> = {
   21: 300,
 };
 
-/**
- * Calculate XP and Gold based on story points
- */
 export function calculateRewards(storyPoints: number) {
   const xp = STORY_POINT_TO_XP[storyPoints] || storyPoints * 10;
   const gold = STORY_POINT_TO_GOLD[storyPoints] || Math.round(storyPoints * 5);
@@ -39,9 +29,6 @@ export function calculateRewards(storyPoints: number) {
   return { xp, gold };
 }
 
-/**
- * Get user's workload for a specific date range
- */
 export const getUserWorkload = query({
   args: {
     userId: v.id("users"),
@@ -52,25 +39,17 @@ export const getUserWorkload = query({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
-    // Get all tasks for user in date range
     const allTasks = await ctx.db.query("tasks").collect();
     
     const userTasks = allTasks.filter((task) => {
-      // Check if assigned to user
       const isAssigned = task.assignedTo.includes(args.userId) || task.userId === args.userId;
-      
-      // Check if in date range
       const inRange = task.dueDate && 
         task.dueDate >= args.startDate && 
         task.dueDate <= args.endDate;
-      
-      // Not completed
       const notCompleted = !task.completed;
-      
       return isAssigned && inRange && notCompleted;
     });
 
-    // Calculate story points
     const totalPoints = userTasks.reduce((sum, task) => sum + (task.storyPoints || 0), 0);
     const totalTasks = userTasks.length;
     const totalPotentialXP = userTasks.reduce((sum, task) => {

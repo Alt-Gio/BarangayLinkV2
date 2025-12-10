@@ -2,7 +2,6 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 
-// Get all attendees for an event
 export const getEventAttendees = query({
   args: { eventId: v.id("events") },
   handler: async (ctx, { eventId }) => {
@@ -11,7 +10,6 @@ export const getEventAttendees = query({
       .withIndex("by_event", (q) => q.eq("eventId", eventId))
       .collect();
 
-    // Enrich with user data for registered users
     const enrichedAttendees = await Promise.all(
       attendees.map(async (attendee) => {
         if (attendee.userId) {
@@ -34,7 +32,6 @@ export const getEventAttendees = query({
   },
 });
 
-// Get attendee statistics for an event
 export const getAttendeeStats = query({
   args: { eventId: v.id("events") },
   handler: async (ctx, { eventId }) => {
@@ -59,7 +56,6 @@ export const getAttendeeStats = query({
   },
 });
 
-// Get all events with attendee counts
 export const getAllEventsWithAttendees = query({
   args: {},
   handler: async (ctx) => {
@@ -90,7 +86,6 @@ export const getAllEventsWithAttendees = query({
   },
 });
 
-// Register an attendee for an event
 export const registerAttendee = mutation({
   args: {
     eventId: v.id("events"),

@@ -1,30 +1,16 @@
-/**
- * Activity Service - Universal Activity Tracking
- * Centralized logging for all system activities across modules
- */
-
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import { Doc, Id } from "../_generated/dataModel";
 
-// Activity types across all modules
 export type ActivityType =
-  // Tasks
   | "task_created" | "task_completed" | "task_assigned" | "task_updated"
-  // Events
   | "event_created" | "event_rsvp" | "event_checkin" | "event_completed"
-  // Projects
   | "project_created" | "project_updated" | "milestone_completed"
-  // Documents
   | "document_uploaded" | "document_shared" | "document_commented"
-  // Messaging
   | "message_sent" | "message_reaction" | "poll_created" | "poll_voted"
-  // Collaboration
   | "comment_added" | "teammate_helped" | "review_submitted"
-  // Gamification
   | "xp_earned" | "level_up" | "achievement_unlocked";
 
-// Log activity with automatic notifications and gamification
 export const logActivity = mutation({
   args: {
     activityType: v.string(),
@@ -34,7 +20,6 @@ export const logActivity = mutation({
     relatedEntityId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // 1. Log to userActivityLogs
     const logId = await ctx.db.insert("userActivityLogs", {
       userId: args.userId,
       activityType: "action", // Generic action type
@@ -45,21 +30,14 @@ export const logActivity = mutation({
       timestamp: Date.now(),
     });
 
-    // 2. Check if this activity should trigger notifications
     const shouldNotify = shouldCreateNotification(args.activityType);
     if (shouldNotify) {
-      // Import and call notification service
-      // This will be implemented when we create notificationService
     }
 
-    // 3. Check if this activity should award points
     const reward = getActivityReward(args.activityType);
     if (reward) {
-      // Import and call gamification service
-      // This will be implemented when we create gamificationService
     }
 
-    // 4. Update projectActivities if related to a project
     if (args.data?.projectId) {
       await ctx.db.insert("projectActivities", {
         projectId: args.data.projectId as Id<"projects">,
@@ -76,7 +54,6 @@ export const logActivity = mutation({
   },
 });
 
-// Get unified activity feed for a user
 export const getUserActivityFeed = query({
   args: {
     userId: v.id("users"),

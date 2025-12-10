@@ -30,22 +30,17 @@ export default function CertificatesPage() {
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [previewCertificateId, setPreviewCertificateId] = useState<Id<"certificates"> | null>(null);
 
-  // Fetch certificate requests
   const allRequests = useQuery(api.certificateRequests.getAllRequests, { limit: 100 });
   const stats = useQuery(api.certificateRequests.getRequestStats);
 
-  // Mutations
   const updateStatus = useMutation(api.certificateRequests.updateRequestStatus);
   const generateCertificate = useMutation(api.certificates.generateCertificate);
 
-  // Filter requests
   const filteredRequests = allRequests?.filter((request) => {
-    // Status filter
     if (filterStatus !== "all" && request.status !== filterStatus) {
       return false;
     }
 
-    // Search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       const matchesSearch =
@@ -62,20 +57,18 @@ export default function CertificatesPage() {
     if (!confirm("Approve this certificate request?")) return;
 
     try {
-      // Generate certificate
       const certId = await generateCertificate({
         residentId: request.residentId,
         certificateType: request.certificateType,
         purpose: request.purpose,
-        issuedByPosition: "Barangay Captain", // You can make this dynamic
-        amount: 50, // Default fee
+        issuedByPosition: "Barangay Captain",
+        amount: 50,
         orNumber: `OR-${Date.now()}`,
         requestId,
       });
 
       alert("✅ Certificate approved and generated!");
       
-      // Open preview
       if (certId) {
         setPreviewCertificateId(certId);
       }

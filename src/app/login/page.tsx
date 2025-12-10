@@ -6,7 +6,6 @@ import { useSignIn, useAuth, useClerk } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { Building2, Mail, Lock, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 
-// Force dynamic rendering for authenticated pages
 export const dynamic = 'force-dynamic';
 
 export default function LoginPage() {
@@ -46,7 +45,6 @@ export default function LoginPage() {
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
         
-        // Store remember me preference
         if (rememberMe) {
           localStorage.setItem('barangay_remember_email', email);
         } else {
@@ -133,15 +131,12 @@ export default function LoginPage() {
     }
   };
 
-  // Check for existing session and load remembered email on component mount
   useEffect(() => {
     if (isLoaded && isSignedIn) {
-      // User is already signed in, redirect to dashboard
       router.push('/dashboard');
       return;
     }
 
-    // Load remembered email
     const rememberedEmail = localStorage.getItem('barangay_remember_email');
     if (rememberedEmail) {
       setEmail(rememberedEmail);
@@ -149,7 +144,6 @@ export default function LoginPage() {
     }
   }, [isLoaded, isSignedIn, router]);
 
-  // Show loading state while Clerk is initializing
   if (!isLoaded) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">

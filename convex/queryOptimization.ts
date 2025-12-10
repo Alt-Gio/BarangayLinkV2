@@ -1,24 +1,5 @@
-/**
- * BANDWIDTH OPTIMIZATION UTILITIES
- * Reduces Convex bandwidth usage by 50-80%
- * 
- * KEY STRATEGIES:
- * 1. Field Selection - Only fetch needed fields
- * 2. Pagination - Limit results per query
- * 3. Smart Caching - Conditional queries with "skip"
- * 4. Batch Optimization - Efficient Promise.all usage
- */
-
 import { v } from "convex/values";
 
-// ============================================
-// FIELD SELECTION HELPERS
-// ============================================
-
-/**
- * User Summary - Minimal fields for lists (saves ~70% bandwidth)
- * Use for: User lists, team members, assignee dropdowns
- */
 export type UserSummary = {
   _id: string;
   name: string;
@@ -27,10 +8,6 @@ export type UserSummary = {
   position?: string;
 };
 
-/**
- * Project Summary - Essential fields only (saves ~60% bandwidth)
- * Use for: Project lists, cards, dashboards
- */
 export type ProjectSummary = {
   _id: string;
   title: string;
@@ -44,10 +21,6 @@ export type ProjectSummary = {
   spent?: number;
 };
 
-/**
- * Task Summary - Core fields only (saves ~50% bandwidth)
- * Use for: Task lists, kanban cards (before expansion)
- */
 export type TaskSummary = {
   _id: string;
   title: string;
@@ -58,10 +31,6 @@ export type TaskSummary = {
   assignedTo: any[];
 };
 
-/**
- * Message Summary - For message lists (saves ~40% bandwidth)
- * Use for: Chat room previews, notification lists
- */
 export type MessageSummary = {
   _id: string;
   content: string;
@@ -70,16 +39,6 @@ export type MessageSummary = {
   readBy: any[];
 };
 
-// ============================================
-// CONDITIONAL QUERY HELPERS
-// ============================================
-
-/**
- * Smart query skip - prevents unnecessary data fetches
- * 
- * Usage:
- * const data = useQuery(api.users.list, shouldLoad ? { limit: 20 } : "skip");
- */
 export const conditionalArgs = <T extends Record<string, any>>(
   condition: boolean,
   args: T
@@ -87,73 +46,35 @@ export const conditionalArgs = <T extends Record<string, any>>(
   return condition ? args : "skip";
 };
 
-/**
- * Debounced search args - reduces query frequency
- * 
- * Usage in React:
- * const [searchTerm, setSearchTerm] = useState("");
- * const debouncedSearch = useDebounce(searchTerm, 300);
- * const results = useQuery(api.search, debouncedSearch ? { term: debouncedSearch } : "skip");
- */
 export const createSearchArgs = (searchTerm: string, minLength: number = 2) => {
   return searchTerm.length >= minLength ? { searchTerm } : "skip";
 };
 
-// ============================================
-// BANDWIDTH OPTIMIZATION CONSTANTS
-// ============================================
-
-/**
- * Recommended limits for different query types
- */
 export const QUERY_LIMITS = {
-  // List views
-  USER_LIST: 50,          // User management pages
-  PROJECT_LIST: 30,       // Project list pages
-  TASK_LIST: 50,          // Task boards
+  USER_LIST: 50,
+  PROJECT_LIST: 30,
+  TASK_LIST: 50,
+  DASHBOARD_ITEMS: 10,
+  RECENT_ACTIVITY: 5,
+  CHAT_ROOMS: 50,
+  MESSAGES: 50,
+  CHAT_SEARCH: 20,
+  DROPDOWN: 20,
+  AUTOCOMPLETE: 10,
   
-  // Dashboards
-  DASHBOARD_ITEMS: 10,    // Dashboard widgets
-  RECENT_ACTIVITY: 5,     // Activity feeds
-  
-  // Chat/Messaging
-  CHAT_ROOMS: 50,         // Chat room list
-  MESSAGES: 50,           // Messages per room
-  CHAT_SEARCH: 20,        // Search results
-  
-  // Dropdowns/Autocomplete
-  DROPDOWN: 20,           // Dropdown options
-  AUTOCOMPLETE: 10,       // Autocomplete suggestions
-  
-  // Public Pages
-  PUBLIC_PROJECTS: 12,    // Landing page
-  PUBLIC_EVENTS: 10,      // Public events
-  
-  // Maximum safe limit
-  MAX_SAFE: 100,          // Never exceed this
+  PUBLIC_PROJECTS: 12,
+  PUBLIC_EVENTS: 10,
+  MAX_SAFE: 100,
 } as const;
 
-/**
- * Pagination defaults
- */
 export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 100;
 
-// ============================================
-// QUERY OPTIMIZATION VALIDATORS
-// ============================================
-
-/**
- * Validates and normalizes limit parameters
- */
 export function normalizeLimit(limit?: number, max: number = MAX_PAGE_SIZE): number {
   if (!limit) return DEFAULT_PAGE_SIZE;
   return Math.min(Math.max(1, limit), max);
 }
 
-/**
- * Creates safe pagination parameters
- */
 export function createPaginationParams(args: { page?: number; limit?: number }) {
   const page = Math.max(1, args.page || 1);
   const limit = normalizeLimit(args.limit);
@@ -162,13 +83,6 @@ export function createPaginationParams(args: { page?: number; limit?: number }) 
   return { page, limit, offset };
 }
 
-// ============================================
-// FIELD EXTRACTION HELPERS
-// ============================================
-
-/**
- * Extract user summary from full user object
- */
 export function extractUserSummary(user: any): UserSummary {
   return {
     _id: user._id,

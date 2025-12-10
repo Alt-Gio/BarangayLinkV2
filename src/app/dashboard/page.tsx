@@ -10,7 +10,6 @@ import { useEffect, useState } from 'react';
 import { errorHandler } from '@/lib/errorHandler';
 import RippleLoader from '@/components/ui/RippleLoader';
 
-// Force dynamic rendering for authenticated pages
 export const dynamic = 'force-dynamic';
 
 export default function DashboardPage() {
@@ -19,58 +18,33 @@ export default function DashboardPage() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [hasCheckedStatus, setHasCheckedStatus] = useState(false);
 
-  // Initialize database and ensure user exists
   const initDb = useMutation(api.seedData.seedUserLevels);
   const ensureUserExists = useMutation(api.users.ensureUserExists);
-  
-  // Get current user from offline context (cached!)
   const { currentUser, isOnline } = useOfflineData();
   const currentUserStatus = useQuery(api.users.getCurrentUserStatus);
   
-  // PRIORITY CHECK: Check user status and redirect appropriately
   useEffect(() => {
-    // Only check if we have loaded and checked for user
     if (hasCheckedStatus || !isLoaded || !user) return;
-    
-    // Mark that we've checked
     setHasCheckedStatus(true);
     
-    // If no user status yet, they might be in setup - don't redirect!
-    if (currentUserStatus === undefined) {
-      console.log("⏳ User status loading...");
-      return;
-    }
+    if (currentUserStatus === undefined) return;
     
-    // Allow users to access dashboard even if profile is incomplete
-    // They will be prompted to complete profile within the dashboard
-    
-    // If pending or rejected, redirect to pending approval page
     if (currentUserStatus && (currentUserStatus.status === "pending" || currentUserStatus.status === "rejected")) {
-      console.log("⚠️ User status:", currentUserStatus.status, "redirecting to pending-approval");
       router.replace('/pending-approval');
       return;
     }
-    
-    if (currentUserStatus) {
-      console.log("✅ User status:", currentUserStatus.status, "showing dashboard");
-    }
   }, [currentUserStatus, router, hasCheckedStatus, isLoaded, user]);
   
-  // Initialize database and check user status
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        // First ensure user levels are seeded
         await initDb();
-        // Don't call ensureUserExists - webhook already created user
-        // Just mark as initialized
         setIsInitialized(true);
       } catch (error) {
-        // Log error in development only
         if (process.env.NODE_ENV === 'development') {
           errorHandler.logErrorPublic(error, 'Dashboard initialization');
         }
-        setIsInitialized(true); // Set initialized even on error to show something
+        setIsInitialized(true);
       }
     };
     
@@ -79,17 +53,12 @@ export default function DashboardPage() {
     }
   }, [user, isLoaded, isSignedIn, initDb, router, isInitialized]);
 
-  // Redirect if not authenticated (but don't interfere with setup flow)
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
       router.push('/login');
     }
   }, [isLoaded, isSignedIn, router]);
-  
-  // User profile is handled by the user creation webhook
-  // No need for manual redirects to setup pages
 
-  // Wait for user status to be loaded AND verified before rendering dashboard
   if (!isLoaded || !isSignedIn || !user || !isInitialized) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
@@ -98,7 +67,6 @@ export default function DashboardPage() {
     );
   }
 
-  // Final safety check - if status is not active, show loading (redirect will happen in useEffect)
   if (currentUser.status !== "active") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
@@ -107,6 +75,5 @@ export default function DashboardPage() {
     );
   }
 
-  // Render dashboard only for active users
   return <RoleBasedDashboard />;
 }

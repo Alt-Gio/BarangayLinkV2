@@ -5,7 +5,6 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = 'BarangayLink <barangaylink@barangaylink.com>';
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-// Email sending function with error handling
 async function sendEmail(to: string, subject: string, html: string) {
   try {
     const { data, error } = await resend.emails.send({
@@ -28,7 +27,6 @@ async function sendEmail(to: string, subject: string, html: string) {
   }
 }
 
-// Welcome Email
 export async function sendWelcomeEmail(params: {
   to: string;
   userName: string;
@@ -71,7 +69,6 @@ export async function sendWelcomeEmail(params: {
   );
 }
 
-// Task Assigned Email
 export async function sendTaskAssignedEmail(params: {
   to: string;
   userName: string;
@@ -127,7 +124,6 @@ export async function sendTaskAssignedEmail(params: {
   );
 }
 
-// Event Reminder Email
 export async function sendEventReminderEmail(params: {
   to: string;
   userName: string;
@@ -181,7 +177,6 @@ export async function sendEventReminderEmail(params: {
   );
 }
 
-// Daily/Weekly Digest Email
 export async function sendDigestEmail(params: {
   to: string;
   userName: string;
@@ -276,7 +271,6 @@ export async function sendDigestEmail(params: {
   );
 }
 
-// Project Update Email
 export async function sendProjectUpdateEmail(params: {
   to: string;
   userName: string;
@@ -324,7 +318,6 @@ export async function sendProjectUpdateEmail(params: {
   );
 }
 
-// Notification preferences email
 export async function sendNotificationPreferencesEmail(params: {
   to: string;
   userName: string;

@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 
-// Force dynamic rendering for authenticated pages
 export const dynamic = 'force-dynamic';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
@@ -124,7 +123,6 @@ export default function ProductivityPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('dashboard');
 
-  // Project form state
   const [projectForm, setProjectForm] = useState<ProjectFormData>({
     title: '',
     description: '',
@@ -134,22 +132,18 @@ export default function ProductivityPage() {
     budget: '',
   });
 
-  // Voice assistant integration: Auto-open create dialog from URL params
   useEffect(() => {
     const action = searchParams.get('action');
     if (action === 'create') {
-      // Check if title was provided via voice command
       const title = searchParams.get('title');
       if (title) {
         setProjectForm(prev => ({ ...prev, title: decodeURIComponent(title) }));
       }
       setIsProjectDialogOpen(true);
-      // Clear the params from URL to prevent re-triggering
       router.replace('/productivity', { scroll: false });
     }
   }, [searchParams, router]);
 
-  // Task form state
   const [taskForm, setTaskForm] = useState<TaskFormData>({
     title: '',
     description: '',
@@ -160,7 +154,6 @@ export default function ProductivityPage() {
     assignedTo: '',
   });
 
-  // Convex queries and mutations
   const currentUser = useQuery(
     api.liveblocks.getUserByClerkId, 
     user?.id ? { clerkId: user.id } : "skip"
@@ -219,7 +212,6 @@ export default function ProductivityPage() {
     );
   }
 
-  // Handle project creation
   const handleCreateProject = async () => {
     if (!currentUser?._id) return;
     
@@ -233,7 +225,6 @@ export default function ProductivityPage() {
         budget: parseFloat(projectForm.budget) || undefined,
       });
       
-      // Reset form and close dialog
       setProjectForm({
         title: '',
         description: '',
@@ -248,7 +239,6 @@ export default function ProductivityPage() {
     }
   };
 
-  // Handle task creation
   const handleCreateTask = async () => {
     if (!currentUser?._id || !taskForm.assignedTo) return;
     
@@ -263,7 +253,6 @@ export default function ProductivityPage() {
         estimatedHours: parseFloat(taskForm.estimatedHours) || undefined,
       });
       
-      // Reset form and close dialog
       setTaskForm({
         title: '',
         description: '',
@@ -299,7 +288,6 @@ export default function ProductivityPage() {
     }
   };
 
-  // Navigation component
   const NavigationItem = ({ item }: { item: NavigationItem }) => {
     const Icon = item.icon;
     const isActive = activeSection === item.id;

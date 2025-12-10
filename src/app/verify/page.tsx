@@ -23,13 +23,6 @@ export default function VerificationPage() {
   const [certificateNumber, setCertificateNumber] = useState("");
   const [searchType, setSearchType] = useState<"qr" | "number">("qr");
 
-  // In production, you'd query based on input
-  // const verificationResult = useQuery(
-  //   api.certificates.verifyCertificateByQR,
-  //   searchType === "qr" && qrCode ? { qrCode } : "skip"
-  // );
-
-  // Mock verification result for demonstration
   const mockResult = qrCode || certificateNumber ? {
     valid: qrCode !== "INVALID",
     certificate: {

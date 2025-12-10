@@ -1,36 +1,159 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BarangayLink v2
 
-## Getting Started
+## Start
 
-First, run the development server:
+### Prerequisites
+
+Make sure you have these installed:
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- [npm](https://www.npmjs.com/) or [pnpm](https://pnpm.io/)
+- A code editor (VS Code recommended)
+
+### Step 1: Install Dependencies
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Step 2: Set Up Your Accounts
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+You'll need accounts for these services:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Service | Purpose | Sign Up Link |
+|---------|---------|--------------|
+| **Convex** | Database & Backend | [convex.dev](https://convex.dev) |
+| **Clerk** | User Authentication | [clerk.com](https://clerk.com) |
+| **Mapbox** | Maps (Optional) | [mapbox.com](https://mapbox.com) |
+| **Resend** | Email Sending (Optional) | [resend.com](https://resend.com) |
+| **Liveblocks** | Real-time Features (Optional) | [liveblocks.io](https://liveblocks.io) |
 
-## Learn More
+### Step 3: Create Your Environment File
 
-To learn more about Next.js, take a look at the following resources:
+Copy the template and fill in your keys:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+cp .env.template .env.local
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Open `.env.local` and add your API keys. At minimum, you need:
 
-## Deploy on Vercel
+```env
+# Required
+NEXT_PUBLIC_CONVEX_URL=https://your-project.convex.cloud
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_xxxxx
+CLERK_SECRET_KEY=sk_test_xxxxx
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Step 4: Set Up Convex Database
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npx convex login
+
+npx convex dev
+```
+
+
+## Environment Variables Explained
+
+### Required Variables
+
+| Variable | Where to Get It | Description |
+|----------|-----------------|-------------|
+| `NEXT_PUBLIC_CONVEX_URL` | Convex Dashboard → Settings | Your Convex deployment URL |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk Dashboard → API Keys | Public key for authentication |
+| `CLERK_SECRET_KEY` | Clerk Dashboard → API Keys | Secret key (keep private!) |
+
+### Optional Variables
+
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` | Enable map features |
+| `RESEND_API_KEY` | Send emails (invitations, notifications) |
+| `LIVEBLOCKS_SECRET_KEY` | Real-time document collaboration |
+| `NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY` | Real-time features (client-side) |
+
+---
+
+## Project Structure
+
+```
+barangaylink-v2/
+├── src/
+│   ├── app/                 # Next.js pages and routes
+│   │   ├── dashboard/       # Main dashboard
+│   │   ├── projects/        # Project management
+│   │   ├── events/          # Event management
+│   │   ├── admin/           # Admin pages
+│   │   └── portal/          # Resident portal
+│   ├── components/          # Reusable UI components
+│   └── lib/                 # Utility functions
+├── convex/                  # Backend (database, API)
+│   ├── schema.ts           # Database schema
+│   ├── users.ts            # User operations
+│   ├── projects.ts         # Project operations
+│   └── events.ts           # Event operations
+├── public/                  # Static files
+└── package.json
+```
+
+
+## User Roles
+
+The system has 5 user roles with different permissions:
+
+| Role | Access Level |
+|------|--------------|
+| **ADMIN** | Full system access, manage all users and settings |
+| **CAPTAIN** | Full access except system settings |
+| **MANAGER** | Manage projects and events in their department |
+| **BUILDER** | Create and edit tasks, assigned projects |
+| **WORKER** | View and complete assigned tasks only |
+
+---
+
+## Features Overview
+
+### Dashboard
+- Overview of projects, events, and tasks
+- Quick stats and recent activity
+- Team workload visualization
+
+### Projects
+- Create projects with budgets and timelines
+- Assign team members
+- Track milestones and progress
+- Generate reports (PDF/Excel)
+
+### Events
+- Community event scheduling
+- Task assignment and tracking
+- QR code attendance system
+- Guest registration
+
+### Admin Panel
+- User management and approvals
+- Department configuration
+- System settings and backups
+- Certificate management
+
+### Resident Portal
+- Public event viewing
+- Certificate requests
+- Community announcements
+
+---
+
+## Tech Stack
+
+- **Frontend**: Next.js 15, React 19, TailwindCSS
+- **Backend**: Convex (serverless database + functions)
+- **Auth**: Clerk
+- **UI**: Radix UI, Lucide Icons, Framer Motion
+- **Maps**: Mapbox GL
+- **PDF**: jsPDF, React-PDF
+- **Charts**: Recharts
+
+---
+
+
+

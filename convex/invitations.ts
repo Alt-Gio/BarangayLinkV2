@@ -1,7 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-// Get invitation by token (public query)
 export const getInvitationByToken = query({
   args: { token: v.string() },
   handler: async (ctx, args) => {
@@ -14,18 +13,15 @@ export const getInvitationByToken = query({
       return null;
     }
 
-    // Check if expired
     const isExpired = invitation.expiresAt < Date.now();
     if (isExpired) {
       return { ...invitation, isExpired: true };
     }
 
-    // Check if already accepted
     if (invitation.status === "accepted") {
       return { ...invitation, isAccepted: true };
     }
 
-    // Get invited by user details
     const invitedByUser = await ctx.db.get(invitation.invitedBy);
     const userLevel = await ctx.db.get(invitation.userLevelId);
 
@@ -44,7 +40,6 @@ export const getInvitationByToken = query({
   },
 });
 
-// Validate invitation token (before showing signup form)
 export const validateInvitationToken = query({
   args: { token: v.string() },
   handler: async (ctx, args) => {

@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-// Helper function to calculate age from birthdate
 function calculateAge(birthdate: number): number {
   const today = new Date();
   const birthDate = new Date(birthdate);
@@ -13,11 +12,6 @@ function calculateAge(birthdate: number): number {
   return age;
 }
 
-// ============================================
-// QUERIES
-// ============================================
-
-// Get all residents with pagination
 export const getAllResidents = query({
   args: {
     limit: v.optional(v.number()),
@@ -35,14 +29,12 @@ export const getAllResidents = query({
   },
 });
 
-// Get resident by ID
 export const getResidentById = query({
   args: { residentId: v.id("residents") },
   handler: async (ctx, args) => {
     const resident = await ctx.db.get(args.residentId);
     if (!resident) return null;
     
-    // Get household info
     const household = await ctx.db.get(resident.householdId);
     
     return {
@@ -52,7 +44,6 @@ export const getResidentById = query({
   },
 });
 
-// Get residents by household
 export const getResidentsByHousehold = query({
   args: { householdId: v.id("households") },
   handler: async (ctx, args) => {
@@ -66,7 +57,6 @@ export const getResidentsByHousehold = query({
   },
 });
 
-// Search residents
 export const searchResidents = query({
   args: {
     searchTerm: v.optional(v.string()),
@@ -83,7 +73,6 @@ export const searchResidents = query({
       .withIndex("by_active", (q) => q.eq("isActive", true))
       .collect();
     
-    // Filter by status flags
     if (args.isSeniorCitizen !== undefined) {
       residents = residents.filter((r) => r.isSeniorCitizen === args.isSeniorCitizen);
     }
@@ -100,7 +89,6 @@ export const searchResidents = query({
       residents = residents.filter((r) => r.gender === args.gender);
     }
     
-    // Filter by purok (need to join with household)
     if (args.purok) {
       const households = await ctx.db.query("households").collect();
       const householdsByPurok = households.filter((h) => h.purok === args.purok);
@@ -108,7 +96,6 @@ export const searchResidents = query({
       residents = residents.filter((r) => householdIds.has(r.householdId));
     }
     
-    // Search by name or barangay ID
     if (args.searchTerm) {
       const term = args.searchTerm.toLowerCase();
       residents = residents.filter(

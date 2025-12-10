@@ -2,20 +2,15 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 
-/**
- * Clock in to a task - Start work timer
- * Automatically transitions task to "in_progress"
- */
 export const clockIn = mutation({
   args: {
     taskId: v.id("eventTasks"),
-    startTime: v.optional(v.number()), // Allow custom start time
+    startTime: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
-    // Get current user
     const user = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
@@ -23,11 +18,9 @@ export const clockIn = mutation({
 
     if (!user) throw new Error("User not found");
 
-    // Check if user is assigned to this task
     const task = await ctx.db.get(args.taskId);
     if (!task) throw new Error("Task not found");
 
-    // Check if user has an active assignment for this task
     const assignment = await ctx.db
       .query("eventTaskAssignments")
       .withIndex("by_task_user", (q) => 
@@ -40,7 +33,6 @@ export const clockIn = mutation({
       throw new Error("You are not assigned to this task. Only assigned workers can clock in.");
     }
 
-    // Check if already clocked in to this task
     const existingSession = await ctx.db
       .query("eventTaskTimeEntries")
       .withIndex("by_task", (q) => q.eq("taskId", args.taskId))
@@ -56,7 +48,6 @@ export const clockIn = mutation({
       throw new Error("You are already clocked in to this task");
     }
 
-    // Check if user has any other running timers
     const otherRunningSession = await ctx.db
       .query("eventTaskTimeEntries")
       .withIndex("by_user", (q) => q.eq("userId", user._id))
@@ -70,7 +61,6 @@ export const clockIn = mutation({
     const now = Date.now();
     const startTime = args.startTime || now;
 
-    // Create time entry
     const timeEntryId = await ctx.db.insert("eventTaskTimeEntries", {
       taskId: args.taskId,
       userId: user._id,

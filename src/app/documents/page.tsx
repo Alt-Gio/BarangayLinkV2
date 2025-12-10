@@ -52,7 +52,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
-// Get color classes for categories (outside component to avoid hook order issues)
 const getCategoryColors = (color: string, isSelected: boolean) => {
   const colorMap: Record<string, { bg: string; icon: string; badge: string; shadow: string }> = {
     blue: {
@@ -144,7 +143,6 @@ export default function DocumentsPage() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [filterType, setFilterType] = useState<string | undefined>(undefined);
 
-  // ✅ ALL HOOKS MUST BE CALLED BEFORE ANY EARLY RETURNS!
   const currentUser = useQuery(api.users.getCurrentUser);
   const documents = useQuery(api.documents.getAllDocuments, {
     category: selectedCategory,
@@ -153,12 +151,10 @@ export default function DocumentsPage() {
   const stats = useQuery(api.documents.getDocumentStats);
   const allTags = useQuery(api.documentTagging.getAllTags);
 
-  // SMART FILTERING & SORTING (useMemo is a hook, must be before returns!)
   const filteredAndSortedDocuments = useMemo(() => {
     if (!documents) return [];
 
     let filtered = documents.filter((doc: any) => {
-      // Search filter
       if (searchQuery) {
         const search = searchQuery.toLowerCase();
         const matchesSearch = 
@@ -168,7 +164,6 @@ export default function DocumentsPage() {
         if (!matchesSearch) return false;
       }
 
-      // Tag filter
       if (selectedTags.length > 0) {
         const hasAllTags = selectedTags.every(selectedTag =>
           doc.tags.some((docTag: string) => docTag.toLowerCase() === selectedTag.toLowerCase())
@@ -176,7 +171,6 @@ export default function DocumentsPage() {
         if (!hasAllTags) return false;
       }
 
-      // File type filter
       if (filterType) {
         const mimeType = doc.mimeType.toLowerCase();
         if (filterType === "pdf" && !mimeType.includes("pdf")) return false;
@@ -188,7 +182,6 @@ export default function DocumentsPage() {
       return true;
     });
 
-    // Sorting
     filtered.sort((a: any, b: any) => {
       let comparison = 0;
 
@@ -196,7 +189,7 @@ export default function DocumentsPage() {
         comparison = a.fileName.localeCompare(b.fileName);
       } else if (sortBy === "size") {
         comparison = a.fileSize - b.fileSize;
-      } else { // date
+      } else {
         comparison = (a._creationTime || 0) - (b._creationTime || 0);
       }
 
@@ -206,7 +199,6 @@ export default function DocumentsPage() {
     return filtered;
   }, [documents, searchQuery, selectedTags, filterType, sortBy, sortOrder]);
 
-  // ✅ NOW WE CAN HAVE EARLY RETURNS (all hooks already called)
   if (isLoaded && !user) {
     router.push("/login");
     return null;
@@ -223,7 +215,6 @@ export default function DocumentsPage() {
     );
   }
 
-  // EXPANDED SMART CATEGORIES
   const categories = [
     { name: "All Documents", value: undefined, icon: FolderOpen, color: "blue" },
     { name: "Reports", value: "Reports", icon: FileCheck, color: "emerald" },
@@ -239,7 +230,6 @@ export default function DocumentsPage() {
     { name: "General", value: "General", icon: File, color: "gray" }
   ];
 
-  // Toggle tag selection
   const toggleTag = (tag: string) => {
     setSelectedTags(prev =>
       prev.includes(tag)

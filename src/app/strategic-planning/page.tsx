@@ -35,7 +35,6 @@ export default function StrategicPlanningPage() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [view, setView] = useState<'projects' | 'milestones' | 'events'>('projects');
 
-  // Fetch data
   const projects = useQuery(api.projects.getAllProjects) || [];
   const events = useQuery(api.events.getAllEvents) || [];
 
@@ -50,7 +49,6 @@ export default function StrategicPlanningPage() {
     );
   }
 
-  // Check permissions
   if (!['ADMIN', 'CAPTAIN', 'MANAGER'].includes(userRole)) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-900">
@@ -63,20 +61,17 @@ export default function StrategicPlanningPage() {
     );
   }
 
-  // Filter projects by status
   const filteredProjects = projects.filter((project: any) => {
     if (filterStatus === 'all') return true;
     return project.status === filterStatus;
   });
 
-  // Calculate overall statistics
   const totalProjects = projects.length;
   const activeProjects = projects.filter((p: any) => p.status === 'active').length;
   const completedProjects = projects.filter((p: any) => p.status === 'completed').length;
   const totalBudget = projects.reduce((sum: number, p: any) => sum + (p.budget || 0), 0);
   const totalSpent = projects.reduce((sum: number, p: any) => sum + (p.spent || 0), 0);
 
-  // Calculate event statistics
   const upcomingEvents = events.filter((e: any) => new Date(e.startDate) > new Date()).length;
   const completedEvents = events.filter((e: any) => e.status === 'completed').length;
 

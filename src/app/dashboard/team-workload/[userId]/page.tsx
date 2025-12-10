@@ -33,10 +33,7 @@ export default function UserWorkloadDetailPage({
   const resolvedParams = use(params);
   const userId = resolvedParams.userId;
 
-  // Get user's tasks
   const userTasks = useQuery(api.teamWorkload.getUserTasks, { userId });
-  
-  // Get team workload to find this user
   const workloadData = useQuery(api.teamWorkload.getTeamWorkload);
   const user = workloadData?.users.find((u) => u.userId === userId);
 
@@ -57,7 +54,6 @@ export default function UserWorkloadDetailPage({
 
   const { standaloneTasks, eventTasks } = userTasks;
 
-  // Combine all tasks
   const allTasks = [
     ...standaloneTasks.map((t) => ({
       ...t,
@@ -69,7 +65,6 @@ export default function UserWorkloadDetailPage({
     })),
   ];
 
-  // Filter tasks by status
   const activeTasks = allTasks.filter(
     (t) => t.status !== "done" && !t.isArchived
   );

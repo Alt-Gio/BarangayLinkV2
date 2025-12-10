@@ -44,7 +44,6 @@ import dynamicImport from 'next/dynamic';
 
 export const dynamic = 'force-dynamic';
 
-// Dynamically import Map component (no SSR)
 const Map = dynamicImport(() => import('@/components/landing/MapboxMap'), {
   ssr: false,
   loading: () => <div className="w-full h-full bg-gray-800 animate-pulse flex items-center justify-center text-white">Loading Map...</div>
@@ -67,7 +66,6 @@ function PublicLandingPage() {
   const [uploadingDocument, setUploadingDocument] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Feedback state
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackForm, setFeedbackForm] = useState({
@@ -82,7 +80,6 @@ function PublicLandingPage() {
   const [feedbackOTPVerified, setFeedbackOTPVerified] = useState(false);
   const [feedbackSuccess, setFeedbackSuccess] = useState(false);
 
-  // Fetch real data
   const featuredProjects = useQuery(api.landingPage.getFeaturedProjects, { limit: 6 }) as any[] | undefined;
   const publicProjects = useQuery(api.landingPage.getFeaturedProjects, { limit: 9 }) as any[] | undefined;
   const events = useQuery(api.events.getUpcomingEvents, { limit: 6 });
@@ -93,17 +90,14 @@ function PublicLandingPage() {
   const verifyOTP = useMutation(api.otp.verifyOTP);
   const generateEventDocumentUploadUrl = useMutation(api.events.generateEventDocumentUploadUrl);
   
-  // Get feedback stats for all projects
   const projectIds = publicProjects?.map(p => p._id) || [];
   const feedbackStats = useQuery(
     api.projectFeedback.getProjectFeedbackStats, 
     projectIds.length > 0 ? { projectIds } : "skip"
   );
   
-  // Get site settings for dynamic mission, vision, copyright
   const siteSettings = useQuery(api.siteSettings.getAllSettings);
 
-  // Use featured projects for hero, fallback to public projects
   const heroProjects = (featuredProjects && featuredProjects.length > 0) ? featuredProjects : (publicProjects?.slice(0, 3) || []);
 
   const handleSendEventOTP = async () => {
@@ -167,7 +161,6 @@ function PublicLandingPage() {
       return;
     }
 
-    // Check if document is required but not uploaded
     if (selectedEvent.allowDocumentUpload && !uploadedDocument) {
       alert('Please upload the required document (proof of citizenship/residency)');
       return;
@@ -177,14 +170,11 @@ function PublicLandingPage() {
     try {
       let documentStorageId: string | undefined;
 
-      // Upload document if provided
       if (uploadedDocument) {
         setUploadingDocument(true);
         
-        // Generate upload URL
         const uploadUrl = await generateEventDocumentUploadUrl();
 
-        // Upload file
         const result = await fetch(uploadUrl, {
           method: "POST",
           headers: { "Content-Type": uploadedDocument.type },
@@ -197,7 +187,6 @@ function PublicLandingPage() {
         setUploadingDocument(false);
       }
 
-      // First, save RSVP to events table
       await rsvpToEvent({
         eventId: selectedEvent._id,
         action: "join",
@@ -209,9 +198,6 @@ function PublicLandingPage() {
         }
       });
 
-      console.log("RSVP saved successfully");
-
-      // Add to attendees list and generate QR/barcode
       let result;
       try {
         result = await addAttendeeFromRSVP({
@@ -220,13 +206,11 @@ function PublicLandingPage() {
           lastName: joinForm.lastName,
           email: joinForm.email,
         });
-        console.log("Attendee added:", result);
       } catch (attendeeError: any) {
         console.error("Error adding attendee:", attendeeError);
         throw new Error(`Failed to add attendee: ${attendeeError.message}`);
       }
 
-      // Send invitation email with QR/barcode (non-blocking)
       if (result && result.success) {
         try {
           const emailResponse = await fetch("/api/send-invitation-email", {
@@ -245,13 +229,8 @@ function PublicLandingPage() {
           });
 
           if (emailResponse.ok) {
-            console.log("Email sent successfully");
-          } else {
-            console.warn("Email failed but attendee was added");
           }
         } catch (emailError) {
-          console.error("Email error (non-critical):", emailError);
-          // Don't throw - attendee is already added
         }
       }
 

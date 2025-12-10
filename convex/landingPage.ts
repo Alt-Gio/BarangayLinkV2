@@ -1,12 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-/**
- * LANDING PAGE MANAGEMENT
- * Functions to manage featured projects on the landing page
- */
-
-// Get featured projects for landing page
 export const getFeaturedProjects = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit = 10 }) => {
@@ -16,10 +10,8 @@ export const getFeaturedProjects = query({
       .filter((q) => q.eq(q.field("isPublic"), true))
       .take(limit);
 
-    // Sort by featured order
     const sorted = projects.sort((a, b) => (a.featuredOrder || 999) - (b.featuredOrder || 999));
 
-    // Enrich with team members and task counts
     const enriched = await Promise.all(
       sorted.map(async (project) => {
         const tasks = await ctx.db
@@ -27,15 +19,12 @@ export const getFeaturedProjects = query({
           .withIndex("by_project", (q) => q.eq("projectId", project._id))
           .take(100);
 
-        // Count completed tasks (status === 'done' or completed === true)
         const completedTasks = tasks.filter((t) => t.status === "done" || t.completed === true).length;
 
-        // Get team member details
         const teamMembers = await Promise.all(
           project.assignedTo.slice(0, 5).map((userId) => ctx.db.get(userId))
         );
 
-        // Get image URL if storage ID exists
         let imageUrl: string | undefined = project.featuredImage;
         if (project.featuredImageStorageId) {
           const url = await ctx.storage.getUrl(project.featuredImageStorageId);
@@ -63,14 +52,12 @@ export const getFeaturedProjects = query({
   },
 });
 
-// Get all projects with featured status (for admin management)
 export const getAllProjectsForFeatured = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
-    // Get current user and check if admin
     const user = await ctx.db
       .query("users")
       .filter((q) => q.eq(q.field("clerkId"), identity.subject))

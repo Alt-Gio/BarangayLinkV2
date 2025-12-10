@@ -1,26 +1,10 @@
-/**
- * OPTIMIZED AUDIT SYSTEM
- * 
- * This replaces the old userSessions.logActivity approach with a smarter system:
- * - Batches multiple activities into summaries
- * - Only logs significant events
- * - Uses aggregation instead of individual records
- * - Reduces database writes by 90%+
- */
-
 import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
-// ==================== SESSION MANAGEMENT ====================
-
-/**
- * Heartbeat to keep session alive and update activity summary
- * Called every 5 minutes (client-side) instead of every action
- */
 export const updateSessionHeartbeat = mutation({
   args: {
     currentPage: v.optional(v.string()),
-    activityCount: v.optional(v.number()), // Number of actions since last heartbeat
+    activityCount: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -35,7 +19,6 @@ export const updateSessionHeartbeat = mutation({
 
     const now = Date.now();
 
-    // Find or create active session
     let session = await ctx.db
       .query("userSessions")
       .filter((q) => q.and(
@@ -45,7 +28,6 @@ export const updateSessionHeartbeat = mutation({
       .first();
 
     if (!session) {
-      // Create new session with summary tracking
       const sessionId = await ctx.db.insert("userSessions", {
         userId: user._id,
         clerkSessionId: identity.subject,
@@ -61,13 +43,11 @@ export const updateSessionHeartbeat = mutation({
       return sessionId;
     }
 
-    // Update existing session
     const activitySummary = session.activitySummary || { totalActions: 0, pagesVisited: [], lastPage: undefined };
     const updatedPages = activitySummary.pagesVisited || [];
     
     if (args.currentPage && !updatedPages.includes(args.currentPage)) {
       updatedPages.push(args.currentPage);
-      // Keep only last 20 unique pages to prevent bloat
       if (updatedPages.length > 20) {
         updatedPages.shift();
       }
@@ -86,10 +66,6 @@ export const updateSessionHeartbeat = mutation({
   },
 });
 
-/**
- * Log ONLY significant events (not every action)
- * Significant = Login, Logout, Errors, Critical Actions
- */
 export const logSignificantEvent = mutation({
   args: {
     eventType: v.union(

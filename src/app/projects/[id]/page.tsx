@@ -53,7 +53,6 @@ import {
 import { toast } from 'sonner';
 import { useVoiceAssistantContext } from '@/components/voice/VoiceAssistantProvider';
 
-// Force dynamic rendering for project pages
 export const dynamic = 'force-dynamic';
 
 interface ProjectPageProps {
@@ -63,82 +62,55 @@ interface ProjectPageProps {
 export default function ProjectPage({ params }: ProjectPageProps) {
   const { id } = use(params);
   
-  // Set voice assistant context for this project
   const { setVoiceContext } = useVoiceAssistantContext();
   useEffect(() => {
     if (id && id !== 'approval' && id !== 'create') {
-      console.log("ProjectPage: Setting voice context with projectId:", id);
       setVoiceContext({ projectId: id as Id<"projects"> });
     }
-    return () => {
-      console.log("ProjectPage: Clearing voice context");
-      setVoiceContext({});
-    };
+    return () => setVoiceContext({});
   }, [id, setVoiceContext]);
   
-  // Check if this is a special route (not a project ID)
   if (id === 'approval' || id === 'create') {
-    return null; // Let Next.js handle the proper route
+    return null;
   }
   
-  // ALL HOOKS MUST BE AT THE TOP (Rules of Hooks)
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [editedData, setEditedData] = useState<any>({});
   const [showDocumentUpload, setShowDocumentUpload] = useState(false);
 
-  // Get current user from offline context (cached, saves bandwidth)
   const { currentUser, isOnline } = useOfflineData();
   
-  // Get project data
   const project = useQuery(api.productivity.getProjects, { limit: 100 })?.find(p => p._id === id);
-  
-  // Get project tasks (using the new task system)
   const tasks = useQuery(api.gamifiedTasks.getProjectTasks, { projectId: id as any });
-  
-  // Get project events  
   const events = useQuery(api.events.getProjectEvents, { projectId: id as any });
-  
-  // Get project team members
   const teamMembers = useQuery(api.users.getProjectTeamMembers, { projectId: id as any });
-  
-  // Update mutation
   const updateProject = useMutation(api.projects.updateProject);
-  
-  // Task mutations
   const completeTask = useMutation(api.tasks.completeTask);
   const uncompleteTask = useMutation(api.tasks.uncompleteTask);
 
-  // Export comprehensive project report
   const handleExportReport = () => {
     if (!project || !tasks) {
       toast.error('Please wait for data to load');
       return;
     }
 
-    // Calculate comprehensive statistics
     const totalTasks = tasks.length;
     const completedTasks = tasks.filter((t: any) => t.status === 'completed').length;
     const inProgressTasks = tasks.filter((t: any) => t.status === 'in_progress' || t.status === 'active').length;
     const todoTasks = tasks.filter((t: any) => t.status === 'todo' || t.status === 'pending').length;
     const completionRate = totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(1) : '0.0';
 
-    // Budget analysis
     const budgetUsedRate = project.budget > 0 ? ((budgetUsed / project.budget) * 100).toFixed(1) : '0.0';
     const budgetRemaining = project.budget - budgetUsed;
 
-    // Timeline analysis
     const daysElapsed = Math.ceil((Date.now() - project.startDate) / (1000 * 60 * 60 * 24));
     const totalProjectDays = Math.ceil((project.endDate - project.startDate) / (1000 * 60 * 60 * 24));
     const timeProgress = totalProjectDays > 0 ? ((daysElapsed / totalProjectDays) * 100).toFixed(1) : '0.0';
 
-    // Team members
     const totalMembers = teamMembers?.length || 0;
-
-    // Priority stats
     const highPriority = tasks.filter((t: any) => t.priority === 'high' || t.priority === 'critical').length;
 
-    // Generate HTML report
     const reportHTML = `
       <!DOCTYPE html>
       <html>
@@ -462,7 +434,6 @@ export default function ProjectPage({ params }: ProjectPageProps) {
       </html>
     `;
 
-    // Open report in new window and trigger print
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(reportHTML);
@@ -476,7 +447,6 @@ export default function ProjectPage({ params }: ProjectPageProps) {
     }
   };
 
-  // NOW we can do conditional logic and early returns
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 flex items-center justify-center">
@@ -499,13 +469,11 @@ export default function ProjectPage({ params }: ProjectPageProps) {
     );
   }
 
-  // Check user permissions
   const userRole = currentUser.userLevel.name;
   const canEdit = userRole === "ADMIN" || 
                   (userRole === "MANAGER" && project.department === (currentUser as any).department) ||
                   (userRole === "BUILDER" && project.createdBy === currentUser._id);
 
-  // Handlers
   const handleEdit = (field: string, value: any) => {
     setEditedData({ ...editedData, [field]: value });
   };
@@ -528,7 +496,6 @@ export default function ProjectPage({ params }: ProjectPageProps) {
     setEditedData({});
   };
 
-  // Calculate stats
   const completedTasks = tasks?.filter(t => t.status === 'completed').length || 0;
   const totalTasks = tasks?.length || 0;
   const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;

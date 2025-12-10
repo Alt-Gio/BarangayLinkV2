@@ -58,7 +58,6 @@ export default function SystemSettingsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
-  // Get current user from offline context (cached, saves bandwidth)
   const { currentUser, isOnline } = useOfflineData();
   const departments = useQuery(api.departments.getAllDepartmentsWithStats, isLoaded && user ? {} : "skip");
   const userLevels = useQuery(api.departments.getAllUserLevels, isLoaded && user ? {} : "skip");
@@ -68,7 +67,6 @@ export default function SystemSettingsPage() {
   const activeSessions = useQuery(api.securitySettings.getActiveSessionsCount, isLoaded && user ? {} : "skip");
   const siteSettings = useQuery(api.siteSettings.getAllSettings, isLoaded && user ? {} : "skip");
   
-  // Actions and Mutations
   const updateSiteSettingsMut = useMutation(api.siteSettings.updateMultipleSettings);
   const initializeDefaultSettings = useMutation(api.siteSettings.initializeDefaultSettings);
   const createBackup = useAction(api.backup.createFullBackup);
@@ -83,7 +81,6 @@ export default function SystemSettingsPage() {
   const removeDuplicateUserLevelsAction = useAction(api.backup.removeDuplicateUserLevels);
   const detectAllDuplicatesAction = useAction(api.backup.detectAllDuplicates);
   
-  // Notification actions
   const checkOverdueAction = useAction(api.notificationSystem.checkOverdueProjects);
   const resendNotificationMut = useMutation(api.notificationSystem.resendNotification);
   const sendTestEmailAction = useAction(api.notificationSystem.sendTestEmail);
@@ -94,7 +91,6 @@ export default function SystemSettingsPage() {
   const deleteDepartmentMut = useMutation(api.departments.deleteDepartment);
   const updateBackupScheduleMut = useMutation(api.backup.updateBackupSchedule);
   
-  // Performance optimization - only query when user is authenticated
   const logStats = useQuery(api.performanceOptimization.getLogStatistics, isLoaded && user ? {} : "skip");
   const optimizeSystemMut = useMutation(api.performanceOptimization.optimizeSystem);
   const cleanupActivityLogsMut = useMutation(api.performanceOptimization.cleanupOldActivityLogs);
@@ -102,7 +98,6 @@ export default function SystemSettingsPage() {
   const cleanupProjectActivitiesMut = useMutation(api.performanceOptimization.cleanupOldProjectActivities);
   const cleanupInactiveSessionsMut = useMutation(api.performanceOptimization.cleanupInactiveSessions);
 
-  // Landmarks and Coordinates Management
   const landmarks = useQuery(api.landmarks.getAllLandmarks, isLoaded && user ? {} : "skip");
   const barangayHallCoords = useQuery(api.landmarks.getBarangayHallCoordinates, isLoaded && user ? {} : "skip");
   const projectsWithoutCoords = useQuery(api.landmarks.getProjectsWithoutCoordinates, isLoaded && user ? {} : "skip");
@@ -116,34 +111,28 @@ export default function SystemSettingsPage() {
   const toggleProjectVisibility = useMutation(api.mapManagement.toggleProjectVisibility);
   const toggleEventVisibility = useMutation(api.mapManagement.toggleEventVisibility);
 
-  // System settings state
   const [settings, setSettings] = useState({
-    // General Settings
     siteName: "BarangayLink",
     siteDescription: "Barangay Project Management System",
     contactEmail: "admin@barangaylink.gov",
     timezone: "Asia/Manila",
     fiscalYear: "2025-2026",
     
-    // Site Content (Editable)
     mission: "To build a thriving, inclusive community through transparent governance, innovative project management, and active citizen participation. We leverage technology to keep our residents informed and engaged in every step of our community's development.",
     vision: "A progressive community committed to transparency, collaboration, and sustainable development",
     copyright: "© 2024 Barangay Bitano. All rights reserved.",
     version: "v2.0.0",
     
-    // Security Settings
     sessionTimeout: "30",
     passwordMinLength: "8",
     requireMFA: false,
     allowPublicRegistration: false,
     
-    // Notification Settings
     emailNotifications: true,
     projectUpdates: true,
     taskReminders: true,
     eventAlerts: true,
     
-    // System Settings
     autoBackup: true,
     backupFrequency: "daily",
     retentionDays: "90",
@@ -172,7 +161,6 @@ export default function SystemSettingsPage() {
   const [cleanupResult, setCleanupResult] = useState<any>(null);
   const [notificationStats, setNotificationStats] = useState({ total: 0, overdue: 0 });
 
-  // Landmarks state management
   const [barangayHallLat, setBarangayHallLat] = useState<number>(13.1469299);
   const [barangayHallLng, setBarangayHallLng] = useState<number>(123.7494046);
   const [showAddLandmarkModal, setShowAddLandmarkModal] = useState(false);
@@ -195,7 +183,6 @@ export default function SystemSettingsPage() {
   const [savingLandmark, setSavingLandmark] = useState(false);
   const [updatingCoords, setUpdatingCoords] = useState(false);
 
-  // Load Barangay Hall coordinates when they're fetched
   useEffect(() => {
     if (barangayHallCoords) {
       setBarangayHallLat(barangayHallCoords.latitude);
@@ -276,14 +263,12 @@ export default function SystemSettingsPage() {
 
   const handleDownloadBackup = async (backupId: any) => {
     try {
-      // Get the backup directly from the backups list
       const backup = backups?.find((b: any) => b._id === backupId);
       if (!backup || !backup.dataJson) {
         alert('Backup not found');
         return;
       }
       
-      // Create download
       const filename = `barangaylink-backup-${backup.timestamp}.json`;
       const blob = new Blob([backup.dataJson], { type: 'application/json' });
       const url = window.URL.createObjectURL(blob);
@@ -303,7 +288,6 @@ export default function SystemSettingsPage() {
     const file = event.target.files?.[0];
     if (!file) return;
     
-    // First confirmation
     const confirmImport = confirm(
       '📥 IMPORT BACKUP\n\n' +
       'Ready to import: ' + file.name + '\n\n' +
@@ -314,7 +298,6 @@ export default function SystemSettingsPage() {
       return;
     }
     
-    // Mode selection with clear options
     const clearExisting = confirm(
       '⚙️ CHOOSE IMPORT MODE\n\n' +
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
@@ -334,7 +317,6 @@ export default function SystemSettingsPage() {
     try {
       const text = await file.text();
       
-      // Validate JSON
       try {
         JSON.parse(text);
       } catch (e) {
@@ -354,7 +336,6 @@ export default function SystemSettingsPage() {
     } catch (error: any) {
       console.error('Import error:', error);
       
-      // Check if this is a timeout error (connection lost)
       if (error.message && error.message.includes('Connection lost while action was in flight')) {
         alert(
           '⚠️ CONNECTION TIMEOUT\n\n' +
@@ -634,7 +615,6 @@ export default function SystemSettingsPage() {
     );
   }
 
-  // Landmarks handlers
   const handleUpdateBarangayHall = async () => {
     if (updatingCoords) return;
     setUpdatingCoords(true);
@@ -752,7 +732,6 @@ export default function SystemSettingsPage() {
   const handleSave = async () => {
     setSaveStatus("saving");
     try {
-      // Save site settings to database
       await updateSiteSettingsMut({
         settings: [
           { key: "siteName", value: settings.siteName },

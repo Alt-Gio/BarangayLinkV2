@@ -47,13 +47,10 @@ export default function HouseholdsPage() {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch households
   const households = useQuery(api.households.getAllHouseholds, { limit: 100 });
   const stats = useQuery(api.households.getHouseholdStats);
 
-  // Filter households
   const filteredHouseholds = households?.filter((household) => {
-    // Search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       const matchesSearch =
@@ -64,7 +61,6 @@ export default function HouseholdsPage() {
       if (!matchesSearch) return false;
     }
 
-    // Purok filter
     if (filterPurok && household.purok !== filterPurok) {
       return false;
     }
@@ -72,7 +68,6 @@ export default function HouseholdsPage() {
     return true;
   });
 
-  // Get unique puroks for filter
   const puroks = Array.from(new Set(households?.map((h) => h.purok) || []));
 
   return (

@@ -2,9 +2,6 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser } from "./roleBasedAccess";
 
-// ===== INVITATION SYSTEM =====
-
-// Create invitation (ADMIN only)
 export const createInvitation = mutation({
   args: {
     email: v.string(),
@@ -18,12 +15,10 @@ export const createInvitation = mutation({
   handler: async (ctx, args) => {
     const currentUser = await getCurrentUser(ctx);
     
-    // Only ADMIN can create invitations
     if (currentUser.userLevel.name !== "ADMIN") {
       throw new Error("Unauthorized: Admin access required");
     }
 
-    // Check if user already exists
     const existingUser = await ctx.db
       .query("users")
       .withIndex("by_email", (q) => q.eq("email", args.email))
@@ -33,7 +28,6 @@ export const createInvitation = mutation({
       throw new Error("User with this email already exists");
     }
 
-    // Check if there's already a pending invitation
     const existingInvitation = await ctx.db
       .query("userInvitations")
       .withIndex("by_email", (q) => q.eq("email", args.email))
@@ -44,11 +38,8 @@ export const createInvitation = mutation({
       throw new Error("Invitation already sent to this email");
     }
 
-    // SECURITY: Generate cryptographically secure token
-    // Using crypto.randomUUID() instead of Math.random() for security
     const token = `INV-${crypto.randomUUID()}`;
     
-    // Create invitation (expires in 7 days)
     const invitationId = await ctx.db.insert("userInvitations", {
       email: args.email,
       firstName: args.firstName,
@@ -74,7 +65,6 @@ export const createInvitation = mutation({
   },
 });
 
-// Validate invitation code
 export const validateInvitation = query({
   args: { token: v.string() },
   handler: async (ctx, args) => {
@@ -95,7 +85,6 @@ export const validateInvitation = query({
       return { valid: false, message: "Invitation has expired" };
     }
 
-    // Get user level details
     const userLevel = await ctx.db.get(invitation.userLevelId);
 
     return {

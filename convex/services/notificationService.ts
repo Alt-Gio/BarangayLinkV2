@@ -1,29 +1,16 @@
-/**
- * Notification Service - Cross-Module Notification System
- * Centralized notification creation from any activity
- */
-
 import { v } from "convex/values";
 import { mutation, internalMutation } from "../_generated/server";
 import { Id } from "../_generated/dataModel";
 
 export type NotificationType =
-  // Tasks
   | "task_assigned" | "task_completed" | "task_due_soon" | "task_overdue"
-  // Events
   | "event_invitation" | "event_rsvp" | "event_reminder" | "event_checkin"
-  // Projects
   | "project_assigned" | "milestone_completed" | "project_update"
-  // Messages
   | "message_mention" | "message_reaction" | "poll_voted" | "poll_completed"
-  // Documents
   | "document_shared" | "document_commented"
-  // Collaboration
   | "comment_mention" | "review_requested" | "review_approved"
-  // Gamification
   | "achievement_unlocked" | "level_up";
 
-// Create notification from any module
 export const createNotification = mutation({
   args: {
     type: v.string(),
@@ -42,13 +29,11 @@ export const createNotification = mutation({
     metadata: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
-    // Check if user exists
     const user = await ctx.db.get(args.recipientId);
     if (!user) {
       throw new Error("Recipient not found");
     }
 
-    // Create notification
     const notificationId = await ctx.db.insert("notifications", {
       userId: args.recipientId,
       type: args.type as any, // Type will be validated at runtime
@@ -63,7 +48,6 @@ export const createNotification = mutation({
       createdAt: Date.now(),
     });
 
-    // If high priority, also queue email notification
     if (args.priority === "high" || args.priority === "urgent") {
       await queueEmailNotification(ctx, {
         recipientId: args.recipientId,

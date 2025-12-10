@@ -13,17 +13,14 @@ export default function SkipInitPage() {
   const { user, isLoaded } = useUser();
 
   const handleSkipToApp = () => {
-    // Redirect to the main app
     router.push('/dashboard');
   };
 
   const handleSkipToCollaboration = () => {
-    // Redirect to collaboration demo
     router.push('/collaboration');
   };
 
   const handleGoBack = () => {
-    // Go back to the main page
     router.push('/');
   };
 

@@ -2,11 +2,6 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, checkPermission } from "./roleBasedAccess";
 
-// ============================================
-// MUTATIONS - Event Management
-// ============================================
-
-// Create a new event (general or project-specific)
 export const createEvent = mutation({
   args: {
     title: v.string(),
@@ -24,23 +19,18 @@ export const createEvent = mutation({
     projectId: v.optional(v.id("projects")),
     imageUrl: v.optional(v.string()),
     department: v.optional(v.string()),
-    milestoneTaskCount: v.optional(v.number()), // For milestone events
-    enableEasyAttendance: v.optional(v.boolean()), // Easy attendance via code/QR
-    enableSmartVision: v.optional(v.boolean()), // Camera check-in with hand detection
+    milestoneTaskCount: v.optional(v.number()),
+    enableEasyAttendance: v.optional(v.boolean()),
+    enableSmartVision: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const currentUser = await checkPermission(ctx, ["ADMIN", "MANAGER", "BUILDER", "WORKER"]);
     
-    // Get user level to determine event status
     const userLevel = typeof currentUser.userLevel === 'object' && currentUser.userLevel !== null && 'level' in currentUser.userLevel
       ? currentUser.userLevel.level
       : 0;
     
-    // Builder (2) and Worker (1) events go to pending if requiresApproval is true
-    // Manager (4) and Admin (5) events are published immediately
     const eventStatus = (userLevel < 4 && args.requiresApproval) ? "pending" : "published";
-    
-    // Generate join code if Easy Attendance is enabled
     let joinCode: string | undefined;
     if (args.enableEasyAttendance) {
       let attempts = 0;
@@ -71,12 +61,11 @@ export const createEvent = mutation({
       allowPublicRSVP: args.allowPublicRSVP ?? false,
       allowDocumentUpload: args.allowDocumentUpload ?? false,
       status: eventStatus,
-      projectId: args.projectId, // Link to project
-      imageUrl: args.imageUrl, // Event image
+      projectId: args.projectId,
+      imageUrl: args.imageUrl,
       publicAttendees: [],
       attachments: [],
-      milestoneTaskCount: args.milestoneTaskCount, // For milestones
-      // Easy Attendance & Smart Vision
+      milestoneTaskCount: args.milestoneTaskCount,
       enableEasyAttendance: args.enableEasyAttendance ?? false,
       enableSmartVision: args.enableSmartVision ?? false,
       joinCode: joinCode,
@@ -87,7 +76,6 @@ export const createEvent = mutation({
   },
 });
 
-// Create project event (convenience method)
 export const createProjectEvent = mutation({
   args: {
     projectId: v.id("projects"),
@@ -118,14 +106,10 @@ export const createProjectEvent = mutation({
       attachments: [],
     });
 
-    // Note: Project-event relationship tracked separately
-    // Could be enhanced with a projectEvents junction table if needed
-
     return eventId;
   },
 });
 
-// Update an existing event
 export const updateEvent = mutation({
   args: {
     eventId: v.id("events"),
@@ -152,7 +136,6 @@ export const updateEvent = mutation({
     
     if (!event) throw new Error("Event not found");
     
-    // Only organizer or ADMIN/MANAGER can edit
     const userLevel = typeof currentUser.userLevel === 'object' && currentUser.userLevel !== null && '_id' in currentUser.userLevel
       ? currentUser.userLevel
       : await ctx.db.get(currentUser.userLevel as any);
@@ -161,7 +144,6 @@ export const updateEvent = mutation({
       throw new Error("User level not found");
     }
     
-    // Type guard to ensure userLevel has level property
     if (!('level' in userLevel)) {
       throw new Error("Invalid user level structure");
     }
@@ -172,7 +154,6 @@ export const updateEvent = mutation({
     
     const { eventId, ...updateData } = args;
     
-    // Generate join code if enabling easy attendance for the first time
     let joinCode = event.joinCode;
     if (args.enableEasyAttendance && !joinCode) {
       let attempts = 0;
@@ -194,7 +175,6 @@ export const updateEvent = mutation({
   },
 });
 
-// Archive an event (soft delete)
 export const archiveEvent = mutation({
   args: { eventId: v.id("events") },
   handler: async (ctx, args) => {
@@ -203,8 +183,6 @@ export const archiveEvent = mutation({
     
     if (!event) throw new Error("Event not found");
     
-    // Only organizer or ADMIN/MANAGER can archive
-    // Check if userLevel is already an object or if we need to fetch it
     const userLevel = typeof currentUser.userLevel === 'object' && currentUser.userLevel !== null && '_id' in currentUser.userLevel
       ? currentUser.userLevel
       : await ctx.db.get(currentUser.userLevel as any);
@@ -231,7 +209,6 @@ export const archiveEvent = mutation({
   },
 });
 
-// Restore an archived event
 export const restoreEvent = mutation({
   args: { eventId: v.id("events") },
   handler: async (ctx, args) => {
@@ -241,7 +218,6 @@ export const restoreEvent = mutation({
     if (!event) throw new Error("Event not found");
     if (event.status !== "archived") throw new Error("Event is not archived");
     
-    // Only organizer or ADMIN/MANAGER can restore
     const userLevel = typeof currentUser.userLevel === 'object' && currentUser.userLevel !== null && '_id' in currentUser.userLevel
       ? currentUser.userLevel
       : await ctx.db.get(currentUser.userLevel as any);
@@ -268,7 +244,6 @@ export const restoreEvent = mutation({
   },
 });
 
-// Delete an event (permanent - only for ADMIN)
 export const deleteEvent = mutation({
   args: { eventId: v.id("events") },
   handler: async (ctx, args) => {
@@ -277,7 +252,6 @@ export const deleteEvent = mutation({
     
     if (!event) throw new Error("Event not found");
     
-    // Only ADMIN can permanently delete
     const userLevel = typeof currentUser.userLevel === 'object' && currentUser.userLevel !== null && '_id' in currentUser.userLevel
       ? currentUser.userLevel
       : await ctx.db.get(currentUser.userLevel as any);
@@ -299,7 +273,6 @@ export const deleteEvent = mutation({
   },
 });
 
-// RSVP to an event (join or leave) - supports both authenticated and public users
 export const rsvpToEvent = mutation({
   args: {
     eventId: v.id("events"),
@@ -316,7 +289,6 @@ export const rsvpToEvent = mutation({
     
     if (!event) throw new Error("Event not found");
     
-    // Try to get current user (may be null for public RSVP)
     let currentUser;
     try {
       currentUser = await getCurrentUser(ctx);
@@ -325,13 +297,11 @@ export const rsvpToEvent = mutation({
     }
     
     if (args.action === "join") {
-      // Check max attendees limit
       if (event.maxAttendees && event.attendees.length >= event.maxAttendees) {
         throw new Error("Event is full");
       }
       
       if (currentUser) {
-        // Authenticated user RSVP
         if (event.attendees.includes(currentUser._id)) {
           return args.eventId;
         }
@@ -340,24 +310,20 @@ export const rsvpToEvent = mutation({
           attendees: [...event.attendees, currentUser._id],
         });
       } else if (args.attendeeInfo) {
-        // Public RSVP - add to publicAttendees array and create document
         const { firstName, lastName, email, documentStorageId } = args.attendeeInfo;
         
         const publicAttendees = event.publicAttendees || [];
         
-        // Check if already registered
         const alreadyRegistered = publicAttendees.some(
           att => att.email.toLowerCase() === email.toLowerCase()
         );
         
         if (!alreadyRegistered) {
-          // Get document URL if uploaded
           let documentId: string | undefined;
           if (documentStorageId) {
             documentId = await ctx.storage.getUrl(documentStorageId) || undefined;
           }
 
-          // Add to event's publicAttendees array
           const newPublicAttendees = [
             ...publicAttendees,
             {
@@ -374,7 +340,6 @@ export const rsvpToEvent = mutation({
             publicAttendees: newPublicAttendees,
           });
           
-          // Find or create ONE attendance document per event
           const existingDoc = await ctx.db
             .query("documents")
             .filter(q => 
@@ -385,7 +350,6 @@ export const rsvpToEvent = mutation({
             )
             .first();
           
-          // Build attendee list string
           const attendeeList = newPublicAttendees
             .map((att, index) => 
               `${index + 1}. ${att.firstName} ${att.lastName}\n   Email: ${att.email}\n   Joined: ${new Date(att.joinedAt).toLocaleString()}${att.documentId ? '\n   Document: Uploaded ✓' : ''}`
@@ -407,14 +371,12 @@ ${attendeeList}
 Last Updated: ${new Date().toLocaleString()}`;
           
           if (existingDoc) {
-            // Update existing document
             await ctx.db.patch(existingDoc._id, {
               description,
               fileSize: description.length,
               originalName: `Attendance: ${event.title} (${newPublicAttendees.length} attendees)`,
             });
           } else {
-            // Create new attendance document
             await ctx.db.insert("documents", {
               fileName: `attendance-${event.title.replace(/[^a-zA-Z0-9]/g, '-')}.txt`,
               originalName: `Attendance: ${event.title} (${newPublicAttendees.length} attendees)`,
@@ -433,7 +395,6 @@ Last Updated: ${new Date().toLocaleString()}`;
         }
       }
     } else {
-      // Leave event (only for authenticated users)
       if (currentUser) {
         await ctx.db.patch(args.eventId, {
           attendees: event.attendees.filter(id => id !== currentUser._id),
@@ -445,7 +406,6 @@ Last Updated: ${new Date().toLocaleString()}`;
   },
 });
 
-// Join event (convenience method)
 export const joinEvent = mutation({
   args: { eventId: v.id("events") },
   handler: async (ctx, args) => {
@@ -455,7 +415,6 @@ export const joinEvent = mutation({
     if (!event) throw new Error("Event not found");
     
     if (!event.attendees.includes(currentUser._id)) {
-      // Check max attendees limit
       if (event.maxAttendees && event.attendees.length >= event.maxAttendees) {
         throw new Error("Event is full");
       }
@@ -469,7 +428,6 @@ export const joinEvent = mutation({
   },
 });
 
-// Mark event attendance (for organizers)
 export const markEventAttendance = mutation({
   args: {
     eventId: v.id("events"),
@@ -481,12 +439,10 @@ export const markEventAttendance = mutation({
     
     if (!event) throw new Error("Event not found");
     
-    // Only organizer can mark attendance
     if (event.organizer !== currentUser._id) {
       throw new Error("Only organizer can mark attendance");
     }
     
-    // Award experience points for attendance
     if (args.attended) {
       await ctx.db.patch(currentUser._id, {
         experience: currentUser.experience + 25,
@@ -498,7 +454,6 @@ export const markEventAttendance = mutation({
   },
 });
 
-// Send event reminder to all attendees
 export const sendEventReminder = mutation({
   args: {
     eventId: v.id("events"),
@@ -510,12 +465,10 @@ export const sendEventReminder = mutation({
     
     if (!event) throw new Error("Event not found");
     
-    // Only organizer can send reminders
     if (event.organizer !== currentUser._id) {
       throw new Error("Only organizer can send reminders");
     }
     
-    // Create notifications for all attendees
     const message = args.customMessage || `Reminder: "${event.title}" is happening soon!`;
     
     for (const attendeeId of event.attendees) {
@@ -530,7 +483,6 @@ export const sendEventReminder = mutation({
           createdAt: Date.now(),
         });
       } catch (error) {
-        // Continue if notifications table doesn't exist
       }
     }
     
@@ -538,11 +490,6 @@ export const sendEventReminder = mutation({
   },
 });
 
-// ============================================
-// QUERIES - Event Retrieval
-// ============================================
-
-// Get all events with filters
 export const getAllEvents = query({
   args: {
     type: v.optional(v.union(
@@ -565,9 +512,8 @@ export const getAllEvents = query({
       query = query.filter((q) => q.eq(q.field("type"), args.type));
     }
     
-    const events = await query.order("desc").take(100); // OPTIMIZED: Limit to 100 events for faster loading
+    const events = await query.order("desc").take(100);
     
-    // Enrich with organizer details and project information
     const enrichedEvents = await Promise.all(
       events.map(async (event) => {
         const organizer = await ctx.db.get(event.organizer);
@@ -575,7 +521,6 @@ export const getAllEvents = query({
           event.attendees.map(id => ctx.db.get(id))
         );
         
-        // Fetch project details if event is linked to a project
         let projectName = null;
         if (event.projectId) {
           const project = await ctx.db.get(event.projectId);
@@ -591,7 +536,7 @@ export const getAllEvents = query({
           } : null,
           attendeeCount: event.attendees.length,
           attendeeDetails: attendeeDetails.filter(Boolean),
-          projectName, // Add project name to the event data
+          projectName,
         };
       })
     );
@@ -600,7 +545,6 @@ export const getAllEvents = query({
   },
 });
 
-// Get upcoming events
 export const getUpcomingEvents = query({
   args: {
     limit: v.optional(v.number()),
@@ -619,17 +563,14 @@ export const getUpcomingEvents = query({
       ))
       .collect();
     
-    // Sort by startDate and take limit
     const sortedEvents = events
       .sort((a, b) => a.startDate - b.startDate)
       .slice(0, limit);
     
-    // Enrich with details and project information
     const enrichedEvents = await Promise.all(
       sortedEvents.map(async (event) => {
         const organizer = await ctx.db.get(event.organizer);
         
-        // Fetch project details if event is linked to a project
         let projectName = null;
         if (event.projectId) {
           const project = await ctx.db.get(event.projectId);
@@ -645,14 +586,14 @@ export const getUpcomingEvents = query({
         
         return {
           ...event,
-          imageUrl, // Use converted URL
+          imageUrl,
           organizerDetails: organizer ? {
             _id: organizer._id,
             name: organizer.name,
             imageUrl: organizer.imageUrl,
           } : null,
           attendeeCount: event.attendees.length,
-          projectName, // Add project name
+          projectName,
         };
       })
     );
@@ -661,7 +602,6 @@ export const getUpcomingEvents = query({
   },
 });
 
-// Get events in a date range (for calendar view)
 export const getEventsInRange = query({
   args: {
     startDate: v.number(),
@@ -688,7 +628,6 @@ export const getEventsInRange = query({
     
     const events = await query.collect();
     
-    // Enrich with details
     const enrichedEvents = await Promise.all(
       events.map(async (event) => {
         const organizer = await ctx.db.get(event.organizer);
@@ -707,17 +646,14 @@ export const getEventsInRange = query({
   },
 });
 
-// Get single event details
 export const getEventById = query({
   args: { eventId: v.id("events") },
   handler: async (ctx, args) => {
     const event = await ctx.db.get(args.eventId);
     if (!event) return null;
     
-    // Get organizer details
     const organizer = await ctx.db.get(event.organizer);
     
-    // Get attendee details
     const attendeeDetails = await Promise.all(
       event.attendees.map(async (attendeeId) => {
         const user = await ctx.db.get(attendeeId);
@@ -747,20 +683,14 @@ export const getEventById = query({
   },
 });
 
-// Get all events for a specific project
 export const getProjectEvents = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
-    // Get events directly linked to this project via projectId
-    // This includes events created from both:
-    // 1. The Project Events Tab (with projectId set)
-    // 2. The main Events page with this project linked
-    const allEvents = await ctx.db.query("events").take(500); // OPTIMIZED: Limit to 500 events
+    const allEvents = await ctx.db.query("events").take(500);
     const projectEvents = allEvents.filter(event => 
       event.projectId && event.projectId === args.projectId
     );
     
-    // Enrich events with organizer details
     const enrichedEvents = await Promise.all(
       projectEvents.map(async (event) => {
         const organizer = await ctx.db.get(event.organizer);
@@ -776,12 +706,10 @@ export const getProjectEvents = query({
       })
     );
     
-    // Sort by start date (upcoming first)
     return enrichedEvents.sort((a, b) => a.startDate - b.startDate);
   },
 });
 
-// Get archived events
 export const getArchivedEvents = query({
   args: {},
   handler: async (ctx) => {
@@ -789,7 +717,7 @@ export const getArchivedEvents = query({
       .query("events")
       .filter((q) => q.eq(q.field("status"), "archived"))
       .order("desc")
-      .take(100); // OPTIMIZED: Limit archived events
+      .take(100);
     
     const enrichedEvents = await Promise.all(
       events.map(async (event) => {
@@ -816,7 +744,6 @@ export const getArchivedEvents = query({
   },
 });
 
-// Get events by project using projectId field
 export const getEventsByProject = query({
 args: { projectId: v.id("projects") },
 handler: async (ctx, args) => {
@@ -827,7 +754,7 @@ handler: async (ctx, args) => {
       q.neq(q.field("status"), "archived")
     ))
     .order("desc")
-    .take(100); // OPTIMIZED: Limit export data
+    .take(100);
   
   const enrichedEvents = await Promise.all(
     events.map(async (event) => {
@@ -848,7 +775,6 @@ handler: async (ctx, args) => {
 },
 });
 
-// Export events data for CSV/iCal
 export const getEventsForExport = query({
   args: {
     includeArchived: v.optional(v.boolean()),

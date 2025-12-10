@@ -31,11 +31,9 @@ export default function AnalyticsPage() {
   const currentUser = useQuery(api.users.getCurrentUser);
   const projects = useQuery(api.productivity.getProjects, {});
   
-  // Get comprehensive analytics data
   const analyticsData = useQuery(api.analytics.getComprehensiveAnalytics, { timeRange });
   const milestonesByProject = useQuery(api.analytics.getMilestoneAnalyticsByProject, {});
   
-  // Sync mutation
   const syncMilestones = useMutation(api.milestones.syncAllMilestonesProgress);
   const [isSyncing, setIsSyncing] = useState(false);
   
@@ -67,7 +65,6 @@ export default function AnalyticsPage() {
     );
   }
 
-  // Use analytics data from the comprehensive query
   const summary = analyticsData?.summary || {
     totalProjects: 0, activeProjects: 0, completedProjects: 0, pendingProjects: 0,
     projectCompletionRate: 0, totalMilestones: 0, completedMilestones: 0,

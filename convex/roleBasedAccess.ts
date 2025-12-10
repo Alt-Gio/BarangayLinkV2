@@ -1,7 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-// Helper function to get current user with role information
 export const getCurrentUser = async (ctx: any) => {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) throw new Error("Authentication required");
@@ -13,7 +12,6 @@ export const getCurrentUser = async (ctx: any) => {
 
   if (!user) throw new Error("User not found in database");
 
-  // Check user status
   if (user.status === "pending") {
     throw new Error("Your account is pending admin approval. Please wait for approval.");
   }
@@ -25,9 +23,7 @@ export const getCurrentUser = async (ctx: any) => {
 
   const userLevel = await ctx.db.get(user.userLevel);
   
-  // Handle missing user level (in case role was deleted)
   if (!userLevel) {
-    // Try to find WORKER level as default
     const defaultLevel = await ctx.db
       .query("userLevels")
       .filter((q: any) => q.eq(q.field("name"), "WORKER"))
@@ -37,11 +33,10 @@ export const getCurrentUser = async (ctx: any) => {
       throw new Error("User level not found and no default level available. Please contact administrator.");
     }
     
-    // Return user with default level
     return {
       ...user,
       userLevel: defaultLevel,
-      _needsUserLevelUpdate: true, // Flag that this user needs their level updated
+      _needsUserLevelUpdate: true,
     };
   }
 
@@ -51,7 +46,6 @@ export const getCurrentUser = async (ctx: any) => {
   };
 };
 
-// Helper function to check user permissions
 export const checkPermission = async (ctx: any, requiredLevel: string[]) => {
   const currentUser = await getCurrentUser(ctx);
   
@@ -62,14 +56,11 @@ export const checkPermission = async (ctx: any, requiredLevel: string[]) => {
   return currentUser;
 };
 
-// Helper function to check if user can access department data
 export const checkDepartmentAccess = (currentUser: any, targetDepartment: string) => {
   const userLevel = currentUser.userLevel.name;
   
-  // ADMIN and CAPTAIN can access all departments
   if (userLevel === "ADMIN" || userLevel === "CAPTAIN") return true;
   
-  // Others can only access their own department
   if (currentUser.department !== targetDepartment) {
     throw new Error("Access denied. You can only access your department's data.");
   }
@@ -77,9 +68,6 @@ export const checkDepartmentAccess = (currentUser: any, targetDepartment: string
   return true;
 };
 
-// ===== ADMIN ROLE FUNCTIONS (Level 5) =====
-
-// Create new user levels (ADMIN only)
 export const createUserLevel = mutation({
   args: { 
     name: v.string(), 
@@ -90,7 +78,6 @@ export const createUserLevel = mutation({
   handler: async (ctx, args) => {
     const currentUser = await checkPermission(ctx, ["ADMIN"]);
     
-    // Check if level already exists
     const existingLevel = await ctx.db
       .query("userLevels")
       .filter((q) => q.eq(q.field("name"), args.name))
@@ -112,7 +99,6 @@ export const createUserLevel = mutation({
   }
 });
 
-// Promote/demote user (ADMIN only)
 export const changeUserRole = mutation({
   args: {
     userId: v.id("users"),
@@ -131,7 +117,6 @@ export const changeUserRole = mutation({
       userLevel: args.newUserLevelId
     });
     
-    // Notify the user
     await ctx.db.insert("notifications", {
       userId: args.userId,
       type: "info",
@@ -156,22 +141,15 @@ export const changeUserRole = mutation({
   }
 });
 
-// Get system-wide analytics (ADMIN only)
 export const getSystemAnalytics = query({
   args: {},
   handler: async (ctx) => {
     const currentUser = await checkPermission(ctx, ["ADMIN"]);
     
-    // Get all projects
     const allProjects = await ctx.db.query("projects").collect();
-    
-    // Get all tasks
     const allTasks = await ctx.db.query("tasks").collect();
-    
-    // Get all users
     const allUsers = await ctx.db.query("users").collect();
     
-    // Department breakdown
     const departmentStats = allUsers.reduce((acc, user) => {
       const dept = user.department || "Unassigned";
       if (!acc[dept]) {
@@ -186,7 +164,6 @@ export const getSystemAnalytics = query({
       return acc;
     }, {} as Record<string, any>);
     
-    // Add project and task data to department stats
     allProjects.forEach(project => {
       const dept = project.department;
       if (departmentStats[dept]) {
@@ -197,7 +174,6 @@ export const getSystemAnalytics = query({
     
     allTasks.forEach(task => {
       if (task.status === "completed") {
-        // Find the project to get department
         const project = allProjects.find(p => p._id === task.projectId);
         if (project && departmentStats[project.department]) {
           departmentStats[project.department].completedTasks++;
@@ -228,14 +204,6 @@ export const getSystemAnalytics = query({
   }
 });
 
-// ===== CAPTAIN ROLE FUNCTIONS (Level 4) =====
-
-// Captain has most MANAGER permissions but with broader authority
-// Most CAPTAIN-specific functions will use checkPermission with ["CAPTAIN", "ADMIN"]
-
-// ===== MANAGER ROLE FUNCTIONS (Level 3) =====
-
-// Approve or reject projects (MANAGER + CAPTAIN + ADMIN)
 export const approveProject = mutation({
   args: { 
     projectId: v.id("projects"), 
@@ -248,7 +216,6 @@ export const approveProject = mutation({
     const project = await ctx.db.get(args.projectId);
     if (!project) throw new Error("Project not found");
     
-    // Managers can only approve projects in their department (CAPTAIN and ADMIN have all access)
     if (currentUser.userLevel.name === "MANAGER") {
       checkDepartmentAccess(currentUser, project.department);
     }
@@ -259,7 +226,6 @@ export const approveProject = mutation({
       status: newStatus
     });
     
-    // Notify project creator
     await ctx.db.insert("notifications", {
       userId: project.createdBy,
       type: args.approved ? "success" : "warning",
@@ -285,7 +251,6 @@ export const approveProject = mutation({
   }
 });
 
-// Create events (MANAGER + CAPTAIN + ADMIN)
 export const createEvent = mutation({
   args: {
     title: v.string(),
@@ -300,7 +265,6 @@ export const createEvent = mutation({
   handler: async (ctx, args) => {
     const currentUser = await checkPermission(ctx, ["MANAGER", "CAPTAIN", "ADMIN"]);
     
-    // Managers can only create events in their department (CAPTAIN and ADMIN have all access)
     if (currentUser.userLevel.name === "MANAGER") {
       checkDepartmentAccess(currentUser, args.department);
     }

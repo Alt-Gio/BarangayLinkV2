@@ -54,7 +54,6 @@ export default function CollabPage() {
   const createGroupChat = useMutation(api.messaging.createGroupChat);
   const updatePresence = useMutation(api.presence.updatePresence);
 
-  // Update presence on mount and page activity
   useEffect(() => {
     if (user) {
       updatePresence({ status: "online", currentPage: "/collab" }).catch(console.error);

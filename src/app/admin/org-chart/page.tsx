@@ -62,7 +62,6 @@ export default function OrganizationalChartPage() {
     );
   }
 
-  // Organize users by role - check both userLevel and userLevelDetails
   const admins = allUsers.filter((u: any) => 
     u.userLevel?.name === "ADMIN" || u.userLevelDetails?.name === "ADMIN"
   );
@@ -79,10 +78,8 @@ export default function OrganizationalChartPage() {
     u.userLevel?.name === "WORKER" || u.userLevelDetails?.name === "WORKER"
   );
 
-  // Group by department
   const departments = [...new Set(allUsers.map((u: OrgUser) => u.department).filter(Boolean))];
   
-  // Group users by department
   const usersByDepartment = departments.map(dept => ({
     name: dept,
     admins: admins.filter((u: OrgUser) => u.department === dept),

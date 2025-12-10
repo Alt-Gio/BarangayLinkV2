@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-// Force dynamic rendering for authenticated pages
 export const dynamic = 'force-dynamic';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
@@ -34,27 +33,22 @@ function ProjectsContent() {
   });
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Handle ?action=create query parameter (from voice assistant)
   useEffect(() => {
     const action = searchParams.get('action');
     if (action === 'create') {
       setShowWizard(true);
-      // Clear the URL parameter after opening wizard
       router.replace('/projects', { scroll: false });
     }
   }, [searchParams, router]);
 
-  // Get current user from offline context (cached, saves bandwidth)
   const { currentUser, isOnline } = useOfflineData();
   
-  // Use existing API (enhanced API will be available after running: npx convex dev)
   const projects = useQuery(api.productivity.getProjects, {
     status: filters.status === "all" ? undefined : filters.status,
     department: filters.department === "all" ? undefined : filters.department,
     limit: 50
   });
 
-  // Filter projects by activeView locally for now
   const filteredProjects = projects?.filter((p: any) => {
     if (activeView === 'all') return true;
     if (activeView === 'pending') return p.status === 'pending_approval' || p.status === 'planning';
@@ -63,30 +57,24 @@ function ProjectsContent() {
     return true;
   }) || [];
 
-  // Calculate pending approvals from filtered data (for managers/admins/captains)
   const pendingApprovals = currentUser?.userLevel?.name && ["MANAGER", "CAPTAIN", "ADMIN"].includes(currentUser.userLevel.name)
     ? projects?.filter((p: any) => p.status === 'pending_approval' || p.status === 'planning') || []
     : [];
 
-  // Check if user can create projects (ADMIN, CAPTAIN, MANAGER, BUILDER)
   const canCreateProjects = currentUser?.userLevel?.name && 
     ["ADMIN", "CAPTAIN", "MANAGER", "BUILDER"].includes(currentUser.userLevel.name);
 
-  // Pull-to-refresh handler
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    // Trigger re-fetch by changing a state momentarily
     await new Promise(resolve => setTimeout(resolve, 1000));
     setIsRefreshing(false);
   }, []);
 
-  // Export handler
   const handleExport = (format: 'pdf' | 'excel') => {
     if (!filteredProjects || filteredProjects.length === 0) return;
     exportProjectsReport(filteredProjects, format);
   };
 
-  // Loading skeleton component
   const LoadingSkeleton = () => (
     <div className="space-y-4 animate-in fade-in duration-300">
       {[...Array(3)].map((_, i) => (

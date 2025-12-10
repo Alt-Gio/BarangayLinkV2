@@ -2,10 +2,6 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 
-/**
- * Get comprehensive team workload statistics
- * Shows all users with their task counts, completion rates, and workload status
- */
 export const getTeamWorkload = query({
   args: {},
   handler: async (ctx) => {
@@ -24,32 +20,23 @@ export const getTeamWorkload = query({
       throw new Error("User not found");
     }
 
-    // Get user level to check permissions
     const userLevel = await ctx.db.get(currentUser.userLevel);
-    
-    // Only Admin, Captain, and Manager can view team workload
     const allowedRoles = ["ADMIN", "CAPTAIN", "MANAGER"];
     if (!userLevel || !allowedRoles.includes(userLevel.name)) {
       throw new Error("Insufficient permissions");
     }
 
-    // Get all active users
     const allUsers = await ctx.db
       .query("users")
       .filter((q) => q.eq(q.field("status"), "active"))
       .collect();
 
-    // Get all tasks (both standalone and event tasks)
     const allTasks = await ctx.db.query("tasks").collect();
     const allEventTasks = await ctx.db.query("eventTasks").collect();
-
-    // Get all task assignments
     const allAssignments = await ctx.db.query("eventTaskAssignments").collect();
 
-    // Calculate workload for each user
     const workloadData = await Promise.all(
       allUsers.map(async (user) => {
-        // Count standalone tasks assigned to this user
         const standaloneTasks = allTasks.filter(
           (task) =>
             task.assignedTo.includes(user._id) &&
@@ -57,7 +44,6 @@ export const getTeamWorkload = query({
             task.status !== "cancelled"
         );
 
-        // Count event tasks where user has assignments
         const eventTaskAssignments = allAssignments.filter(
           (assignment) =>
             assignment.userId === user._id &&
@@ -65,7 +51,6 @@ export const getTeamWorkload = query({
             assignment.status !== "completed"
         );
 
-        // Get unique event task IDs from assignments
         const assignedEventTaskIds = new Set(
           eventTaskAssignments.map((a) => a.taskId)
         );
@@ -77,7 +62,6 @@ export const getTeamWorkload = query({
             task.status !== "done"
         );
 
-        // Count completed tasks
         const completedStandaloneTasks = allTasks.filter(
           (task) =>
             task.assignedTo.includes(user._id) &&

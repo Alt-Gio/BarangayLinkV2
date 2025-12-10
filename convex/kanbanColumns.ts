@@ -2,9 +2,6 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 
-/**
- * Get all kanban columns for a milestone
- */
 export const getColumns = query({
   args: {
     milestoneId: v.id("milestones"),
@@ -16,7 +13,6 @@ export const getColumns = query({
       .order("asc")
       .collect();
 
-    // If no columns exist, create default ones
     if (columns.length === 0) {
       return null; // Frontend will initialize defaults
     }
@@ -25,9 +21,6 @@ export const getColumns = query({
   },
 });
 
-/**
- * Initialize default columns for a milestone
- */
 export const initializeDefaultColumns = mutation({
   args: {
     milestoneId: v.id("milestones"),
@@ -43,7 +36,6 @@ export const initializeDefaultColumns = mutation({
 
     if (!user) throw new Error("User not found");
 
-    // Check if columns already exist
     const existing = await ctx.db
       .query("kanbanColumns")
       .withIndex("by_milestone", (q) => q.eq("milestoneId", args.milestoneId))
@@ -53,7 +45,6 @@ export const initializeDefaultColumns = mutation({
       return { message: "Columns already initialized" };
     }
 
-    // Create default columns
     const defaultColumns = [
       {
         title: "To Do",

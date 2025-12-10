@@ -69,19 +69,11 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
   const resolvedParams = use(params);
   const milestoneId = resolvedParams.id;
 
-  // Set voice assistant context for this milestone
-  const { setVoiceContext, voiceContext } = useVoiceAssistantContext();
-  
-  // Debug log on every render
-  console.log("🎯 MilestoneKanbanPage RENDER - milestoneId:", milestoneId, "current voiceContext:", voiceContext);
+  const { setVoiceContext } = useVoiceAssistantContext();
   
   useEffect(() => {
-    console.log("🎯 MilestoneKanbanPage useEffect RUNNING - milestoneId:", milestoneId);
     setVoiceContext({ milestoneId: milestoneId as Id<"milestones"> });
-    return () => {
-      console.log("🎯 MilestoneKanbanPage CLEANUP");
-      setVoiceContext({});
-    };
+    return () => setVoiceContext({});
   }, [milestoneId, setVoiceContext]);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -111,19 +103,16 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
 
   const { currentUser } = useOfflineData();
   
-  // Get milestone details with tasks
   const milestone = useQuery(
     api.milestones.getMilestoneDetails,
     { milestoneId: milestoneId as any }
   );
 
-  // Get kanban columns from database
   const dbColumns = useQuery(
     api.kanbanColumns.getColumns,
     { milestoneId: milestoneId as any }
   );
 
-  // Initialize default columns if none exist
   const initColumns = useMutation(api.kanbanColumns.initializeDefaultColumns);
   
   const updateTaskStatus = useMutation(api.tasks.updateTask);
@@ -133,36 +122,30 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
   const removeTaskList = useMutation(api.kanbanColumns.removeTaskListColumns);
   const toggleWorkingOnIt = useMutation(api.tasks.toggleWorkingOnIt);
   
-  // Notification mutations
   const notifyTaskAssignment = useMutation(api.taskNotifications.notifyTaskAssignment);
   const notifyWorkingOnItMutation = useMutation(api.taskNotifications.notifyWorkingOnIt);
   const notifyTaskCompleted = useMutation(api.taskNotifications.notifyTaskCompleted);
   const notifyTaskReadyForReview = useMutation(api.taskNotifications.notifyTaskReadyForReview);
 
-  // Initialize columns on first load
   React.useEffect(() => {
     if (dbColumns === null) {
       initColumns({ milestoneId: milestoneId as any });
     }
   }, [dbColumns, initColumns, milestoneId]);
 
-  // Auto-remove "Task List" column if it exists
   React.useEffect(() => {
     if (dbColumns && dbColumns.some((col: any) => col.statusKey === 'task_list')) {
-      console.log('Found Task List column, removing...');
       removeTaskList({ milestoneId: milestoneId as any });
     }
   }, [dbColumns, removeTaskList, milestoneId]);
 
   const tasks = milestone?.tasks || [];
 
-  // Filter tasks
   const filterTasks = (taskList: any[]) => {
     if (!taskList) return [];
     
     let filtered = [...taskList];
 
-    // Search filter
     if (filters.search) {
       filtered = filtered.filter(t =>
         t.title.toLowerCase().includes(filters.search.toLowerCase()) ||
@@ -170,24 +153,20 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
       );
     }
 
-    // Assigned to me
     if (filters.assignedToMe && currentUser) {
       filtered = filtered.filter(t =>
         t.assignedTo && t.assignedTo.includes(currentUser._id)
       );
     }
 
-    // Priority filter
     if (filters.priorities.length > 0) {
       filtered = filtered.filter(t => filters.priorities.includes(t.priority));
     }
 
-    // Type filter
     if (filters.types.length > 0) {
       filtered = filtered.filter(t => filters.types.includes(t.type));
     }
 
-    // Overdue filter
     if (filters.showOverdue) {
       filtered = filtered.filter(t => t.dueDate && t.dueDate < Date.now());
     }
@@ -197,10 +176,8 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
 
   const filteredTasks = filterTasks(tasks);
 
-  // Build dynamic columns from database
   const columns: Column[] = React.useMemo(() => {
     if (!dbColumns || dbColumns.length === 0) {
-      // Return empty while loading
       return [];
     }
 
@@ -230,28 +207,20 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
     const task = tasks.find((t: any) => t._id === draggableId);
     if (!task) return;
 
-    // Find target column
     const targetColumn = columns.find(c => c.id === destination.droppableId);
     const targetDbColumn = dbColumns?.find((col: any) => col.statusKey === destination.droppableId);
     
-    // Get current user role (default to worker if missing)
     const userRole = currentUser?.role || 'worker';
     const userId = currentUser?._id;
 
-    // **ROLE-BASED PERMISSION CHECKS**
-    
-    // 1. Check if task is locked in Review
     if (task.status === 'review') {
-      // Only Manager+ can move from Review
       if (userRole === 'builder' || userRole === 'worker') {
         toast.error('🔒 Task is in review, waiting for Manager approval');
         return;
       }
     }
 
-    // 2. Check if task is locked in Done
     if (task.status === 'completed' && task.completedBy) {
-      // Only person who marked it done or equal/higher role can move it
       if (userId !== task.completedBy) {
         const canMoveFromDone = 
           userRole === 'admin' || 
@@ -265,7 +234,6 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
       }
     }
 
-    // 3. Check if user can move this task
     const isAssigned = task.assignedTo?.includes(userId);
     
     if (userRole === 'worker') {
@@ -279,9 +247,6 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
         return;
       }
     }
-    // Manager and Admin/Captain can move Builder/Worker tasks
-    
-    // Validate task against column rules
     if (targetDbColumn?.rules) {
       const rules = targetDbColumn.rules;
       const errors: string[] = [];
@@ -325,13 +290,11 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
         completed: destination.droppableId === 'completed',
       };
 
-      // If moving to Done, mark who completed it
       if (destination.droppableId === 'completed') {
         updates.completedBy = userId;
         updates.completedByRole = userRole;
       }
 
-      // If moving to Review, lock it
       if (destination.droppableId === 'review') {
         updates.lastMovedBy = userId;
         updates.lockedInReview = true;
@@ -339,9 +302,7 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
 
       await updateTaskStatus(updates);
       
-      // **SEND NOTIFICATIONS**
       try {
-        // Notify when task moved to Done
         if (destination.droppableId === 'completed' && userId) {
           await notifyTaskCompleted({
             taskId: draggableId as any,
@@ -349,7 +310,6 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
           });
         }
         
-        // Notify when task moved to Review
         if (destination.droppableId === 'review' && userId) {
           await notifyTaskReadyForReview({
             taskId: draggableId as any,
@@ -359,10 +319,8 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
         }
       } catch (notifError) {
         console.error('Notification error:', notifError);
-        // Don't fail the whole operation if notification fails
       }
       
-      // Show success message with role info
       if (destination.droppableId === 'completed') {
         toast.success(`✅ Task completed! Checked by ${currentUser?.name} (${userRole})`);
       } else {
@@ -378,7 +336,6 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
     try {
       const result = await toggleWorkingOnIt({ taskId: taskId as any });
       
-      // Notify team members when starting to work
       if (result.working && currentUser?._id) {
         try {
           await notifyWorkingOnItMutation({
@@ -406,10 +363,8 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
       return;
     }
 
-    // Get current user role
     const userRole = currentUser?.role || 'worker';
 
-    // **STORY POINT LIMIT CHECK**
     if (userRole === 'worker' && taskForm.storyPoints > 3) {
       toast.error('⚠️ Workers can only create tasks up to 3 story points');
       return;
@@ -421,7 +376,6 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
     }
 
     try {
-      // Get projectId from milestone
       if (!milestone?.projectId) {
         toast.error('Milestone must be linked to a project');
         return;
@@ -442,7 +396,6 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
         tags: taskForm.tags.length > 0 ? taskForm.tags : undefined,
       });
 
-      // Send assignment notifications
       if (taskForm.assignedTo.length > 0 && currentUser?._id && newTaskId) {
         try {
           await notifyTaskAssignment({
@@ -714,11 +667,9 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
                               milestoneId={milestoneId}
                               columnId={undefined}
                               isDefault={false}
-                              insertAfterId={column.columnId} // Insert after this column
+                              insertAfterId={column.columnId}
                               onClose={() => setActiveColumnEditor(null)}
-                              onRefresh={() => {
-                                // Will trigger re-fetch automatically
-                              }}
+                              onRefresh={() => {}}
                             />
                           )}
 
@@ -729,9 +680,7 @@ export default function MilestoneKanbanPage({ params }: { params: Promise<{ id: 
                               columnId={column.columnId}
                               isDefault={column.isDefault}
                               onClose={() => setActiveColumnEditor(null)}
-                              onRefresh={() => {
-                                // Will trigger re-fetch automatically
-                              }}
+                              onRefresh={() => {}}
                             />
                           )}
                         </div>
@@ -1036,7 +985,6 @@ function TaskCard({ task, onToggleWorkingOnIt, currentUserId }: {
   const canShowWorkingButton = task.status === 'in_progress' || 
     (task.status !== 'todo' && task.status !== 'review' && task.status !== 'completed');
   
-  // Check if task is locked
   const isLockedInReview = task.status === 'review' && task.lockedInReview;
   const isLockedInDone = task.status === 'completed' && task.completedBy;
   
@@ -1159,7 +1107,6 @@ function TaskCard({ task, onToggleWorkingOnIt, currentUserId }: {
   );
 }
 
-// Burndown View Component
 function BurndownView({ milestoneId }: { milestoneId: Id<"milestones"> }) {
   const burndownData = useQuery(api.analytics.getMilestoneBurndown, { milestoneId });
   
@@ -1296,7 +1243,6 @@ function BurndownView({ milestoneId }: { milestoneId: Id<"milestones"> }) {
   );
 }
 
-// Velocity View Component
 function VelocityView({ milestoneId }: { milestoneId: Id<"milestones"> }) {
   const velocityData = useQuery(api.analytics.getMilestoneVelocity, { milestoneId });
   

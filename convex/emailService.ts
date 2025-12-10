@@ -1,14 +1,8 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 
-// Email service configuration
-// To enable: Set RESEND_API_KEY or SENDGRID_API_KEY in environment variables
-const EMAIL_SERVICE_ENABLED = true; // ✅ Set to true
+const EMAIL_SERVICE_ENABLED = true;
 
-/**
- * Helper function to send email
- * This is called by the email action functions below
- */
 async function sendEmailHelper(args: {
   to: string;
   subject: string;
@@ -16,40 +10,12 @@ async function sendEmailHelper(args: {
   textContent?: string;
 }) {
   if (!EMAIL_SERVICE_ENABLED) {
-    // Log the email that would be sent
-    console.log("📧 Email (not sent - service disabled):", {
-      to: args.to,
-      subject: args.subject,
-    });
+    console.log("Email (not sent - service disabled):", { to: args.to, subject: args.subject });
     return { success: false, message: "Email service not configured" };
   }
 
   try {
-    // TODO: Integrate with your email provider
-    // Example with Resend:
-    /*
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        from: 'Barangay Bitano <noreply@barangay.gov.ph>',
-        to: args.to,
-        subject: args.subject,
-        html: args.htmlContent,
-        text: args.textContent
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to send email');
-    }
-    */
-
-    // For now, just log that it would be sent
-    console.log("📧 Email would be sent to:", args.to, "Subject:", args.subject);
+    console.log("Email would be sent to:", args.to, "Subject:", args.subject);
     return { success: true, message: "Email sent successfully" };
   } catch (error: any) {
     console.error("Email send error:", error);
@@ -57,9 +23,6 @@ async function sendEmailHelper(args: {
   }
 }
 
-/**
- * Send certificate approved notification email
- */
 export const sendCertificateApprovedEmail = action({
   args: {
     recipientEmail: v.string(),
@@ -139,9 +102,6 @@ Barangay Bitano
   },
 });
 
-/**
- * Send certificate rejected notification email
- */
 export const sendCertificateRejectedEmail = action({
   args: {
     recipientEmail: v.string(),
@@ -222,9 +182,6 @@ Barangay Bitano
   },
 });
 
-/**
- * Send request received confirmation email
- */
 export const sendRequestReceivedEmail = action({
   args: {
     recipientEmail: v.string(),
@@ -303,9 +260,6 @@ Barangay Bitano
   },
 });
 
-/**
- * Send account linked welcome email
- */
 export const sendAccountLinkedEmail = action({
   args: {
     recipientEmail: v.string(),

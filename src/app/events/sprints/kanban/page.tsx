@@ -28,7 +28,6 @@ import {
 } from 'lucide-react';
 import { Id } from '../../../../../convex/_generated/dataModel';
 
-// Task type icons
 const taskTypeIcons: Record<string, string> = {
   story: '📖',
   bug: '🐛',
@@ -37,7 +36,6 @@ const taskTypeIcons: Record<string, string> = {
   feature: '⭐',
 };
 
-// Priority colors
 const priorityColors: Record<string, string> = {
   low: 'border-l-blue-500',
   medium: 'border-l-yellow-500',
@@ -57,18 +55,14 @@ export default function SprintKanbanPage() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [view, setView] = useState<'board' | 'backlog'>('board');
 
-  // Get current user
   const { currentUser } = useOfflineData();
   
-  // Get active sprint with tasks
   const activeSprint = useQuery(api.sprintsEnhanced.getActiveSprint, {});
   const backlog = useQuery(api.sprintsEnhanced.getBacklog, {});
   
-  // Mutations
   const updateTaskStatus = useMutation(api.sprintsEnhanced.updateTaskStatus);
   const addTaskToSprint = useMutation(api.sprintsEnhanced.addTaskToSprint);
 
-  // Organize tasks into columns
   const columns: Column[] = [
     {
       id: 'todo',

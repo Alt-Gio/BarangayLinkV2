@@ -36,19 +36,17 @@ export default function MessagesPage() {
   const updateOnlineStatus = useMutation(api.messaging.updateOnlineStatus);
   const getOrCreateDirectChat = useMutation(api.messaging.getOrCreateDirectChat);
 
-  // Update online status every 2 minutes
   useEffect(() => {
     if (currentUser) {
-      updateOnlineStatus();
+      updateOnlineStatus({});
       const interval = setInterval(() => {
-        updateOnlineStatus();
+        updateOnlineStatus({});
       }, 2 * 60 * 1000);
 
       return () => clearInterval(interval);
     }
   }, [currentUser, updateOnlineStatus]);
 
-  // Hide bottom nav when in a chat
   useEffect(() => {
     if (selectedRoomId) {
       document.body.setAttribute('data-hide-bottom-nav', 'true');

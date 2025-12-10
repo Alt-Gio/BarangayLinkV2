@@ -2,7 +2,6 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, checkPermission } from "./roleBasedAccess";
 
-// Get featured public projects for landing page
 export const getFeaturedPublicProjects = query({
   args: {},
   handler: async (ctx, args) => {
@@ -14,7 +13,6 @@ export const getFeaturedPublicProjects = query({
       ))
       .collect();
     
-    // Sort by featured order, then by creation date
     return projects.sort((a, b) => {
       if (a.featuredOrder && b.featuredOrder) {
         return a.featuredOrder - b.featuredOrder;
@@ -24,7 +22,6 @@ export const getFeaturedPublicProjects = query({
   },
 });
 
-// Get all public projects with progress
 export const getPublicProjects = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
@@ -41,7 +38,6 @@ export const getPublicProjects = query({
       .order("desc")
       .take(limit);
     
-    // Enrich with task counts and team details
     const enrichedProjects = await Promise.all(
       projects.map(async (project) => {
         const tasks = await ctx.db
@@ -66,7 +62,6 @@ export const getPublicProjects = query({
   },
 });
 
-// Get active projects for public display
 export const getActiveProjects = query({
   args: {},
   handler: async (ctx, args) => {
@@ -81,7 +76,6 @@ export const getActiveProjects = query({
   },
 });
 
-// Get all projects with role-based filtering
 export const getAllProjects = query({
   args: {},
   handler: async (ctx, args) => {
@@ -89,18 +83,15 @@ export const getAllProjects = query({
       const currentUser = await getCurrentUser(ctx);
       
       if (currentUser.userLevel.name === "ADMIN" || currentUser.userLevel.name === "CAPTAIN") {
-        // ADMIN/CAPTAIN can see all projects
-        return await ctx.db.query("projects").order("desc").take(100); // OPTIMIZED: Limit to 100 projects
+        return await ctx.db.query("projects").order("desc").take(100);
       } else if (currentUser.userLevel.name === "MANAGER") {
-        // MANAGER can see department projects + projects they're assigned to
-        const allProjects = await ctx.db.query("projects").order("desc").take(200); // OPTIMIZED
+        const allProjects = await ctx.db.query("projects").order("desc").take(200);
         return allProjects.filter(project => 
           project.department === currentUser.department || 
           project.assignedTo.includes(currentUser._id)
         );
       } else {
-        // BUILDER/WORKER can see assigned projects + created projects + public projects
-        const allProjects = await ctx.db.query("projects").order("desc").take(200); // OPTIMIZED
+        const allProjects = await ctx.db.query("projects").order("desc").take(200);
         return allProjects.filter(project => 
           project.createdBy === currentUser._id ||
           project.assignedTo.includes(currentUser._id) ||
@@ -108,7 +99,6 @@ export const getAllProjects = query({
         );
       }
     } catch (error) {
-      // If no user is authenticated, return only public projects
       return await ctx.db
         .query("projects")
         .filter((q) => q.eq(q.field("isPublic"), true))
@@ -118,7 +108,6 @@ export const getAllProjects = query({
   },
 });
 
-// Enhanced project update mutation
 export const updateProjectDetails = mutation({
   args: {
     projectId: v.id("projects"),
@@ -139,8 +128,6 @@ export const updateProjectDetails = mutation({
     
     if (!project) throw new Error("Project not found");
     
-    // Only Manager+ can edit projects
-    // Manager can edit projects in their department, Admin can edit all
     const canEdit = currentUser.userLevel.name === "ADMIN" ||
                    (currentUser.userLevel.name === "MANAGER" && project.department === currentUser.department);
                    
@@ -158,7 +145,6 @@ export const updateProjectDetails = mutation({
   }
 });
 
-// Get single project by ID
 export const getProject = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
@@ -167,7 +153,6 @@ export const getProject = query({
   },
 });
 
-// Get project team members with full details
 export const getProjectTeamMembers = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
@@ -187,7 +172,6 @@ export const getProjectTeamMembers = query({
   }
 });
 
-// Search available users for project assignment
 export const searchAvailableUsers = query({
   args: { 
     department: v.string(),
@@ -200,7 +184,6 @@ export const searchAvailableUsers = query({
     
     const users = await query.collect();
     
-    // Get users with their levels
     const usersWithLevels = await Promise.all(
       users.map(async (user) => {
         const userLevel = await ctx.db.get(user.userLevel);
@@ -208,7 +191,6 @@ export const searchAvailableUsers = query({
       })
     );
     
-    // Filter by search term if provided
     let filteredUsers = usersWithLevels.filter(user => user.userLevel !== null);
     if (args.searchTerm) {
       const term = args.searchTerm.toLowerCase();
@@ -219,7 +201,6 @@ export const searchAvailableUsers = query({
       );
     }
     
-    // Sort: WORKER first, then others
     filteredUsers.sort((a, b) => {
       if (a.userLevel!.name === "WORKER" && b.userLevel!.name !== "WORKER") return -1;
       if (a.userLevel!.name !== "WORKER" && b.userLevel!.name === "WORKER") return 1;
@@ -230,7 +211,6 @@ export const searchAvailableUsers = query({
   }
 });
 
-// Assign user to project with enhanced permissions
 export const assignUserToProject = mutation({
   args: {
     projectId: v.id("projects"),
@@ -259,7 +239,6 @@ export const assignUserToProject = mutation({
   }
 });
 
-// Remove user from project team
 export const removeUserFromProject = mutation({
   args: {
     projectId: v.id("projects"),

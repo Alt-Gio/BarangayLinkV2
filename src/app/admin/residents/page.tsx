@@ -52,13 +52,10 @@ export default function ResidentsPage() {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch residents
   const residents = useQuery(api.residents.getAllResidents, { limit: 100 });
   const stats = useQuery(api.residents.getResidentStats);
 
-  // Filter residents
   const filteredResidents = residents?.filter((resident) => {
-    // Search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       const matchesSearch =
@@ -69,7 +66,6 @@ export default function ResidentsPage() {
       if (!matchesSearch) return false;
     }
 
-    // Status filter
     if (filterStatus !== "all") {
       if (filterStatus === "senior" && !resident.isSeniorCitizen) return false;
       if (filterStatus === "pwd" && !resident.isPWD) return false;
@@ -99,7 +95,6 @@ export default function ResidentsPage() {
     setShowExportMenu(false);
   };
 
-  // Import handler
   const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -113,7 +108,6 @@ export default function ResidentsPage() {
       let successCount = 0;
       let errorCount = 0;
       
-      // Parse CSV and create residents
       for (let i = 1; i < lines.length; i++) {
         if (!lines[i].trim()) continue;
         
@@ -124,8 +118,6 @@ export default function ResidentsPage() {
           residentData[header.trim()] = values[index]?.trim();
         });
         
-        // TODO: Call Convex mutation to create resident
-        // await createResident(residentData);
         successCount++;
       }
       

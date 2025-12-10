@@ -2,7 +2,6 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 
-// Generate unique QR code data for an attendee
 export const generateAttendeeQRCode = mutation({
   args: {
     eventId: v.id("events"),
@@ -12,19 +11,14 @@ export const generateAttendeeQRCode = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
-    // Get attendee
     const attendee = await ctx.db.get(args.attendeeId);
     if (!attendee || attendee.eventId !== args.eventId) {
       throw new Error("Attendee not found");
     }
 
-    // Generate short unique ticket code if not exists
     let ticketCode = attendee.ticketCode;
     if (!ticketCode) {
-      // Short format: 8 random alphanumeric characters
       ticketCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-      
-      // Update attendee with ticket code
       await ctx.db.patch(args.attendeeId, {
         ticketCode,
       });
@@ -39,7 +33,6 @@ export const generateAttendeeQRCode = mutation({
   },
 });
 
-// Mark attendee QR code as sent
 export const markQRCodeSent = mutation({
   args: {
     attendeeId: v.id("eventAttendees"),
@@ -57,7 +50,6 @@ export const markQRCodeSent = mutation({
   },
 });
 
-// Check-in attendee via QR scan
 export const checkInViaQR = mutation({
   args: {
     ticketCode: v.string(),
@@ -66,7 +58,6 @@ export const checkInViaQR = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
-    // Find attendee by ticket code
     const attendee = await ctx.db
       .query("eventAttendees")
       .filter((q) => q.eq(q.field("ticketCode"), args.ticketCode))
